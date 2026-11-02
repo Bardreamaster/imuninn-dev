@@ -2,6 +2,7 @@
 import CoreMedia
 import CoreVideo
 import Foundation
+import simd
 
 /// A timestamped unit of data. Pixel data is carried by reference only (§8.1).
 public enum SamplePayload {
