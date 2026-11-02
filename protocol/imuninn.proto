@@ -1,0 +1,370 @@
+// iMuninn wire protocol — single source of truth for all four ends
+// (Swift / Kotlin / Python / C++). See protocol/README.md for channel layout,
+// versioning rules and coordinate conventions. Design doc: docs/iMuninn-设计文档.md §6.
+//
+// Draft v0.1 (M0). Every change to this file must bump PROTOCOL_VERSION in
+// protocol/VERSION and be committed together with all consumers.
+
+syntax = "proto3";
+
+package imuninn.v1;
+
+option swift_prefix = "Mn";
+option java_package = "io.imuninn.proto";
+option java_multiple_files = true;
+
+// ---------------------------------------------------------------------------
+// Common header (§6.4) — carried by every data message.
+// ---------------------------------------------------------------------------
+
+message Header {
+  // Stream this sample belongs to (e.g. "rgb", "imu", "ar_pose", "depth").
+  string stream_id = 1;
+  // Monotonic per-stream sequence number; gaps mean drops.
+  uint64 seq = 2;
+  // Device monotonic clock, nanoseconds. Same time base for all streams on a
+  // device (iOS: ARFrame.timestamp / CoreMotion; see §6.5).
+  uint64 device_time_ns = 3;
+  // Protocol version this message was produced with (protocol/VERSION).
+  uint32 protocol_version = 4;
+  // Config version in effect when this sample was captured (§6.8).
+  uint32 config_version = 5;
+}
+
+// ---------------------------------------------------------------------------
+// Handshake and capabilities (§6.3)
+// ---------------------------------------------------------------------------
+
+enum Platform {
+  PLATFORM_UNSPECIFIED = 0;
+  PLATFORM_IOS = 1;
+  PLATFORM_ANDROID = 2;
+}
+
+message DeviceInfo {
+  string device_id = 1;        // stable per install
+  string device_name = 2;      // user-visible
+  string model = 3;            // e.g. "iPhone17,1"
+  Platform platform = 4;
+  string os_version = 5;
+  uint32 protocol_version = 6;
+  string app_version = 7;
+  bool has_lidar = 8;
+}
+
+// Self-describing parameter (§6.8 "参数自描述"). PC tools and the phone UI
+// generate controls from this; adding a parameter needs no UI change.
+message ParamSpec {
+  string key = 1;              // dotted path, e.g. "rgb.exposure.mode"
+  string label = 2;
+  string unit = 3;
+
+  enum Kind {
+    KIND_UNSPECIFIED = 0;
+    KIND_BOOL = 1;
+    KIND_INT = 2;
+    KIND_FLOAT = 3;
+    KIND_ENUM = 4;
+    KIND_STRING = 5;
+  }
+  Kind kind = 4;
+
+  // When a change takes effect.
+  enum Apply {
+    APPLY_UNSPECIFIED = 0;
+    APPLY_IMMEDIATE = 1;       // no interruption
+    APPLY_RESTART_SESSION = 2; // AR / capture session restarted; streams emit a Gap
+  }
+  Apply apply = 5;
+
+  // Range for numeric kinds.
+  double min = 6;
+  double max = 7;
+  double step = 8;
+  // Choices for KIND_ENUM.
+  repeated string choices = 9;
+
+  Value current = 10;
+  Value default = 11;
+  bool read_only = 12;
+}
+
+message Value {
+  oneof v {
+    bool b = 1;
+    int64 i = 2;
+    double f = 3;
+    string s = 4;   // enum choice or free string
+  }
+}
+
+enum StreamKind {
+  STREAM_KIND_UNSPECIFIED = 0;
+  STREAM_KIND_IMU = 1;
+  STREAM_KIND_POSE = 2;
+  STREAM_KIND_VIDEO = 3;
+  STREAM_KIND_DEPTH = 4;
+  STREAM_KIND_CONFIG = 5;   // config-change events (recorded as its own MCAP channel)
+}
+
+message StreamDescriptor {
+  string stream_id = 1;
+  StreamKind kind = 2;
+  Transport transport = 3;
+  repeated ParamSpec params = 4;   // parameters scoped to this stream
+}
+
+enum Transport {
+  TRANSPORT_UNSPECIFIED = 0;
+  TRANSPORT_UDP = 1;        // IMU / pose: allow loss, latency first
+  TRANSPORT_TCP = 2;        // video / depth v1
+  TRANSPORT_WEBSOCKET = 3;  // control; also video/depth for web clients
+}
+
+message Capabilities {
+  DeviceInfo device = 1;
+  repeated StreamDescriptor streams = 2;
+  repeated ParamSpec session_params = 3;  // e.g. "session.mode"
+  DeviceConfig config = 4;                // current effective config
+}
+
+// ---------------------------------------------------------------------------
+// Configuration model (§6.8)
+// ---------------------------------------------------------------------------
+
+enum SessionMode {
+  SESSION_MODE_UNSPECIFIED = 0;
+  SESSION_MODE_AR = 1;       // pose available, main camera only
+  SESSION_MODE_CAMERA = 2;   // full camera control, no pose
+}
+
+message DeviceConfig {
+  uint32 config_version = 1;
+  SessionMode mode = 2;
+  repeated StreamConfig streams = 3;
+  NetworkConfig network = 4;
+}
+
+message StreamConfig {
+  string stream_id = 1;
+  bool enabled = 2;
+  map<string, Value> params = 3;     // keyed by ParamSpec.key (relative)
+  EncoderConfig encoder = 4;
+  DeliveryConfig delivery = 5;
+}
+
+message EncoderConfig {
+  string codec = 1;        // "h264", "hevc", "none", "lz4", "zstd"
+  uint32 bitrate_bps = 2;
+  uint32 keyframe_interval = 3;
+}
+
+message DeliveryConfig {
+  Transport transport = 1;
+  enum DropPolicy {
+    DROP_POLICY_UNSPECIFIED = 0;
+    DROP_POLICY_LATEST_ONLY = 1;   // keep newest frame, drop older (video)
+    DROP_POLICY_NONE = 2;          // never drop (control / depth)
+  }
+  DropPolicy drop_policy = 2;
+  uint32 max_rate_hz = 3;          // 0 = unlimited
+  uint32 priority = 4;
+}
+
+message NetworkConfig {
+  string host = 1;
+  uint32 control_port = 2;
+  uint32 data_port = 3;
+  uint32 bandwidth_limit_bps = 4;  // 0 = unlimited
+}
+
+// Control channel RPC-style envelopes (WebSocket, reliable).
+message ControlMessage {
+  uint64 request_id = 1;   // echoed in responses; 0 for broadcasts
+  oneof body {
+    Hello hello = 10;                        // phone -> pc on connect
+    Welcome welcome = 11;                    // pc -> phone
+    GetCapabilities get_capabilities = 20;
+    Capabilities capabilities = 21;
+    GetConfig get_config = 22;
+    DeviceConfig config = 23;
+    SetConfig set_config = 24;
+    ConfigResult config_result = 25;
+    ConfigChanged config_changed = 26;       // broadcast to all clients
+    Subscribe subscribe = 30;
+    SessionControl session_control = 31;
+    TimeSyncPing time_sync_ping = 40;
+    TimeSyncPong time_sync_pong = 41;
+    Lease lease = 50;
+    Error error = 90;
+  }
+}
+
+message Hello { DeviceInfo device = 1; }
+message Welcome { string gateway_name = 1; uint32 protocol_version = 2; }
+
+message GetCapabilities {}
+message GetConfig {}
+
+// Partial update: only fields present in `patch` change.
+message SetConfig {
+  uint32 base_config_version = 1;   // what the client saw; mismatch -> rejected
+  DeviceConfig patch = 2;
+}
+
+message ConfigResult {
+  uint32 config_version = 1;
+  message FieldResult {
+    string key = 1;
+    enum Status {
+      STATUS_UNSPECIFIED = 0;
+      STATUS_APPLIED = 1;
+      STATUS_CLAMPED = 2;
+      STATUS_REJECTED = 3;
+    }
+    Status status = 2;
+    Value effective = 3;
+    string reason = 4;
+  }
+  repeated FieldResult fields = 2;
+  bool session_restarted = 3;
+}
+
+message ConfigChanged { DeviceConfig config = 1; }
+
+message Subscribe {
+  repeated string stream_ids = 1;
+  bool unsubscribe = 2;
+}
+
+message SessionControl {
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+    ACTION_START = 1;
+    ACTION_STOP = 2;
+  }
+  Action action = 1;
+}
+
+message TimeSyncPing { uint64 client_send_ns = 1; }
+message TimeSyncPong {
+  uint64 client_send_ns = 1;
+  uint64 device_recv_ns = 2;
+  uint64 device_send_ns = 3;
+}
+
+// Write lease (§6.8 控制权): one writer at a time, auto-released on disconnect.
+message Lease {
+  enum Action {
+    ACTION_UNSPECIFIED = 0;
+    ACTION_REQUEST = 1;
+    ACTION_RELEASE = 2;
+    ACTION_GRANTED = 3;
+    ACTION_DENIED = 4;
+    ACTION_REVOKED = 5;   // phone UI took over
+  }
+  Action action = 1;
+  string holder = 2;
+}
+
+message Error { uint32 code = 1; string message = 2; }
+
+// ---------------------------------------------------------------------------
+// Data messages
+// ---------------------------------------------------------------------------
+
+message Vec3 { double x = 1; double y = 2; double z = 3; }
+message Quat { double x = 1; double y = 2; double z = 3; double w = 4; }
+
+message ImuSample {
+  Header header = 1;
+  Vec3 accel = 2;      // m/s^2, device frame
+  Vec3 gyro = 3;       // rad/s, device frame
+  Vec3 mag = 4;        // uT, optional (all zero if absent)
+}
+
+// Camera intrinsics are sent with EVERY frame (§5.4), not only at handshake.
+message Intrinsics {
+  uint32 width = 1;
+  uint32 height = 2;
+  double fx = 3;
+  double fy = 4;
+  double cx = 5;
+  double cy = 6;
+  repeated double distortion = 7;  // empty for ARKit (already rectified)
+}
+
+enum TrackingState {
+  TRACKING_STATE_UNSPECIFIED = 0;
+  TRACKING_STATE_NOT_AVAILABLE = 1;
+  TRACKING_STATE_LIMITED = 2;
+  TRACKING_STATE_NORMAL = 3;
+}
+
+// Pose in the native AR convention: right-handed, Y up, camera looks -Z
+// (OpenGL). PC SDK converts to OpenCV / ROS (§6.6).
+message PoseSample {
+  Header header = 1;
+  Vec3 position = 2;
+  Quat orientation = 3;
+  TrackingState tracking = 4;
+  Intrinsics intrinsics = 5;   // intrinsics of the frame this pose belongs to
+}
+
+enum PixelFormat {
+  PIXEL_FORMAT_UNSPECIFIED = 0;
+  PIXEL_FORMAT_H264_NAL = 1;      // Annex-B NAL units
+  PIXEL_FORMAT_HEVC_NAL = 2;
+  PIXEL_FORMAT_NV12 = 3;          // raw, for future zero-copy path
+}
+
+// Image orientation: ARKit captured images are sensor-native landscape and
+// do not rotate with the device (§5.4). `rotation_deg` says how to rotate to
+// make the image upright for display; data is always sent as captured.
+message VideoFrame {
+  Header header = 1;
+  PixelFormat format = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  bool keyframe = 5;
+  bytes data = 6;                 // v1: payload inline (§6.1)
+  Intrinsics intrinsics = 7;
+  uint32 rotation_deg = 8;        // 0 / 90 / 180 / 270
+}
+
+enum DepthCompression {
+  DEPTH_COMPRESSION_NONE = 0;
+  DEPTH_COMPRESSION_LZ4 = 1;
+  DEPTH_COMPRESSION_ZSTD = 2;
+}
+
+// Depth is uint16 millimetres, row-major, little-endian (§5.4), plus an
+// optional confidence plane (uint8, 0 = low, 2 = high on ARKit).
+message DepthFrame {
+  Header header = 1;
+  uint32 width = 2;
+  uint32 height = 3;
+  DepthCompression compression = 4;
+  bytes depth_mm = 5;
+  bytes confidence = 6;           // empty if unavailable
+  Intrinsics intrinsics = 7;      // depth-camera intrinsics (may differ from rgb)
+  uint32 rotation_deg = 8;
+}
+
+// Emitted on a stream when a restart interrupts it (§6.8 step 4).
+message Gap {
+  Header header = 1;
+  string reason = 2;
+}
+
+// Envelope for data channels so a single socket can carry mixed streams.
+message DataMessage {
+  oneof body {
+    ImuSample imu = 1;
+    PoseSample pose = 2;
+    VideoFrame video = 3;
+    DepthFrame depth = 4;
+    Gap gap = 5;
+    ConfigChanged config_changed = 6;
+  }
+}

@@ -1,0 +1,27 @@
+[project]
+name = "imuninn"
+version = "0.0.1"
+description = "PC gateway and Python API for iMuninn phone sensor streams"
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT OR Apache-2.0"
+dependencies = [
+  "protobuf>=5",
+  "websockets>=13",
+  "zeroconf>=0.130",
+]
+
+[project.optional-dependencies]
+rerun = ["rerun-sdk>=0.20"]
+mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
+dev = ["pytest>=8", "grpcio-tools>=1.60"]
+
+[project.scripts]
+imuninn = "imuninn.cli:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/imuninn"]

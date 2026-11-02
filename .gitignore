@@ -1,0 +1,36 @@
+# OS / editors
+.DS_Store
+.idea/
+.vscode/
+
+# Node / Expo
+node_modules/
+.expo/
+.expo-shared/
+*.tsbuildinfo
+mobile/ios/
+mobile/android/
+mobile/dist/
+mobile/web-build/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+build/
+
+# C++
+host/cpp/build/
+
+# Generated protobuf code (regenerate with tools/gen-proto.sh)
+host/python/src/imuninn/proto/*_pb2.py
+host/python/src/imuninn/proto/*_pb2.pyi
+host/cpp/gen/
+mobile/modules/muninn-core/ios/Generated/
+mobile/modules/muninn-core/android/src/main/java/generated/
+
+# Recordings
+*.mcap
+*.rrd
