@@ -18,4 +18,5 @@
 - [x] `mobile/`：Expo SDK 58 空壳、`app.config.ts`、Config Plugin（相机/运动/本地网络/Bonjour/ARKit）
 - [x] `mobile/modules/muninn-core/`：薄 Expo 适配层 + `ios/Core/`（Pipeline 骨架、DeviceInfo）
 - [x] `host/python/`：`imuninn` 包、`imuninn gateway`（mDNS + Hello/Welcome）
-- [ ] 真机构建验证（需要在本机把 Xcode 设为活动开发目录）
+- [x] 模拟器构建验证（iPhone 18 Pro 模拟器，见 `docs/m0-simulator.png`）
+- [ ] 真机构建验证（需先 `sudo xcode-select -s /Applications/Xcode.app`）
