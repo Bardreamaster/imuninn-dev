@@ -9,7 +9,7 @@
 | **M2** ✅ 2026-11-03 | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
 | **M3** ✅ 2026-11-03 | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
 | **M4** ✅ 2026-11-03 | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
-| **M5** ⏸ 搁置 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 暂无 Android 测试机（2026-11-03 决定） |
+| **M5** 🚧 进行中 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 非 AR 部分在模拟器上验证（2026-11-03 开始）；ARCore 位姿/深度等真机 |
 
 ## M0 状态（2026-11-03）
 
@@ -73,3 +73,15 @@
 ## 长时测试（2026-11-03）
 
 4 小时全流采集（USB 供电、静置）：热状态 75 min 后 fair、未到 serious；四路流全程 60 Hz / 100 Hz，视频丢帧 0.008%。详见 `docs/design/longrun-20261103/README.md`。待做：运动画面版、拔线 Wi‑Fi 版。
+
+## M5 状态（2026-11-03）
+
+决定：没有 Android 真机，先把非 AR 部分移植并在模拟器上验证，ARCore 留接口。详见 `docs/dev/05-Android.md`。
+
+- [x] Kotlin 端：控制通道（WebSocket + NSD）、TCP/UDP/文件 Sink、ConfigStore/Profile/租约、SensorManager IMU、Camera2 + MediaCodec H.264、health、预览视图、运行时相机权限
+- [x] `tools/gen-proto.sh` 生成 Java 类到 `android/src/main/java/generated/`
+- [x] 模拟器 UDP 回环处理（`adb forward` 进来的对端是 127.0.0.1 → 发往 10.0.2.2）
+- [ ] 本机装 JDK 17 + Android SDK + arm64 模拟器，`npx expo run:android` 编译通过
+- [ ] 模拟器实测：`imuninn watch 127.0.0.1 --start` 收到 IMU / 视频 / health；Rerun 出画面；配置修改、Profile、租约、录制
+- [ ] ARCore 位姿 + 深度（需真机）
+- [ ] ROS 2 桥接（可选）

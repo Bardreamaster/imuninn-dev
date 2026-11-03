@@ -6,5 +6,6 @@
 2. [02-构建与运行](02-构建与运行.md)：日常命令、何时重新 prebuild、协议改动流程
 3. [03-常见问题](03-常见问题.md)：报错对照
 4. [04-架构与代码地图](04-架构与代码地图.md)：数据怎么从传感器到 PC，改什么去哪个文件
+5. [05-Android](05-Android.md)：Android 端环境、模拟器测试、与 iOS 的差异、实现状态
 
 使用方式（API、参数）在 [使用者文档](../user/README.md)；设计依据在 [design/iMuninn-设计文档.md](../design/iMuninn-设计文档.md)，里程碑见 [design/ROADMAP.md](../design/ROADMAP.md)。
