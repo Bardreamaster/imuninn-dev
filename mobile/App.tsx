@@ -31,7 +31,7 @@ export default function App() {
         <View style={S.header}>
           <View>
             <Text style={S.title}>iMuninn</Text>
-            <Text style={S.subtitle}>{info.marketingName} · iOS {info.osVersion} · proto v{info.protocolVersion}</Text>
+            <Text style={S.subtitle}>{info.marketingName} · {info.platform === "android" ? "Android" : "iOS"} {info.osVersion} · proto v{info.protocolVersion}</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 6 }}>
             <View style={S.pill}>

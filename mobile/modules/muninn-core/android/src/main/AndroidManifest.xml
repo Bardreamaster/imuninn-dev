@@ -1,2 +1,5 @@
-<manifest>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <!-- Permissions are injected at app level by mobile/plugins/withMuninn.ts. -->
+  <uses-feature android:name="android.hardware.camera" android:required="false" />
+  <uses-feature android:name="android.hardware.camera.ar" android:required="false" />
 </manifest>

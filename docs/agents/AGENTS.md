@@ -59,4 +59,4 @@ host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延
 
 ## 当前状态与下一步
 
-见 `docs/design/ROADMAP.md`。M5（Android）搁置，没有测试机。
+见 `docs/design/ROADMAP.md`。M5（Android）进行中：非 AR 部分已移植，模拟器验证；ARCore 等真机。Android 事项看 `docs/dev/05-Android.md`。

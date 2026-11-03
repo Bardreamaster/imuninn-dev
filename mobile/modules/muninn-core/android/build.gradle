@@ -15,4 +15,20 @@ android {
   lintOptions {
     abortOnError false
   }
+  packagingOptions {
+    resources.excludes += ['META-INF/INDEX.LIST', 'META-INF/DEPENDENCIES']
+  }
+}
+
+dependencies {
+  // Generated protobuf code (src/main/java/generated, via tools/gen-proto.sh) needs a
+  // runtime of the same major version as protoc. JSON (profiles) needs -util.
+  implementation 'com.google.protobuf:protobuf-java:4.36.2'
+  implementation 'com.google.protobuf:protobuf-java-util:4.36.2'
+  // Control channel: WebSocket server (§6.2). Java-WebSocket is a plain blocking
+  // server with a thread per connection, enough for a handful of PCs.
+  implementation 'org.java-websocket:Java-WebSocket:1.6.0'
+  // ARCore: only availability detection for now (§5.2); the pose/depth path lands
+  // when a real device is available. "optional" in the manifest via withMuninn.ts.
+  implementation 'com.google.ar:core:1.57.0'
 }

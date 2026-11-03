@@ -341,3 +341,4 @@ M0 一开始就用 Expo 搭好空壳和本地模块，后续里程碑只往 muni
 ## 修订记录
 
 - 2026-11-03：改为手机当服务端（§2、§6.7、§7）；协议 v2；USB 直连实测可用；M5 Android 搁置。
+- 2026-11-03（晚）：M5 重启：无真机，先移植非 AR 部分（控制通道、IMU、Camera2 + MediaCodec、health、配置/Profile/租约）在模拟器验证；ARCore 位姿/深度留接口。Android 只有相机模式。实现差异与测试方法见 `docs/dev/05-Android.md`。
