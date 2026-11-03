@@ -9,7 +9,12 @@ import { useMuninn } from "./src/ui/useMuninn";
 
 export default function App() {
   const { info, status, caps, config, profiles, lastResult, applyPatch, applyProfile, saveProfile, deleteProfile } = useMuninn();
-  const [showPreview, setShowPreview] = useState(true);
+  const [showPreview, setShowPreview] = useState(false);
+  const togglePreview = () => {
+    const next = !showPreview;
+    setShowPreview(next);
+    MuninnCore.setPreview(next);
+  };
   const [profileName, setProfileName] = useState("");
 
   const listening = status?.server === "listening";
@@ -40,7 +45,7 @@ export default function App() {
           </View>
         </View>
 
-        {showPreview ? (
+        {showPreview || status?.sessionRunning ? (
           <View style={S.preview}>
             <MuninnPreviewView style={{ flex: 1 }} />
             <View style={S.overlay}>
@@ -56,7 +61,7 @@ export default function App() {
       <ScrollView contentContainerStyle={S.scroll}>
         {/* Session */}
         <Card title="采集" right={
-          <Button small title={showPreview ? "隐藏预览" : "显示预览"} kind="ghost" onPress={() => setShowPreview((v) => !v)} />
+          <Button small title={showPreview ? "关闭预览" : "开启预览"} kind="ghost" onPress={togglePreview} />
         }>
           <View style={S.grid}>
             {!camera ? <Stat label="追踪" value={status?.tracking ?? "none"} color={trackColor} /> : null}

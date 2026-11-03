@@ -39,6 +39,8 @@ export interface StatusEvent {
   clients: ClientStatus[];
   mode: "ar" | "camera";
   sessionRunning: boolean;
+  /** Camera running (preview-only or session). */
+  previewing: boolean;
   tracking: TrackingState;
   poseHz: number;
   imuHz: number;

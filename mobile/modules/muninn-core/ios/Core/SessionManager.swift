@@ -26,6 +26,7 @@ public struct Status {
   public var clients: [ClientStatus] = []
   public var mode: String = "ar"
   public var sessionRunning = false
+  public var previewing = false             // sources running for the local preview only
   public var tracking: String = "none"            // none | limited | normal
   public var poseHz: Double = 0
   public var imuHz: Double = 0
@@ -62,6 +63,7 @@ public final class SessionManager {
 
   private let queue = DispatchQueue(label: "imuninn.session")
   private var sessionRunning = false
+  private var previewEnabled = false
   private var remoteControlled = false
   private var lastError = ""
   private var serviceName = ""
@@ -284,13 +286,21 @@ public final class SessionManager {
   public func stopSession() {
     queue.async {
       self.sessionRunning = false
-      self.ar.stop(); self.camera.stop(); self.imu.stop()
+      if self.previewEnabled { self.restartSources() } else { self.ar.stop(); self.camera.stop(); self.imu.stop() }
+    }
+  }
+
+  /// Preview-only: run the camera so the phone shows a picture, send nothing (§4.4).
+  public func setPreview(_ enabled: Bool) {
+    queue.async {
+      self.previewEnabled = enabled
+      if !self.sessionRunning { self.restartSources() }
     }
   }
 
   private func restartSources() {
     ar.stop(); camera.stop(); imu.stop()
-    guard sessionRunning else { return }
+    guard sessionRunning || previewEnabled else { return }
     encoder.setBitrate(config.int("rgb", "bitrate_kbps") * 1000)
     encoder.setKeyframeInterval(max(1, config.int("rgb", "keyframe_interval")))
     encoder.requestKeyframe()
@@ -311,7 +321,7 @@ public final class SessionManager {
         smoothedDepth: config.bool("depth", "smoothed")
       )
     }
-    if config.isEnabled("imu"), imu.available {
+    if sessionRunning, config.isEnabled("imu"), imu.available {
       imu.start(rateHz: max(10, config.int("imu", "rate_hz")), raw: config.bool("imu", "raw"))
     }
   }
@@ -336,7 +346,7 @@ public final class SessionManager {
     if update.changes.contains(where: { $0.stream == "" && $0.key == "mode" }) {
       NotificationCenter.default.post(name: .muninnModeChanged, object: nil)
     }
-    guard sessionRunning else { return }
+    guard sessionRunning || previewEnabled else { return }
     if update.needsRestart {
       restartSources()
       return
@@ -385,6 +395,7 @@ public final class SessionManager {
 
   private func publishPose(_ p: MnPoseSample) {
     poseCounter.tick()
+    guard sessionRunning else { return }
     var p = p
     stamp(&p.header)
     var d = MnDataMessage()
@@ -404,7 +415,7 @@ public final class SessionManager {
   }
 
   private func handleImage(_ pb: CVPixelBuffer, _ t: Double, _ k: simd_float3x3?) {
-    guard config.isEnabled("rgb") else { return }
+    guard sessionRunning, config.isEnabled("rgb") else { return }
     let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("rgb") && $0.tcp != nil }
     guard wanted else { return }
     if let k { lastIntrinsics = k }
@@ -412,6 +423,7 @@ public final class SessionManager {
   }
 
   private func publishDepth(_ depth: CVPixelBuffer, _ conf: CVPixelBuffer?, _ t: Double, _ k: simd_float3x3, _ imageRes: CGSize) {
+    guard sessionRunning else { return }
     depthFrameIndex &+= 1
     let divisor = max(1, config.int("depth", "rate_divisor"))
     guard depthFrameIndex % UInt64(divisor) == 0 else { return }
@@ -494,6 +506,7 @@ public final class SessionManager {
     }
     s.mode = isCameraMode ? "camera" : "ar"
     s.sessionRunning = sessionRunning
+    s.previewing = previewEnabled || sessionRunning
     if isCameraMode {
       s.tracking = "none"
     } else {

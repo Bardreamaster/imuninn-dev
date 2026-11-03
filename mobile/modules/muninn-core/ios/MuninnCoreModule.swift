@@ -31,6 +31,7 @@ public class MuninnCoreModule: Module {
           },
           "mode": s.mode,
           "sessionRunning": s.sessionRunning,
+          "previewing": s.previewing,
           "tracking": s.tracking,
           "poseHz": s.poseHz,
           "imuHz": s.imuHz,
@@ -79,6 +80,7 @@ public class MuninnCoreModule: Module {
     }
     Function("stopServer") { self.manager.stopServer() }
 
+    Function("setPreview") { (enabled: Bool) in self.manager.setPreview(enabled) }
     Function("startSession") { self.manager.startSession() }
     Function("stopSession") { self.manager.stopSession() }
     Function("startRecording") { self.manager.startRecording() }

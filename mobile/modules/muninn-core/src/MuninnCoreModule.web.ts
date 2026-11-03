@@ -30,6 +30,7 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   }
   startServer(_name?: string) {}
   stopServer() {}
+  setPreview(_enabled: boolean) {}
   startSession() {}
   stopSession() {}
   startRecording() {}

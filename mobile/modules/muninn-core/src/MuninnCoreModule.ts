@@ -17,6 +17,8 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   startServer(name?: string): void;
   stopServer(): void;
 
+  /** Run the camera for the on-phone preview without sending or recording anything. */
+  setPreview(enabled: boolean): void;
   startSession(): void;
   stopSession(): void;
   startRecording(): void;
