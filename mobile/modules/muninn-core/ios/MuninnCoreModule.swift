@@ -17,6 +17,7 @@ public class MuninnCoreModule: Module {
         "deviceId": d.deviceId,
         "deviceName": d.deviceName,
         "model": d.model,
+        "marketingName": d.marketingName,
         "platform": d.platform,
         "osVersion": d.osVersion,
         "protocolVersion": Int(d.protocolVersion),

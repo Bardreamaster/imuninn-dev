@@ -32,7 +32,8 @@ export default function App() {
       ) : (
         <View style={styles.card}>
           <Row k="device" v={info.deviceName} />
-          <Row k="model" v={info.model} />
+          <Row k="model" v={info.marketingName} />
+          <Row k="identifier" v={info.model} />
           <Row k="os" v={`${info.platform} ${info.osVersion}`} />
           <Row k="AR" v={info.arSupported} />
           <Row k="LiDAR" v={info.hasLidar} />

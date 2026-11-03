@@ -19,4 +19,4 @@
 - [x] `mobile/modules/muninn-core/`：薄 Expo 适配层 + `ios/Core/`（Pipeline 骨架、DeviceInfo）
 - [x] `host/python/`：`imuninn` 包、`imuninn gateway`（mDNS + Hello/Welcome）
 - [x] 模拟器构建验证（iPhone 18 Pro 模拟器，见 `docs/m0-simulator.png`）
-- [ ] 真机构建验证（需先 `sudo xcode-select -s /Applications/Xcode.app`）
+- [x] 真机构建验证（iPhone 17 Pro，AR + LiDAR = true）

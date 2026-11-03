@@ -3,7 +3,10 @@ export type Platform = "ios" | "android";
 export interface DeviceInfo {
   deviceId: string;
   deviceName: string;
+  /** Hardware identifier, e.g. "iPhone18,1". */
   model: string;
+  /** Marketing name, e.g. "iPhone 17 Pro". */
+  marketingName: string;
   platform: Platform;
   osVersion: string;
   protocolVersion: number;

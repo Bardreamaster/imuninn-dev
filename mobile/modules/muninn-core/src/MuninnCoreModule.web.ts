@@ -9,7 +9,8 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
     return {
       deviceId: "web",
       deviceName: "browser",
-      model: navigator.userAgent,
+      model: "web",
+      marketingName: navigator.userAgent,
       platform: "ios",
       osVersion: "n/a",
       protocolVersion: 1,

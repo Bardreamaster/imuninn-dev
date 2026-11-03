@@ -22,7 +22,8 @@ class MuninnCoreModule : Module() {
       mapOf(
         "deviceId" to id,
         "deviceName" to (Build.MODEL ?: "android"),
-        "model" to "${Build.MANUFACTURER} ${Build.MODEL}",
+        "model" to Build.DEVICE,
+        "marketingName" to "${Build.MANUFACTURER} ${Build.MODEL}",
         "platform" to "android",
         "osVersion" to Build.VERSION.RELEASE,
         "protocolVersion" to PROTOCOL_VERSION,
