@@ -68,7 +68,7 @@ public final class CameraSource: NSObject, AVCaptureVideoDataOutputSampleBufferD
     return (w, f)
   }
 
-  public func start(lens: Lens, formatId: String?, exposureLocked: Bool, focusLocked: Bool) {
+  public func start(lens: Lens, formatId: String?, camera: CameraSettings) {
     stop()
     guard let dev = AVCaptureDevice.default(lens.deviceType, for: .video, position: lens.position),
           let input = try? AVCaptureDeviceInput(device: dev) else {
@@ -102,13 +102,20 @@ public final class CameraSource: NSObject, AVCaptureVideoDataOutputSampleBufferD
         let d = CMVideoFormatDescriptionGetDimensions(dev.activeFormat.formatDescription)
         self.formatId = "\(d.width)x\(d.height)@\(Int(dev.activeFormat.videoSupportedFrameRateRanges.first?.maxFrameRate ?? 30))"
       }
-      applyLocks(dev, exposureLocked: exposureLocked, focusLocked: focusLocked)
       dev.unlockForConfiguration()
     } catch {
       NSLog("[imuninn] camera config failed: \(error)")
     }
+    CameraControl.applyAll(camera, to: dev, connection: output.connection(with: .video), cameraMode: true)
     running = true
     queue.async { self.session.startRunning() }
+  }
+
+  public var captureDevice: AVCaptureDevice? { device }
+
+  public func applyCamera(key: String, _ s: CameraSettings) {
+    guard let d = device else { return }
+    CameraControl.apply(key: key, s, to: d, connection: output.connection(with: .video), cameraMode: true)
   }
 
   private static func pick(_ dev: AVCaptureDevice, _ id: String) -> (format: AVCaptureDevice.Format, fps: Int)? {
@@ -124,24 +131,6 @@ public final class CameraSource: NSObject, AVCaptureVideoDataOutputSampleBufferD
     return nil
   }
 
-  private func applyLocks(_ dev: AVCaptureDevice, exposureLocked: Bool, focusLocked: Bool) {
-    if exposureLocked, dev.isExposureModeSupported(.locked) { dev.exposureMode = .locked }
-    else if dev.isExposureModeSupported(.continuousAutoExposure) { dev.exposureMode = .continuousAutoExposure }
-    if focusLocked, dev.isFocusModeSupported(.locked) { dev.focusMode = .locked }
-    else if dev.isFocusModeSupported(.continuousAutoFocus) { dev.focusMode = .continuousAutoFocus }
-  }
-
-  public func setExposureLocked(_ locked: Bool) {
-    guard let dev = device, (try? dev.lockForConfiguration()) != nil else { return }
-    applyLocks(dev, exposureLocked: locked, focusLocked: dev.focusMode == .locked)
-    dev.unlockForConfiguration()
-  }
-
-  public func setFocusLocked(_ locked: Bool) {
-    guard let dev = device, (try? dev.lockForConfiguration()) != nil else { return }
-    applyLocks(dev, exposureLocked: dev.exposureMode == .locked, focusLocked: locked)
-    dev.unlockForConfiguration()
-  }
 
   public func stop() {
     guard running else { return }

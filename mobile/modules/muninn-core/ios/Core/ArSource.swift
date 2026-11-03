@@ -30,8 +30,6 @@ public final class ArSource: NSObject, ARSessionDelegate {
   public var onTracking: ((ARCamera.TrackingState) -> Void)?
 
   public private(set) var videoFormatId: String
-  public private(set) var exposureLocked = false
-  public private(set) var focusLocked = false
 
   public override init() {
     videoFormatId = Self.videoFormats().first?.id ?? ""
@@ -56,7 +54,7 @@ public final class ArSource: NSObject, ARSessionDelegate {
 
   // MARK: control
 
-  public func start(videoFormatId: String?, exposureLocked: Bool, focusLocked: Bool,
+  public func start(videoFormatId: String?, camera: CameraSettings,
                     depth: Bool = false, smoothedDepth: Bool = false) {
     let config = ARWorldTrackingConfiguration()
     depthEnabled = depth && Self.depthSupported
@@ -68,13 +66,28 @@ public final class ArSource: NSObject, ARSessionDelegate {
       config.videoFormat = choice.format
       self.videoFormatId = id
     }
-    config.isAutoFocusEnabled = !focusLocked
+    config.isAutoFocusEnabled = camera.focusMode == "auto"
     config.worldAlignment = .gravity
     seq = 0
     running = true
     session.run(config, options: [.resetTracking, .removeExistingAnchors])
-    self.focusLocked = focusLocked
-    setExposureLocked(exposureLocked)
+    applyCamera(camera)
+  }
+
+  /// iOS 16+: the capture device ARKit is using (§5.1). Zoom/HDR/stabilization are ARKit's.
+  public var captureDevice: AVCaptureDevice? {
+    if #available(iOS 16.0, *) { return ARWorldTrackingConfiguration.configurableCaptureDeviceForPrimaryCamera }
+    return nil
+  }
+
+  public func applyCamera(_ s: CameraSettings) {
+    guard let d = captureDevice else { return }
+    CameraControl.applyAll(s, to: d, connection: nil, cameraMode: false)
+  }
+
+  public func applyCamera(key: String, _ s: CameraSettings) {
+    guard let d = captureDevice else { return }
+    CameraControl.apply(key: key, s, to: d, connection: nil, cameraMode: false)
   }
 
   public func stop() {
@@ -82,40 +95,6 @@ public final class ArSource: NSObject, ARSessionDelegate {
     running = false
   }
 
-  /// iOS 16+: adjust the capture device ARKit is using (§5.1).
-  public func setExposureLocked(_ locked: Bool) {
-    exposureLocked = locked
-    guard #available(iOS 16.0, *),
-          let device = ARWorldTrackingConfiguration.configurableCaptureDeviceForPrimaryCamera else { return }
-    do {
-      try device.lockForConfiguration()
-      if locked, device.isExposureModeSupported(.locked) {
-        device.exposureMode = .locked
-      } else if device.isExposureModeSupported(.continuousAutoExposure) {
-        device.exposureMode = .continuousAutoExposure
-      }
-      device.unlockForConfiguration()
-    } catch {
-      NSLog("[imuninn] exposure lock failed: \(error)")
-    }
-  }
-
-  public func setFocusLocked(_ locked: Bool) {
-    focusLocked = locked
-    guard #available(iOS 16.0, *),
-          let device = ARWorldTrackingConfiguration.configurableCaptureDeviceForPrimaryCamera else { return }
-    do {
-      try device.lockForConfiguration()
-      if locked, device.isFocusModeSupported(.locked) {
-        device.focusMode = .locked
-      } else if device.isFocusModeSupported(.continuousAutoFocus) {
-        device.focusMode = .continuousAutoFocus
-      }
-      device.unlockForConfiguration()
-    } catch {
-      NSLog("[imuninn] focus lock failed: \(error)")
-    }
-  }
 
   // MARK: ARSessionDelegate (do not retain `frame`, §8.5)
 

@@ -21,7 +21,7 @@ print(imuninn.discover())              # [Phone(name='iPhone', host='10.0.0.5', 
 
 with imuninn.connect("iPhone") as dev: # 名字 / host / host:port / "" = 第一台找到的
     dev.set("imu.rate_hz", 50)         # 远程改参数；返回 ConfigResult
-    dev.set("ar_pose.exposure_locked", True)
+    dev.set("rgb.exposure_mode", "locked")
     dev.set("ar_pose.enabled", False)
     dev.start()                        # = SessionControl START
 
@@ -39,8 +39,7 @@ with imuninn.connect("iPhone") as dev: # 名字 / host / host:port / "" = 第一
 | --- | --- | --- |
 | `imu.rate_hz` | int 10–200，步长 10 | 即时 |
 | `ar_pose.video_format` | enum，如 `1920x1440@60` | 重启会话 |
-| `ar_pose.exposure_locked` | bool | 即时 |
-| `ar_pose.focus_locked` | bool | 重启会话 |
+| `rgb.exposure_mode` 等相机控制 | 见 03 | 即时 |
 | `session.mode` | `ar` / `camera` | camera 模式 M4 才实现，现在会被拒绝 |
 
 超出范围的值会被钳位（status = clamped），非法值被拒绝（rejected + reason）。

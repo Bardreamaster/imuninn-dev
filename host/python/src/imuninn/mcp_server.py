@@ -152,7 +152,7 @@ def stop_session() -> str:
 @server.tool()
 def set_param(key: str, value: str | int | float | bool) -> dict:
     """Set one parameter. key: "session.mode", "<stream>.enabled", or "<stream>.<param>"
-    (e.g. "imu.rate_hz", "rgb.lens", "ar_pose.exposure_locked", "depth.enabled")."""
+    (e.g. "imu.rate_hz", "rgb.lens", "rgb.exposure_mode", "rgb.white_balance_mode", "depth.enabled")."""
     dev = _need()
     if isinstance(value, str):
         low = value.lower()

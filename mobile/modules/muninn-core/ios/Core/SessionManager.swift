@@ -1,6 +1,7 @@
 // Orchestrates the servers, sources, encoder, config and per-client sinks.
 // The phone is the server (§6.7): PCs discover it over Bonjour and connect.
 // Owns all state; the Expo module is a thin adapter over this class (§4.2).
+import AVFoundation
 import CoreVideo
 import Foundation
 import Network
@@ -96,6 +97,7 @@ public final class SessionManager {
     for l in Lens.available() { env.cameraFormats[l.rawValue] = CameraSource.formats(for: l) }
     env.imuAvailable = imu.available
     env.depthAvailable = ArSource.depthSupported
+    env.camera = CameraRanges.probe(AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back))
     config = ConfigStore(env: env)
 
     control.onConnect = { [weak self] c in self?.queue.async { self?.clientConnected(c) } }
@@ -310,17 +312,11 @@ public final class SessionManager {
     encoder.requestKeyframe()
     if isCameraMode {
       let lens = Lens(rawValue: config.string("rgb", "lens")) ?? .wide
-      camera.start(
-        lens: lens,
-        formatId: config.string("rgb", "camera_format"),
-        exposureLocked: config.bool("ar_pose", "exposure_locked"),
-        focusLocked: config.bool("ar_pose", "focus_locked")
-      )
+      camera.start(lens: lens, formatId: config.string("rgb", "camera_format"), camera: config.cameraSettings())
     } else if config.isEnabled("ar_pose") || config.isEnabled("rgb"), ArSource.supported {
       ar.start(
         videoFormatId: config.string("ar_pose", "video_format"),
-        exposureLocked: config.bool("ar_pose", "exposure_locked"),
-        focusLocked: config.bool("ar_pose", "focus_locked"),
+        camera: config.cameraSettings(),
         depth: config.isEnabled("depth"),
         smoothedDepth: config.bool("depth", "smoothed")
       )
@@ -359,9 +355,10 @@ public final class SessionManager {
       switch (c.stream, c.key) {
       case ("imu", "rate_hz"): imu.setRate(Int(c.value.i))
       case ("imu", "raw"), ("imu", "enabled"), ("ar_pose", "enabled"), ("rgb", "enabled"), ("depth", "enabled"): restartSources()
-      case ("ar_pose", "exposure_locked"):
-        if isCameraMode { camera.setExposureLocked(c.value.b) } else { ar.setExposureLocked(c.value.b) }
       case ("rgb", "bitrate_kbps"): encoder.setBitrate(Int(c.value.i) * 1000)
+      case ("rgb", let key) where key != "keyframe_interval" && key != "lens" && key != "camera_format":
+        let s = config.cameraSettings()
+        if isCameraMode { camera.applyCamera(key: key, s) } else { ar.applyCamera(key: key, s) }
       case ("rgb", "keyframe_interval"): encoder.setKeyframeInterval(Int(c.value.i))
       default: break
       }

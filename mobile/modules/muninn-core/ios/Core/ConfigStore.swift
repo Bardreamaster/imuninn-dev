@@ -23,6 +23,7 @@ public struct ConfigEnvironment {
   public var imuAvailable = false
   public var arAvailable = false
   public var depthAvailable = false
+  public var camera = CameraRanges()
   public init() {}
 }
 
@@ -77,8 +78,6 @@ public final class ConfigStore {
     addStream("ar_pose", .pose, .udp, enabled: env.arAvailable, params: [
       Self.spec("video_format", "AR video format", .enum, .restartSession,
                 choices: env.arVideoFormats, current: Self.s(env.arVideoFormats.first ?? "")),
-      Self.spec("exposure_locked", "Lock exposure", .bool, .immediate, current: Self.b(false)),
-      Self.spec("focus_locked", "Lock focus", .bool, .restartSession, current: Self.b(false)),
     ])
 
     let wideFormats = env.cameraFormats["wide"] ?? env.cameraFormats.values.first ?? []
@@ -90,6 +89,22 @@ public final class ConfigStore {
                 choices: wideFormats, current: Self.s(defaultFormat)),
       Self.spec("bitrate_kbps", "H.264 bitrate", .int, .immediate, unit: "kbps", min: 500, max: 20000, step: 500, current: Self.i(4000)),
       Self.spec("keyframe_interval", "Keyframe interval", .int, .immediate, unit: "frames", min: 1, max: 300, step: 1, current: Self.i(60)),
+      // --- camera controls (AVCaptureDevice); ranges probed from the wide camera at startup ---
+      Self.spec("exposure_mode", "Exposure", .enum, .immediate, choices: ["auto", "locked", "manual"], current: Self.s("auto")),
+      Self.spec("iso", "ISO (manual)", .float, .immediate, min: Double(env.camera.isoMin), max: Double(env.camera.isoMax), current: Self.f(100)),
+      Self.spec("exposure_ms", "Shutter (manual)", .float, .immediate, unit: "ms", min: env.camera.durationMinMs, max: env.camera.durationMaxMs, current: Self.f(8)),
+      Self.spec("exposure_bias", "EV bias", .float, .immediate, unit: "EV", min: Double(env.camera.biasMin), max: Double(env.camera.biasMax), step: 0.5, current: Self.f(0)),
+      Self.spec("white_balance_mode", "White balance", .enum, .immediate, choices: ["auto", "locked", "manual"], current: Self.s("auto")),
+      Self.spec("wb_temperature_k", "WB temperature (manual)", .float, .immediate, unit: "K", min: 2000, max: 10000, step: 100, current: Self.f(5000)),
+      Self.spec("wb_tint", "WB tint (manual)", .float, .immediate, min: -150, max: 150, step: 5, current: Self.f(0)),
+      Self.spec("focus_mode", "Focus", .enum, .immediate, choices: ["auto", "locked", "manual"], current: Self.s("auto")),
+      Self.spec("lens_position", "Lens position (manual)", .float, .immediate, min: 0, max: 1, step: 0.05, current: Self.f(0.5)),
+      Self.spec("zoom", "Zoom (camera mode)", .float, .immediate, unit: "x", min: 1, max: env.camera.zoomMax, step: 0.1, current: Self.f(1)),
+      Self.spec("torch", "Torch (camera mode)", .bool, .immediate, current: Self.b(false)),
+      Self.spec("hdr", "Video HDR (camera mode)", .bool, .immediate, current: Self.b(false)),
+      Self.spec("low_light_boost", "Low-light boost (camera mode)", .bool, .immediate, current: Self.b(false)),
+      Self.spec("stabilization", "Stabilization (camera mode; off keeps intrinsics exact)", .enum, .immediate,
+                choices: ["off", "standard", "cinematic"], current: Self.s("off")),
     ])
 
     addStream("health", .health, .udp, enabled: true, params: [
@@ -274,4 +289,17 @@ public final class ConfigStore {
   }
 
   public func cameraFormats(for lens: String) -> [String] { env.cameraFormats[lens] ?? [] }
+
+  /// Current rgb.* camera controls as a struct for CameraControl.
+  public func cameraSettings() -> CameraSettings {
+    var s = CameraSettings()
+    s.exposureMode = string("rgb", "exposure_mode")
+    s.iso = Float(double("rgb", "iso")); s.exposureMs = double("rgb", "exposure_ms"); s.exposureBias = Float(double("rgb", "exposure_bias"))
+    s.whiteBalanceMode = string("rgb", "white_balance_mode")
+    s.wbTemperatureK = Float(double("rgb", "wb_temperature_k")); s.wbTint = Float(double("rgb", "wb_tint"))
+    s.focusMode = string("rgb", "focus_mode"); s.lensPosition = Float(double("rgb", "lens_position"))
+    s.zoom = double("rgb", "zoom"); s.torch = bool("rgb", "torch"); s.hdr = bool("rgb", "hdr")
+    s.lowLightBoost = bool("rgb", "low_light_boost"); s.stabilization = string("rgb", "stabilization")
+    return s
+  }
 }

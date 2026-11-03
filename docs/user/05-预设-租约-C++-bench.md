@@ -9,8 +9,8 @@ name: calibration
 mode: ar                     # ar | camera，可省略
 streams:
   imu:     {enabled: true, rate_hz: 200, raw: true}
-  ar_pose: {enabled: true, exposure_locked: true, focus_locked: true}
-  rgb:     {enabled: true, bitrate_kbps: 8000}
+  ar_pose: {enabled: true}
+  rgb:     {enabled: true, bitrate_kbps: 8000, exposure_mode: locked, white_balance_mode: locked, focus_mode: locked}
   depth:   {enabled: true}
 ```
 

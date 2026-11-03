@@ -4,8 +4,8 @@
     mode: ar                      # ar | camera (optional)
     streams:
       imu:     {enabled: true, rate_hz: 100, raw: false}
-      ar_pose: {enabled: true, exposure_locked: true, focus_locked: true}
-      rgb:     {enabled: true, bitrate_kbps: 6000}
+      ar_pose: {enabled: true}
+      rgb:     {enabled: true, bitrate_kbps: 6000, exposure_mode: locked, white_balance_mode: locked, focus_mode: locked}
       depth:   {enabled: true}
 
 Everything is optional; only listed keys are sent (one SetConfig, partial update).
