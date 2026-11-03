@@ -49,6 +49,14 @@ host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延
 - iOS：真机能装、App 显示 listening、`imuninn watch --start` 能收到位姿 60 Hz / IMU 100 Hz / 视频 60 fps 且 drop=0。
 - 改了协议：三端同一个 commit。
 
+## 直接操作手机（MCP）
+
+`host/python/.venv/bin/imuninn-mcp` 是 MCP server，见 `docs/agents/MCP.md`。装进 Claude Code 后可用 `connect` / `set_param` / `snapshot` / `record` 等工具，不必写脚本。
+
+## 文档站
+
+`site/` 是 Astro Starlight，`npm run build` 会先从 `docs/` 同步内容（`site/scripts/sync-docs.mjs`，中文文件名 → slug 映射在里面）。改文档只改 `docs/`，不要改 `site/src/content/`（生成物，已 gitignore）。
+
 ## 当前状态与下一步
 
 见 `docs/design/ROADMAP.md`。M5（Android）搁置，没有测试机。

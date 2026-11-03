@@ -19,9 +19,11 @@ rerun = ["rerun-sdk>=0.20"]
 video = ["av>=12"]
 mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+mcp = ["mcp>=2", "pillow"]
 
 [project.scripts]
 imuninn = "imuninn.cli:main"
+imuninn-mcp = "imuninn.mcp_server:main"
 
 [build-system]
 requires = ["hatchling"]
