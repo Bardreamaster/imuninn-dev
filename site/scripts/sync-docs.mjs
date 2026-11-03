@@ -15,6 +15,7 @@ const SLUGS = {
   "user/03-视频与相机模式.md": "user/video-camera",
   "user/04-深度与MCAP.md": "user/depth-mcap",
   "user/05-预设-租约-C++-bench.md": "user/profiles-lease-cpp",
+  "user/06-Web查看器.md": "user/web-viewer",
   "dev/01-环境搭建.md": "dev/setup",
   "dev/02-构建与运行.md": "dev/build-run",
   "dev/03-常见问题.md": "dev/troubleshooting",
