@@ -7,7 +7,7 @@
 | **M0** | Expo 空壳 + `muninn-core` 本地模块；monorepo 结构；`.proto` 草案；PC 网关骨架（mDNS + 控制通道握手）；双许可证 | `npx expo run:ios` 装到真机，界面显示原生模块返回的设备信息；`imuninn gateway` 能广播并打印收到的 Hello |
 | **M1** ✅ 2026-11-03 | 控制通道（握手、能力描述、订阅、时钟同步）；ARKit 位姿 + CoreMotion IMU 走 UDP；远程配置基础版（流开关、帧率、曝光）；Python API 回调/迭代器 | 机器人程序能通过 Python 拿到手机实时位姿；配置改动在 PC 与手机 UI 同步 |
 | **M2** ✅ 2026-11-03 | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
-| **M3** | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
+| **M3** ✅ 2026-11-03 | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
 | **M4** | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
 | **M5** ⏸ 搁置 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 暂无 Android 测试机（2026-11-03 决定） |
 
@@ -37,7 +37,7 @@
 - [x] IMU `raw` 选项（原始加速度计 + 陀螺）
 - [x] PC：TCP 视频通道、PyAV 解码、`imuninn rerun`（位姿 + 针孔相机 + 图像 + IMU 曲线）
 - [x] 真机实测：AR 模式 1920x1440@60 视频 60 fps 零丢帧，位姿 60 Hz、IMU 100 Hz 同时
-- [ ] 本机录制文件 → MCAP 转换（M3）
+- [x] 本机录制文件 → MCAP 转换（`imuninn convert`）
 - [ ] 视频走 UDP 分片 / RTP（待 M2 延迟实测后决定，当前 TCP 够用）
 
 ## 架构调整（2026-11-03）：手机是服务端
@@ -54,3 +54,10 @@
 3. Agent 文档：`docs/agents/AGENTS.md` + 一个 MCP server（discover / connect / set / start / snapshot）。
 4. 文档站：Astro Starlight，内容源 `docs/user` + `docs/dev`，部署 Cloudflare Pages。
 5. Release 包：`npx expo run:ios --device --configuration Release`，JS 打进 App，离线可用。
+
+## M3 状态（2026-11-03）
+
+- [x] LiDAR 深度：ARKit sceneDepth / smoothedSceneDepth → uint16 mm + uint8 置信度，Apple LZ4 分块压缩，缩放后的内参
+- [x] PC：`imuninn.depth.decode`（含跨块 LZ4 字典），Rerun DepthImage
+- [x] MCAP：`imuninn record / convert / info`、`rerun --mcap`、`mcap_io.replay`
+- [x] 真机实测：深度 60 Hz（54 KB/帧），与 RGB 60 fps、位姿 60 Hz、IMU 100 Hz 同时跑零丢包；4 s 录制 1123 条消息回放一致（见 `docs/design/m3-depth.png`）

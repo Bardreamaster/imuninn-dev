@@ -27,7 +27,9 @@ def _apple_lz4_decode(buf: bytes) -> bytes:
         if magic == b"bv41":
             dsize, csize = struct.unpack_from("<II", buf, i + 4)
             i += 12
-            out += lz4.block.decompress(buf[i:i + csize], uncompressed_size=dsize)
+            # Apple keeps the LZ4 window across blocks: later blocks may reference
+            # the previous 64 KiB of output, so pass it as the dictionary.
+            out += lz4.block.decompress(buf[i:i + csize], uncompressed_size=dsize, dict=bytes(out[-65536:]))
             i += csize
         elif magic == b"bv4-":
             (size,) = struct.unpack_from("<I", buf, i + 4)
