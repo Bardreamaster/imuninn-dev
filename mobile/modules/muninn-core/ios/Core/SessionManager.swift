@@ -40,6 +40,8 @@ public final class SessionManager {
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
   private var pendingEndpoint: NWEndpoint?
+  private var wantConnected = false
+  private var reconnectDelay: Double = 1
 
   public var onStatus: ((Status) -> Void)?
   public var onConfigChanged: ((MnDeviceConfig) -> Void)?
@@ -68,6 +70,8 @@ public final class SessionManager {
     queue.async {
       self.gatewayName = name
       self.pendingEndpoint = endpoint
+      self.wantConnected = true
+      self.reconnectDelay = 1
       self.lastError = ""
       self.control.connect(to: endpoint)
     }
@@ -80,6 +84,7 @@ public final class SessionManager {
 
   public func disconnect() {
     queue.async {
+      self.wantConnected = false
       self.control.cancel()
       self.udp.disconnect()
       self.subscribed = []
@@ -91,14 +96,29 @@ public final class SessionManager {
     queue.async {
       switch st {
       case .ready:
+        self.reconnectDelay = 1
         self.sendHello()
       case .failed(let e):
         self.lastError = e
         self.udp.disconnect()
+        self.scheduleReconnect()
       case .cancelled:
         self.udp.disconnect()
+        self.scheduleReconnect()
       default: break
       }
+    }
+  }
+
+  /// Reconnect with backoff (1 → 10 s) until `disconnect()` is called (§6.7).
+  private func scheduleReconnect() {
+    guard wantConnected, let ep = pendingEndpoint else { return }
+    let delay = reconnectDelay
+    reconnectDelay = min(10, reconnectDelay * 2)
+    queue.asyncAfter(deadline: .now() + delay) { [weak self] in
+      guard let self, self.wantConnected, self.control.state != .ready else { return }
+      self.subscribed = []
+      self.control.connect(to: ep)
     }
   }
 
@@ -269,7 +289,7 @@ public final class SessionManager {
     var s = Status()
     switch control.state {
     case .idle: s.connection = "idle"
-    case .connecting: s.connection = "connecting"
+    case .resolving, .connecting: s.connection = "connecting"
     case .ready: s.connection = "ready"
     case .failed: s.connection = "failed"
     case .cancelled: s.connection = "cancelled"

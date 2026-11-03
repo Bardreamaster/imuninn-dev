@@ -140,6 +140,10 @@ class Device:
         reply = await self.request(msg)
         if reply.WhichOneof("body") == "error":
             raise RuntimeError(reply.error.message)
+        # The ConfigChanged broadcast follows asynchronously; bump the version now so
+        # a back-to-back set() does not race it and get rejected as stale.
+        if self.config is not None and reply.config_result.config_version:
+            self.config.config_version = reply.config_result.config_version
         return reply.config_result
 
     async def set(self, key: str, value: bool | int | float | str) -> pb.ConfigResult:
