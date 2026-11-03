@@ -82,6 +82,7 @@ class PhoneClient:
         self.tcp_port = 0
         self.clock_offset_ns: int | None = None  # pc_time_ns - device_time_ns
         self.lease_holder: str = ""               # "" = free; set from Lease broadcasts
+        self.health: pb.DeviceHealth | None = None  # latest periodic health report
         self.clock_rtt_ns: int | None = None
         self.stats: dict[str, StreamStats] = defaultdict(StreamStats)
         self.connected = asyncio.Event()
@@ -216,6 +217,9 @@ class PhoneClient:
                     self.config = msg.config_changed.config
                     log.info("config v%d changed on %s", self.config.config_version, self.name)
                     self._emit("config")
+                elif kind == "health":
+                    self.health = msg.health
+                    self._emit("health")
                 elif kind == "lease":
                     action = msg.lease.action
                     if action in (pb.Lease.ACTION_GRANTED,):

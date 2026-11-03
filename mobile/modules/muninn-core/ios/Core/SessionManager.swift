@@ -6,6 +6,7 @@ import Foundation
 import Network
 import QuartzCore
 import simd
+import UIKit
 
 public struct ClientStatus {
   public var id: UInt32
@@ -69,6 +70,8 @@ public final class SessionManager {
   private var serviceName = ""
   private var writerId: UInt32? = nil
   private var statusTimer: DispatchSourceTimer?
+  private var healthTick = 0
+  private let startTime = CACurrentMediaTime()
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
   private var videoCounter = RateCounter()
@@ -493,6 +496,8 @@ public final class SessionManager {
   }
 
   private func emitStatus() {
+    healthTick += 1
+    if healthTick % 25 == 0 { broadcastHealth() }   // 5 s at 5 Hz
     var s = Status()
     s.server = control.state
     s.serviceName = serviceName
@@ -532,6 +537,36 @@ public final class SessionManager {
     onStatus?(s)
   }
 
+  private func broadcastHealth() {
+    guard !clientList.isEmpty else { return }
+    var h = MnDeviceHealth()
+    h.deviceTimeNs = deviceTimeNs(fromSeconds: CACurrentMediaTime())
+    switch ProcessInfo.processInfo.thermalState {
+    case .nominal: h.thermal = .nominal
+    case .fair: h.thermal = .fair
+    case .serious: h.thermal = .serious
+    case .critical: h.thermal = .critical
+    @unknown default: h.thermal = .unspecified
+    }
+    let dev = UIDevice.current
+    if !dev.isBatteryMonitoringEnabled { DispatchQueue.main.sync { dev.isBatteryMonitoringEnabled = true } }
+    h.batteryLevel = dev.batteryLevel
+    switch dev.batteryState {
+    case .unplugged: h.batteryState = .unplugged
+    case .charging: h.batteryState = .charging
+    case .full: h.batteryState = .full
+    default: h.batteryState = .unspecified
+    }
+    h.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
+    h.poseHz = poseCounter.peek(); h.imuHz = imuCounter.peek(); h.videoFps = videoCounter.peek(); h.depthHz = depthCounter.peek()
+    h.videoKbps = videoBytes.peek()
+    h.encoderDropped = encoder.dropped
+    h.uptimeS = CACurrentMediaTime() - startTime
+    var msg = MnControlMessage()
+    msg.health = h
+    control.broadcast(msg)
+  }
+
   // MARK: helpers
 
   private func deviceInfoProto() -> MnDeviceInfo {
@@ -554,6 +589,7 @@ struct RateCounter {
   private var t0 = CACurrentMediaTime()
   private var last: Double = 0
   mutating func tick() { count += 1 }
+  func peek() -> Double { last }
   mutating func rate() -> Double {
     let now = CACurrentMediaTime()
     let dt = now - t0
@@ -571,6 +607,7 @@ struct ByteRate {
   private var t0 = CACurrentMediaTime()
   private var last: Double = 0
   mutating func add(_ n: Int) { bytes += n }
+  func peek() -> Double { last }
   mutating func kbps() -> Double {
     let now = CACurrentMediaTime()
     let dt = now - t0

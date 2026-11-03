@@ -194,7 +194,7 @@ void Client::connect() {
   hello.mutable_hello()->mutable_client()->set_name(client_name_);
   hello.mutable_hello()->mutable_client()->set_version("cpp-0.1");
   hello.mutable_hello()->set_udp_port(uint32_t(udp_port));
-  hello.mutable_hello()->set_protocol_version(2);
+  hello.mutable_hello()->set_protocol_version(3);
   pb::ControlMessage welcome = request(std::move(hello));
   if (!welcome.has_welcome()) throw std::runtime_error("expected Welcome");
   device_ = welcome.welcome().device();

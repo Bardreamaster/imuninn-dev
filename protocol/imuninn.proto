@@ -2,7 +2,7 @@
 // (Swift / Kotlin / Python / C++). See protocol/README.md for channel layout,
 // versioning rules and coordinate conventions. Design doc: docs/iMuninn-设计文档.md §6.
 //
-// v2 (M2: phone is the server). Every change to this file must bump PROTOCOL_VERSION in
+// v3 (DeviceHealth). Every change to this file must bump PROTOCOL_VERSION in
 // protocol/VERSION and be committed together with all consumers.
 
 syntax = "proto3";
@@ -196,6 +196,7 @@ message ControlMessage {
     TimeSyncPing time_sync_ping = 40;
     TimeSyncPong time_sync_pong = 41;
     Lease lease = 50;
+    DeviceHealth health = 60;                // phone -> clients, broadcast every few seconds
     Error error = 90;
   }
 }
@@ -289,6 +290,35 @@ message Lease {
 }
 
 message Error { uint32 code = 1; string message = 2; }
+
+// Periodic health report (§11 后台限制 / thermal throttling visibility).
+message DeviceHealth {
+  uint64 device_time_ns = 1;
+  enum Thermal {
+    THERMAL_UNSPECIFIED = 0;
+    THERMAL_NOMINAL = 1;
+    THERMAL_FAIR = 2;
+    THERMAL_SERIOUS = 3;
+    THERMAL_CRITICAL = 4;
+  }
+  Thermal thermal = 2;
+  float battery_level = 3;          // 0..1, -1 unknown
+  enum BatteryState {
+    BATTERY_UNSPECIFIED = 0;
+    BATTERY_UNPLUGGED = 1;
+    BATTERY_CHARGING = 2;
+    BATTERY_FULL = 3;
+  }
+  BatteryState battery_state = 4;
+  bool low_power_mode = 5;
+  double pose_hz = 6;               // phone-side rates (what the sources produce)
+  double imu_hz = 7;
+  double video_fps = 8;
+  double depth_hz = 9;
+  double video_kbps = 10;
+  uint64 encoder_dropped = 11;
+  double uptime_s = 12;             // since the app started
+}
 
 // ---------------------------------------------------------------------------
 // Data messages

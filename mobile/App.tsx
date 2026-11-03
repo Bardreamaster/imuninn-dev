@@ -1,5 +1,5 @@
 import { StatusBar } from "expo-status-bar";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View } from "react-native";
 
 import { MuninnCore, MuninnPreviewView } from "./modules/muninn-core/src";
@@ -9,7 +9,8 @@ import { useMuninn } from "./src/ui/useMuninn";
 
 export default function App() {
   const { info, status, caps, config, profiles, lastResult, applyPatch, applyProfile, saveProfile, deleteProfile } = useMuninn();
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
+  useEffect(() => { MuninnCore.setPreview(true); }, []);
   const togglePreview = () => {
     const next = !showPreview;
     setShowPreview(next);

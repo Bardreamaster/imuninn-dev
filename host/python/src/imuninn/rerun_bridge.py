@@ -22,7 +22,7 @@ log = logging.getLogger("imuninn.rerun")
 _ARKIT_TO_RDF = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype=np.float64)
 
 
-def _init(app_id: str, spawn: bool):
+def _init(app_id: str, spawn: bool, save: str | None = None):
     import os
     import sys
 
@@ -33,20 +33,22 @@ def _init(app_id: str, spawn: bool):
     bindir = os.path.join(sys.prefix, "bin")
     if bindir not in os.environ.get("PATH", "").split(os.pathsep):
         os.environ["PATH"] = bindir + os.pathsep + os.environ.get("PATH", "")
-    rr.init(app_id, spawn=spawn)
+    rr.init(app_id, spawn=spawn and not save)
+    if save:
+        rr.save(save)          # .rrd file instead of (or in addition to) the viewer
     rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_UP, static=True)
     return rr
 
 
-def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
-    rr = _init(app_id, spawn)
+def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1, save: str | None = None) -> None:
+    rr = _init(app_id, spawn, save)
     _log_stream(rr, dev.iter(None), every_nth_video)
 
 
-def run_mcap(path: str, app_id: str = "imuninn-replay", spawn: bool = True, every_nth_video: int = 1) -> None:
+def run_mcap(path: str, app_id: str = "imuninn-replay", spawn: bool = True, every_nth_video: int = 1, save: str | None = None) -> None:
     from .mcap_io import replay
 
-    rr = _init(app_id, spawn)
+    rr = _init(app_id, spawn, save)
     _log_stream(rr, replay(path, realtime=False), every_nth_video)
 
 
@@ -60,6 +62,8 @@ def _log_stream(rr, samples, every_nth_video: int) -> None:
     counts = {"imu": 0, "ar_pose": 0, "rgb": 0, "depth": 0}
 
     for stream, sample in samples:
+        if not hasattr(sample, "header"):
+            continue  # ConfigChanged etc. carry no timestamp
         t = sample.header.device_time_ns * 1e-9
         rr.set_time("device", timestamp=t)
         rr.set_time("seq", sequence=sample.header.seq)

@@ -29,6 +29,8 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--every", type=int, default=1, help="decode one video frame out of N")
 
     r.add_argument("--mcap", default=None, help="replay this MCAP file instead of connecting to a phone")
+    r.add_argument("--save", default=None, help="write a .rrd file instead of opening the viewer")
+    r.add_argument("--seconds", type=float, default=None, help="stop after this long (live mode)")
 
     rec = sub.add_parser("record", help="record all subscribed streams to an MCAP file")
     add_target(rec)
@@ -144,13 +146,22 @@ def _rerun(args) -> None:
     from .session import connect
 
     if args.mcap:
-        run_mcap(args.mcap, spawn=not args.no_spawn, every_nth_video=args.every)
+        run_mcap(args.mcap, spawn=not args.no_spawn, every_nth_video=args.every, save=args.save)
         return
     with connect(args.target) as dev:
         print(f"connected: {dev!r}")
         if args.start:
             dev.start()
-        run(dev, spawn=not args.no_spawn, every_nth_video=args.every)
+        if args.seconds:
+            import threading
+
+            threading.Timer(args.seconds, lambda: dev.close()).start()
+        try:
+            run(dev, spawn=not args.no_spawn, every_nth_video=args.every, save=args.save)
+        except Exception as e:  # iterator ends when the device closes
+            if dev.connected:
+                raise
+            print(f"stopped: {e}")
 
 
 def _record(args) -> None:

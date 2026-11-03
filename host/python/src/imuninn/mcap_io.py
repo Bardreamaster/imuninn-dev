@@ -20,6 +20,11 @@ from .proto import imuninn_pb2 as pb
 
 MAGIC = b"IMUNINN1"
 
+_TOPIC_TO_CLASS = {
+    "/imu": "ImuSample", "/ar_pose": "PoseSample", "/rgb": "VideoFrame", "/depth": "DepthFrame",
+    "/gap": "Gap", "/config": "ConfigChanged", "/device": "DeviceInfo", "/capabilities": "Capabilities",
+}
+
 _BODY_TO_TOPIC = {
     "imu": "/imu",
     "pose": "/ar_pose",
@@ -122,8 +127,16 @@ def replay(path: str | Path, realtime: bool = False, topics: list[str] | None = 
                 delay = target - time.monotonic()
                 if delay > 0:
                     time.sleep(delay)
-            stream = getattr(decoded, "header", None).stream_id if hasattr(decoded, "header") else channel.topic.strip("/")
-            yield stream, decoded
+            # mcap_protobuf decodes into classes built from the file's schema; re-parse into
+            # this package's generated classes so isinstance() checks work downstream.
+            cls_name = _TOPIC_TO_CLASS.get(channel.topic)
+            if cls_name is not None:
+                sample = getattr(pb, cls_name)()
+                sample.ParseFromString(decoded.SerializeToString())
+            else:
+                sample = decoded
+            stream = sample.header.stream_id if hasattr(sample, "header") else channel.topic.strip("/")
+            yield stream, sample
 
 
 def summary(path: str | Path) -> dict[str, int]:

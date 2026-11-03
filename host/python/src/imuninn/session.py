@@ -139,6 +139,11 @@ class Device:
         return self._call(self._client.time_sync())
 
     @property
+    def health(self) -> pb.DeviceHealth | None:
+        """Latest DeviceHealth broadcast (thermal state, battery, phone-side rates), every 5 s."""
+        return self._client.health
+
+    @property
     def lease_holder(self) -> str:
         return self._client.lease_holder
 
