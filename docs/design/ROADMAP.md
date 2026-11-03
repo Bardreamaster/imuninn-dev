@@ -69,3 +69,7 @@
 - [x] C++ 客户端库 `host/cpp`（仅依赖 protobuf；WebSocket / UDP / TCP、时钟同步、set、回调），`imuninn_watch` 示例实测 60 Hz / 100 Hz 零丢包
 - [x] `tools/bench/latency.py`：USB 直连实测 IMU 2.6 ms、位姿 39 ms、视频 49 ms、深度 44 ms（`docs/design/m4-bench-usb.json`）
 - [ ] 视频 UDP / RTP：延迟主要在 ARKit 管线与编码，TCP 不是瓶颈，暂不做
+
+## 长时测试（2026-11-03）
+
+4 小时全流采集（USB 供电、静置）：热状态 75 min 后 fair、未到 serious；四路流全程 60 Hz / 100 Hz，视频丢帧 0.008%。详见 `docs/design/longrun-20261103/README.md`。待做：运动画面版、拔线 Wi‑Fi 版。
