@@ -50,9 +50,10 @@ class McapRecorder:
         if body is None:
             return
         sample = getattr(msg, body)
-        publish = sample.header.device_time_ns if hasattr(sample, "header") else 0
+        has_header = hasattr(sample, "header")
+        publish = sample.header.device_time_ns if has_header else 0
         if log_time_ns is None:
-            if self.clock_offset_ns is not None and publish:
+            if self.clock_offset_ns is not None and has_header:
                 log_time_ns = publish + self.clock_offset_ns
             else:
                 log_time_ns = time.time_ns()
