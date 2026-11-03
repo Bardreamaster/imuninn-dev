@@ -110,7 +110,18 @@ class Session:
 
     def _run(self) -> None:
         asyncio.set_event_loop(self._loop)
-        self._loop.run_until_complete(self.gateway.run())
+        self._main = self._loop.create_task(self.gateway.run())
+        try:
+            self._loop.run_until_complete(self._main)
+        except asyncio.CancelledError:
+            pass
+        finally:
+            pending = [t for t in asyncio.all_tasks(self._loop) if not t.done()]
+            for t in pending:
+                t.cancel()
+            if pending:
+                self._loop.run_until_complete(asyncio.gather(*pending, return_exceptions=True))
+            self._loop.close()
 
     def start(self) -> "Session":
         self._thread.start()
@@ -119,7 +130,10 @@ class Session:
         return self
 
     def close(self) -> None:
-        self._loop.call_soon_threadsafe(self._loop.stop)
+        if self._loop.is_closed():
+            return
+        self._loop.call_soon_threadsafe(self._main.cancel)
+        self._thread.join(5)
 
     def __enter__(self) -> "Session":
         return self.start()

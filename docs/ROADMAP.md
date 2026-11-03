@@ -6,7 +6,7 @@
 | --- | --- | --- |
 | **M0** | Expo 空壳 + `muninn-core` 本地模块；monorepo 结构；`.proto` 草案；PC 网关骨架（mDNS + 控制通道握手）；双许可证 | `npx expo run:ios` 装到真机，界面显示原生模块返回的设备信息；`imuninn gateway` 能广播并打印收到的 Hello |
 | **M1** ✅ 2026-11-03 | 控制通道（握手、能力描述、订阅、时钟同步）；ARKit 位姿 + CoreMotion IMU 走 UDP；远程配置基础版（流开关、帧率、曝光）；Python API 回调/迭代器 | 机器人程序能通过 Python 拿到手机实时位姿；配置改动在 PC 与手机 UI 同步 |
-| **M2** | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
+| **M2** ✅ 2026-11-03 | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
 | **M3** | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
 | **M4** | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
 | **M5** | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | Android 机型跑通 M1–M3 功能 |
@@ -29,3 +29,13 @@
 - [x] Python：`imuninn.open()` / `wait_for_device()` / `set()` / `iter()` / `on()`；`imuninn watch`
 - [ ] 租约（单写者）只做了应答，未强制。含义：同一时刻只允许一个 PC 客户端写配置，其余只读，断线自动释放；多台 PC 同时接一台手机时才需要，M4 做
 - [ ] 纯相机模式（M4）
+
+## M2 状态（2026-11-03）
+
+- [x] VideoToolbox H.264 编码一次，分发到 TCP 网络 Sink 与本机 FileSink；拥塞时只丢非关键帧并请求新关键帧
+- [x] 纯相机模式（提前自 M4）：AVCapture，镜头 广角/超广角/长焦/前置，分辨率随镜头
+- [x] IMU `raw` 选项（原始加速度计 + 陀螺）
+- [x] PC：TCP 视频通道、PyAV 解码、`imuninn rerun`（位姿 + 针孔相机 + 图像 + IMU 曲线）
+- [x] 真机实测：AR 模式 1920x1440@60 视频 60 fps 零丢帧，位姿 60 Hz、IMU 100 Hz 同时
+- [ ] 本机录制文件 → MCAP 转换（M3）
+- [ ] 视频走 UDP 分片 / RTP（待 M2 延迟实测后决定，当前 TCP 够用）

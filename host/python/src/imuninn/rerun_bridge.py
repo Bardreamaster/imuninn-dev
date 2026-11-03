@@ -23,10 +23,18 @@ _ARKIT_TO_RDF = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype=np.float64)
 
 
 def run(session: Session, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
+    import os
+    import sys
+
     import rerun as rr  # type: ignore
 
     from .video import H264Decoder
 
+    # The viewer binary ships with rerun-sdk inside the venv's bin/, which is not
+    # necessarily on PATH when the script runs from an activated-less shell.
+    bindir = os.path.join(sys.prefix, "bin")
+    if bindir not in os.environ.get("PATH", "").split(os.pathsep):
+        os.environ["PATH"] = bindir + os.pathsep + os.environ.get("PATH", "")
     rr.init(app_id, spawn=spawn)
     rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_UP, static=True)
 
