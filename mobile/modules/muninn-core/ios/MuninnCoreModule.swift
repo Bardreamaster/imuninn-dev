@@ -1,6 +1,7 @@
 // Thin Expo adapter (§4.2). Everything substantive lives in ios/Core/.
 import ExpoModulesCore
 import Foundation
+import UIKit
 
 public class MuninnCoreModule: Module {
   private var manager: SessionManager { SessionManager.shared }
@@ -15,6 +16,8 @@ public class MuninnCoreModule: Module {
     Events("onStatus", "onConfig")
 
     OnCreate {
+      // The app exists to stream while in the foreground: never auto-lock (§11).
+      DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = true }
       self.manager.onStatus = { [weak self] s in
         self?.sendEvent("onStatus", [
           "server": s.server,
@@ -47,6 +50,10 @@ public class MuninnCoreModule: Module {
       self.manager.onConfigChanged = { [weak self] cfg in
         self?.sendEvent("onConfig", ["config": ConfigJSON.config(cfg)])
       }
+    }
+
+    OnDestroy {
+      DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = false }
     }
 
     View(MuninnPreviewView.self) {}
