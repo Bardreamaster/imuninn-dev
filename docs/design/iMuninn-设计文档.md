@@ -26,11 +26,11 @@ iMuninn 把手机变成便携的多模态传感器节点：相机、IMU、ARKit/
 
 ## 2. 系统架构总览
 
-iMuninn 分三层：手机原生核心负责采集和发送，Protobuf 协议是唯一的数据通道，PC 网关解码后分发给各种出口。
+iMuninn 分三层：手机原生核心负责采集和发送（手机是服务端），Protobuf 协议是唯一的数据通道，PC 客户端解码后交给各种出口。
 
 &#91;embedded content: iMuninn 系统架构 · 手机、协议、PC 网关三层\]
 
-手机端 JS 只收发控制命令和节流后的状态；数据从原生核心经协议直达 PC 网关。Rerun、MCAP 和各语言接口都是网关上可替换的出口，ROS 2 桥接按需加在同一层。
+手机端 JS 只收发控制命令和节流后的状态；数据从原生核心经协议直达 PC 客户端。Rerun、MCAP 和各语言接口都是客户端上可替换的出口，ROS 2 桥接按需加在同一层。多台 PC 可各自直接连手机；若要省手机上行带宽，再在 PC 上写一个接收并分发的中继客户端（暂不做）。
 
 ## 3. 仓库结构
 
@@ -62,7 +62,7 @@ imuninn/
 | `mobile/app/` | 全部界面与交互逻辑 | 不接触任何原始数据 |
 | `mobile/modules/muninn-core/` | 全部原生数据链路 | 原生代码只写在这里 |
 | `mobile/ios`、`mobile/android` | 由 `expo prebuild` 自动生成 | 加入 `.gitignore`，不手写代码 |
-| `host/` | PC 端网关与多语言接口 | 可视化只是其中一个出口 |
+| `host/` | PC 端客户端与多语言接口 | 可视化只是其中一个出口 |
 
 没有单独的“假手机”模拟器：直接使用开发用 iPhone 联调；需要可复现测试时回放录制的 MCAP 文件。
 
@@ -188,8 +188,9 @@ ARKit / ARCore 均为右手系、Y 轴向上、相机朝 -Z（OpenGL 约定）�
 
 ### 6.7 发现与连接
 
-- 局域网：mDNS / Bonjour 自动发现 PC，免手输 IP。
-- USB（更稳定、低延迟）：Android 用 `adb reverse`，iOS 用 usbmuxd 转发 TCP。
+- **方向**：手机是服务端。手机发布 Bonjour 服务 `_imuninn._tcp` 并监听控制端口（WebSocket）与数据端口（TCP）；PC 发现后连手机，并在 `Hello` 里告知自己接收 UDP 的端口。（2026-11-03 修订：原稿为手机发现 PC，与 §6.8 示例矛盾，且 USB 转发只能连手机上监听的端口，故统一为手机当服务端。）
+- 局域网：mDNS / Bonjour 自动发现手机，免手输 IP；也可手输手机屏幕上显示的地址。
+- USB（更稳定、低延迟）：iOS 插线后 Bonjour 直接给出 USB 直连的 169.254.x.x 地址，实测往返 1.5 ms，无需 usbmuxd；Android 用 `adb reverse`。
 - iOS 需在 Info.plist 配置 `NSLocalNetworkUsageDescription` 与 Bonjour 服务名（由 Config Plugin 注入）。
 
 ### 6.8 远程配置
@@ -243,26 +244,26 @@ dev.set("rgb.exposure.mode", "locked")
 dev.apply_profile("profiles/calibration.yaml")
 ```
 
-## 7. PC 端网关
+## 7. PC 端客户端
 
-PC 端是一个网关进程：接收并解码手机数据，再通过多种出口对外提供；Rerun 只是其中一个可替换的可视化出口。
+PC 端是一个客户端库：连接手机、接收并解码数据，再通过多种出口对外提供；Rerun 只是其中一个可替换的可视化出口。（2026-11-03 修订：原稿为“PC 网关进程”，现在网关只是可选的中继，多个接收端需要省带宽时再做。）
 
 ### 7.1 对外接口
 
 - **Python**（`pip install imuninn`）：回调与迭代器两种 API，给实验脚本、训练和数据处理使用；同时提供远程读写手机配置、加载配置预设的接口。
 - **C++ 库**：给实时控制程序直接链接。
-- **Web**：浏览器不能收 UDP，由网关通过 WebSocket 转发。
+- **Web**：浏览器不能收 UDP，由 PC 上的中继客户端通过 WebSocket 转发（待做）。
 - **ROS 2**（可选）：在 `host/bridges/` 中发布为 topic。
 
 ### 7.2 可视化：Rerun
 
-网关解码后调用 `rr.log(...)` 把图像、位姿、IMU 交给 Rerun Viewer；SDK 与 Viewer 之间的传输由 Rerun 自己负责。选择 Rerun 的原因是 SDK 和 Viewer 全部开源，采用 MIT 或 Apache-2.0 双许可（[rerun.io](https://rerun.io/llms.txt)），可随项目一起分发。Foxglove 的 SDK 虽为 MIT，但其可视化应用自 2.0 起闭源，不符合开源约束。
+客户端解码后调用 `rr.log(...)` 把图像、位姿、IMU 交给 Rerun Viewer；SDK 与 Viewer 之间的传输由 Rerun 自己负责。选择 Rerun 的原因是 SDK 和 Viewer 全部开源，采用 MIT 或 Apache-2.0 双许可（[rerun.io](https://rerun.io/llms.txt)），可随项目一起分发。Foxglove 的 SDK 虽为 MIT，但其可视化应用自 2.0 起闭源，不符合开源约束。
 
 手机端**不**直接说 Rerun 或 Foxglove 的协议：那会把数据模型绑死在可视化工具上，且 Rerun 没有 Swift / Kotlin SDK。
 
 ### 7.3 录制：MCAP 原始流
 
-网关把手机发来的 Protobuf 消息**原样**写进 MCAP 文件（MIT 许可，原生支持 Protobuf schema）。数据集格式就是自己的协议，不绑定任何查看器；需要可视化时回放给 Rerun，或转换成 `.rrd`。MCAP 回放同时承担可复现测试的职责。
+客户端把手机发来的 Protobuf 消息**原样**写进 MCAP 文件（MIT 许可，原生支持 Protobuf schema）。数据集格式就是自己的协议，不绑定任何查看器；需要可视化时回放给 Rerun，或转换成 `.rrd`。MCAP 回放同时承担可复现测试的职责。
 
 ## 8. 性能与并发原则
 
@@ -316,8 +317,8 @@ M0 一开始就用 Expo 搭好空壳和本地模块，后续里程碑只往 muni
 
 ## 12. 待定事项
 
-- [ ] 配对方式：扫二维码、mDNS 自动发现，还是两者都支持
-- [ ] 第一版 `.proto` 草案：握手、能力描述、配置模型、消息头、IMU / 位姿 / 图像 / 深度消息
+- [x] 配对方式：手机发布 Bonjour，PC 发现或手输地址（2026-11-03）
+- [x] 第一版 `.proto`：见 `protocol/imuninn.proto`（v2，2026-11-03）
 - [ ] 配置预设文件格式（YAML 或 JSON）及存放位置
 - [ ] 视频是否需要提前做 UDP 分片（取决于 M2 实测延迟）
 - [ ] 正式商标检索（WIPO Global Brand Database，第 9 类与第 42 类），确认 iMuninn 可用
@@ -336,3 +337,7 @@ M0 一开始就用 Expo 搭好空壳和本地模块，后续里程碑只往 muni
 - [Protobuf 2026-07-13 变更公告](https://protobuf.dev/news/2026-07-13)
 - [Rerun 文档与许可证](https://rerun.io/llms.txt)
 - [Foxglove 2.0 定价与开源变更](https://discourse.openrobotics.org/t/foxglove-2-0-integrated-ui-new-pricing-and-open-source-changes/36583)
+
+## 修订记录
+
+- 2026-11-03：改为手机当服务端（§2、§6.7、§7）；协议 v2；USB 直连实测可用；M5 Android 搁置。
