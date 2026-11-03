@@ -15,19 +15,19 @@
 | 通道 | 传输 | 消息 | 丢包策略 |
 | --- | --- | --- | --- |
 | 控制 | WebSocket | `ControlMessage` | 可靠 |
-| IMU / 位姿 | UDP，每包一条 `DataMessage` | `ImuSample`、`PoseSample` | 允许丢包 |
+| IMU / 位姿 | UDP（手机 → 每个客户端的端口），每包一条 `DataMessage` | `ImuSample`、`PoseSample` | 允许丢包 |
 | 视频 | TCP（v1） | `VideoFrame`（H.264 Annex-B） | 发送端只保留最新一帧 |
 | 深度 | TCP | `DepthFrame`（uint16 mm + lz4/zstd） | 不丢 |
 
 TCP 流上的帧格式：`uint32 little-endian length` + `DataMessage` bytes。UDP 上每个数据报就是一条 `DataMessage`，不分片（超过 MTU 的消息走 TCP）。
 
-## 连接流程
+## 连接流程（v2：手机是服务端）
 
-1. 手机通过 mDNS 发现 `_imuninn._tcp` 服务（PC 网关），或用户手输地址。
-2. 手机打开控制 WebSocket，发 `Hello`；网关回 `Welcome`。
-3. PC 端 `GetCapabilities` → `Capabilities`（含当前 `DeviceConfig`）。
-4. `Subscribe` 订阅流；`SessionControl START` 开始采集。
-5. 配置修改走 `SetConfig`（部分更新 + `base_config_version`）→ `ConfigResult` → 广播 `ConfigChanged`。
+1. 手机发布 Bonjour 服务 `_imuninn._tcp`（名字 = 设备名，TXT `proto=<版本>`），监听控制端口 7420（WebSocket）和数据端口 7422（TCP）。
+2. PC 发现或手输地址后打开控制 WebSocket，发 `Hello`（客户端名、自己接收 UDP 的端口）；手机回 `Welcome`（设备信息、能力描述 + 当前配置、TCP 端口、`client_id`）。
+3. PC 连手机的 TCP 数据端口，先写 4 字节 LE `client_id`，之后收视频 / 深度流。位姿 / IMU 由手机发到 PC 的 UDP 端口。
+4. `Subscribe` 订阅流；`SessionControl START` 开始采集。多个 PC 可同时连接，各自订阅。
+5. 配置修改走 `SetConfig`（部分更新 + `base_config_version`）→ `ConfigResult` → 广播 `ConfigChanged` 给所有客户端。
 
 ## 坐标系
 

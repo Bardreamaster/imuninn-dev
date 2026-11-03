@@ -9,7 +9,7 @@
 ```
 protocol/   .proto 定义 + 协议说明 + VERSION（唯一真相源）
 mobile/     Expo App；原生数据链路在 modules/muninn-core/
-host/       PC 端：python/（网关 + API）、cpp/、bridges/
+host/       PC 端：python/（客户端 API + CLI）、cpp/、bridges/
 tools/      代码生成、延迟/带宽测试
 docs/
 ```
@@ -24,7 +24,7 @@ docs/
 
 ```bash
 tools/gen-proto.sh                       # 生成各语言绑定
-cd host/python && uv venv && uv pip install -e ".[dev]" && imuninn gateway
+cd host/python && uv venv && uv pip install -e ".[dev,video,rerun]" && imuninn list
 cd mobile && npm install && npx expo run:ios --device   # development build 到真机
 ```
 
