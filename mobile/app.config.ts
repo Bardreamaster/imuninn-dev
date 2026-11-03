@@ -8,7 +8,7 @@ const config: ExpoConfig = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "dark",
   ios: {
-    bundleIdentifier: "io.imuninn.app",
+    bundleIdentifier: "com.weijinqi.projects.imuninn",
     supportsTablet: false,
     // Keep screen on while streaming; background capture is a platform limit (§11).
     infoPlist: {
@@ -16,7 +16,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: "io.imuninn.app",
+    package: "com.weijinqi.projects.imuninn",
     adaptiveIcon: {
       backgroundColor: "#0B0F14",
       foregroundImage: "./assets/android-icon-foreground.png",
