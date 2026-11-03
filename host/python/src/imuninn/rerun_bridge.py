@@ -22,13 +22,11 @@ log = logging.getLogger("imuninn.rerun")
 _ARKIT_TO_RDF = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype=np.float64)
 
 
-def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
+def _init(app_id: str, spawn: bool):
     import os
     import sys
 
     import rerun as rr  # type: ignore
-
-    from .video import H264Decoder
 
     # The viewer binary ships with rerun-sdk inside the venv's bin/, which is not
     # necessarily on PATH when the script runs from an activated-less shell.
@@ -37,13 +35,31 @@ def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_vide
         os.environ["PATH"] = bindir + os.pathsep + os.environ.get("PATH", "")
     rr.init(app_id, spawn=spawn)
     rr.log("world", rr.ViewCoordinates.RIGHT_HAND_Y_UP, static=True)
+    return rr
+
+
+def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
+    rr = _init(app_id, spawn)
+    _log_stream(rr, dev.iter(None), every_nth_video)
+
+
+def run_mcap(path: str, app_id: str = "imuninn-replay", spawn: bool = True, every_nth_video: int = 1) -> None:
+    from .mcap_io import replay
+
+    rr = _init(app_id, spawn)
+    _log_stream(rr, replay(path, realtime=False), every_nth_video)
+
+
+def _log_stream(rr, samples, every_nth_video: int) -> None:
+    from .depth import decode as decode_depth, to_metres
+    from .video import H264Decoder
 
     decoder = H264Decoder()
     video_n = 0
     t0 = time.time()
-    counts = {"imu": 0, "ar_pose": 0, "rgb": 0}
+    counts = {"imu": 0, "ar_pose": 0, "rgb": 0, "depth": 0}
 
-    for stream, sample in dev.iter(None):
+    for stream, sample in samples:
         t = sample.header.device_time_ns * 1e-9
         rr.set_time("device", timestamp=t)
         rr.set_time("seq", sequence=sample.header.seq)
@@ -82,6 +98,18 @@ def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_vide
                 continue
             for img in decoder.decode(sample, upright=False):
                 rr.log("world/phone/cam/image", rr.Image(img).compress(jpeg_quality=80))
+        elif isinstance(sample, pb.DepthFrame):
+            counts["depth"] += 1
+            d_mm, _conf = decode_depth(sample, upright=False)
+            k = sample.intrinsics
+            rr.log(
+                "world/phone/depth",
+                rr.Pinhole(
+                    focal_length=[k.fx, k.fy], principal_point=[k.cx, k.cy],
+                    resolution=[k.width, k.height], camera_xyz=rr.ViewCoordinates.RUB, image_plane_distance=0.2,
+                ),
+            )
+            rr.log("world/phone/depth/image", rr.DepthImage(to_metres(d_mm), meter=1.0))
         if time.time() - t0 > 5:
             log.info("rerun: %s", {k: f"{v / (time.time() - t0):.1f} Hz" for k, v in counts.items()})
             t0 = time.time()

@@ -9,11 +9,13 @@ dependencies = [
   "protobuf>=5",
   "websockets>=13",
   "zeroconf>=0.130",
+  "numpy",
+  "lz4>=4",
 ]
 
 [project.optional-dependencies]
-rerun = ["rerun-sdk>=0.20", "numpy"]
-video = ["av>=12", "numpy"]
+rerun = ["rerun-sdk>=0.20"]
+video = ["av>=12"]
 mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 

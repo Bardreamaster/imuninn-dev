@@ -22,6 +22,7 @@ public struct ConfigEnvironment {
   public var cameraFormats: [String: [String]] = [:]   // lens -> format ids
   public var imuAvailable = false
   public var arAvailable = false
+  public var depthAvailable = false
   public init() {}
 }
 
@@ -89,6 +90,14 @@ public final class ConfigStore {
       Self.spec("bitrate_kbps", "H.264 bitrate", .int, .immediate, unit: "kbps", min: 500, max: 20000, step: 500, current: Self.i(4000)),
       Self.spec("keyframe_interval", "Keyframe interval", .int, .immediate, unit: "frames", min: 1, max: 300, step: 1, current: Self.i(60)),
     ])
+
+    if env.depthAvailable {
+      addStream("depth", .depth, .tcp, enabled: false, params: [
+        Self.spec("smoothed", "Temporally smoothed", .bool, .restartSession, current: Self.b(false)),
+        Self.spec("compression", "Compression", .enum, .immediate, choices: ["lz4", "none"], current: Self.s("lz4")),
+        Self.spec("rate_divisor", "Send every Nth frame", .int, .immediate, min: 1, max: 6, step: 1, current: Self.i(1)),
+      ])
+    }
   }
 
   // MARK: queries

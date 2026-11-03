@@ -43,6 +43,7 @@ export interface StatusEvent {
   poseHz: number;
   imuHz: number;
   videoHz: number;
+  depthHz: number;
   videoKbps: number;
   encoderDropped: number;
   recording: boolean;

@@ -23,6 +23,10 @@ public final class ArSource: NSObject, ARSessionDelegate {
   public var onPose: ((MnPoseSample) -> Void)?
   /// Captured image for the video pipeline. The buffer must be consumed promptly (§8.5).
   public var onImage: ((CVPixelBuffer, Double, simd_float3x3) -> Void)?
+  /// LiDAR depth (metres, Float32) + confidence (uint8) + camera intrinsics at image resolution.
+  public var onDepth: ((CVPixelBuffer, CVPixelBuffer?, Double, simd_float3x3, CGSize) -> Void)?
+  public private(set) var depthEnabled = false
+  public private(set) var depthSmoothed = false
   public var onTracking: ((ARCamera.TrackingState) -> Void)?
 
   public private(set) var videoFormatId: String
@@ -37,6 +41,7 @@ public final class ArSource: NSObject, ARSessionDelegate {
   }
 
   public static var supported: Bool { ARWorldTrackingConfiguration.isSupported }
+  public static var depthSupported: Bool { ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) }
 
   public static func videoFormats() -> [VideoFormatChoice] {
     guard supported else { return [] }
@@ -51,8 +56,14 @@ public final class ArSource: NSObject, ARSessionDelegate {
 
   // MARK: control
 
-  public func start(videoFormatId: String?, exposureLocked: Bool, focusLocked: Bool) {
+  public func start(videoFormatId: String?, exposureLocked: Bool, focusLocked: Bool,
+                    depth: Bool = false, smoothedDepth: Bool = false) {
     let config = ARWorldTrackingConfiguration()
+    depthEnabled = depth && Self.depthSupported
+    depthSmoothed = smoothedDepth
+    if depthEnabled {
+      config.frameSemantics.insert(smoothedDepth ? .smoothedSceneDepth : .sceneDepth)
+    }
     if let id = videoFormatId, let choice = Self.videoFormats().first(where: { $0.id == id }) {
       config.videoFormat = choice.format
       self.videoFormatId = id
@@ -140,6 +151,9 @@ public final class ArSource: NSObject, ARSessionDelegate {
     p.intrinsics.cy = Double(k.columns.2.y)
     onPose?(p)
     onImage?(frame.capturedImage, frame.timestamp, k)
+    if depthEnabled, let d = depthSmoothed ? frame.smoothedSceneDepth : frame.sceneDepth {
+      onDepth?(d.depthMap, d.confidenceMap, frame.timestamp, k, cam.imageResolution)
+    }
   }
 
   public func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {

@@ -177,6 +177,7 @@ export default function App() {
           {status?.mode !== "camera" ? <Row k="位姿" v={`${status?.poseHz.toFixed(1) ?? 0} Hz`} /> : null}
           <Row k="IMU" v={`${status?.imuHz.toFixed(1) ?? 0} Hz`} />
           <Row k="视频" v={`${status?.videoHz.toFixed(1) ?? 0} fps · ${((status?.videoKbps ?? 0) / 1000).toFixed(1)} Mbps`} />
+          {info.hasLidar && status?.mode !== "camera" ? <Row k="深度" v={`${status?.depthHz.toFixed(1) ?? 0} Hz`} /> : null}
           <Row k="编码器丢帧" v={status?.encoderDropped ?? 0} />
           <Row k="配置版本" v={status?.configVersion ?? 0} />
           {status?.recording ? (

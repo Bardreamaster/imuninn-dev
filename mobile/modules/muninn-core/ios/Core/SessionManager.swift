@@ -29,6 +29,7 @@ public struct Status {
   public var tracking: String = "none"            // none | limited | normal
   public var poseHz: Double = 0
   public var imuHz: Double = 0
+  public var depthHz: Double = 0
   public var videoHz: Double = 0
   public var videoKbps: Double = 0
   public var encoderDropped: UInt64 = 0
@@ -67,6 +68,9 @@ public final class SessionManager {
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
   private var videoCounter = RateCounter()
+  private var depthCounter = RateCounter()
+  private var depthSeq: UInt64 = 0
+  private var depthFrameIndex: UInt64 = 0
   private var videoBytes = ByteRate()
   private var videoSeq: UInt64 = 0
   private var lastIntrinsics = simd_float3x3(1)
@@ -83,6 +87,7 @@ public final class SessionManager {
     env.lenses = Lens.available().map { $0.rawValue }
     for l in Lens.available() { env.cameraFormats[l.rawValue] = CameraSource.formats(for: l) }
     env.imuAvailable = imu.available
+    env.depthAvailable = ArSource.depthSupported
     config = ConfigStore(env: env)
 
     control.onConnect = { [weak self] c in self?.queue.async { self?.clientConnected(c) } }
@@ -91,6 +96,7 @@ public final class SessionManager {
     data.onAttach = { [weak self] id, sink in self?.attachData(id: id, sink: sink) ?? false }
     ar.onPose = { [weak self] p in self?.publishPose(p) }
     ar.onImage = { [weak self] pb, t, k in self?.handleImage(pb, t, k) }
+    ar.onDepth = { [weak self] d, c, t, k, res in self?.publishDepth(d, c, t, k, res) }
     camera.onFrame = { [weak self] f in self?.handleImage(f.pixelBuffer, f.timeSeconds, f.intrinsics) }
     imu.onSample = { [weak self] s in self?.publishImu(s) }
     encoder.onFrame = { [weak self] f in self?.publishVideo(f) }
@@ -233,7 +239,9 @@ public final class SessionManager {
       ar.start(
         videoFormatId: config.string("ar_pose", "video_format"),
         exposureLocked: config.bool("ar_pose", "exposure_locked"),
-        focusLocked: config.bool("ar_pose", "focus_locked")
+        focusLocked: config.bool("ar_pose", "focus_locked"),
+        depth: config.isEnabled("depth"),
+        smoothedDepth: config.bool("depth", "smoothed")
       )
     }
     if config.isEnabled("imu"), imu.available {
@@ -269,7 +277,7 @@ public final class SessionManager {
     for c in update.changes {
       switch (c.stream, c.key) {
       case ("imu", "rate_hz"): imu.setRate(Int(c.value.i))
-      case ("imu", "raw"), ("imu", "enabled"), ("ar_pose", "enabled"), ("rgb", "enabled"): restartSources()
+      case ("imu", "raw"), ("imu", "enabled"), ("ar_pose", "enabled"), ("rgb", "enabled"), ("depth", "enabled"): restartSources()
       case ("ar_pose", "exposure_locked"):
         if isCameraMode { camera.setExposureLocked(c.value.b) } else { ar.setExposureLocked(c.value.b) }
       case ("rgb", "bitrate_kbps"): encoder.setBitrate(Int(c.value.i) * 1000)
@@ -336,6 +344,39 @@ public final class SessionManager {
     encoder.encode(pb, timeSeconds: t)
   }
 
+  private func publishDepth(_ depth: CVPixelBuffer, _ conf: CVPixelBuffer?, _ t: Double, _ k: simd_float3x3, _ imageRes: CGSize) {
+    depthFrameIndex &+= 1
+    let divisor = max(1, config.int("depth", "rate_divisor"))
+    guard depthFrameIndex % UInt64(divisor) == 0 else { return }
+    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("depth") && $0.tcp != nil }
+    guard wanted else { return }
+    let compress = config.string("depth", "compression") != "none"
+    guard let packed = DepthPacker.pack(depth: depth, confidence: conf, compress: compress) else { return }
+    depthCounter.tick()
+    var d = MnDepthFrame()
+    d.header.streamID = "depth"
+    d.header.seq = depthSeq
+    depthSeq &+= 1
+    d.header.deviceTimeNs = deviceTimeNs(fromSeconds: t)
+    stamp(&d.header)
+    d.width = UInt32(packed.width); d.height = UInt32(packed.height)
+    d.compression = packed.compressed ? .lz4 : .none
+    d.depthMm = packed.depthMm
+    d.confidence = packed.confidence
+    // Depth map is a scaled version of the camera image: scale intrinsics accordingly.
+    let sx = Double(packed.width) / Double(imageRes.width), sy = Double(packed.height) / Double(imageRes.height)
+    d.intrinsics.width = d.width; d.intrinsics.height = d.height
+    d.intrinsics.fx = Double(k.columns.0.x) * sx; d.intrinsics.fy = Double(k.columns.1.y) * sy
+    d.intrinsics.cx = Double(k.columns.2.x) * sx; d.intrinsics.cy = Double(k.columns.2.y) * sy
+    d.rotationDeg = 90
+    var m = MnDataMessage()
+    m.depth = d
+    for c in clientList where c.subscribed.contains("depth") {
+      c.tcp?.send(m, droppable: true, keyframe: true)   // independent frames: never block, never skip for resync
+    }
+    if file.isRecording { file.write(m) }
+  }
+
   private func publishVideo(_ f: EncodedFrame) {
     videoCounter.tick()
     videoBytes.add(f.data.count)
@@ -398,6 +439,7 @@ public final class SessionManager {
     s.poseHz = poseCounter.rate()
     s.imuHz = imuCounter.rate()
     s.videoHz = videoCounter.rate()
+    s.depthHz = depthCounter.rate()
     s.videoKbps = videoBytes.kbps()
     s.encoderDropped = encoder.dropped
     s.configVersion = config.snapshot().configVersion

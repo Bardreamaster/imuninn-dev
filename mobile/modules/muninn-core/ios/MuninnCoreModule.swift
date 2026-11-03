@@ -32,6 +32,7 @@ public class MuninnCoreModule: Module {
           "poseHz": s.poseHz,
           "imuHz": s.imuHz,
           "videoHz": s.videoHz,
+          "depthHz": s.depthHz,
           "videoKbps": s.videoKbps,
           "encoderDropped": Int(s.encoderDropped),
           "recording": s.recording,
