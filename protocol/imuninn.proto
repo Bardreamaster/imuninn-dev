@@ -147,7 +147,7 @@ message DeviceConfig {
 
 message StreamConfig {
   string stream_id = 1;
-  bool enabled = 2;
+  optional bool enabled = 2;       // optional: absent in a SetConfig patch means "unchanged"
   map<string, Value> params = 3;     // keyed by ParamSpec.key (relative)
   EncoderConfig encoder = 4;
   DeliveryConfig delivery = 5;
@@ -200,8 +200,15 @@ message ControlMessage {
   }
 }
 
-message Hello { DeviceInfo device = 1; }
-message Welcome { string gateway_name = 1; uint32 protocol_version = 2; }
+message Hello {
+  DeviceInfo device = 1;
+  Capabilities capabilities = 2;   // sent eagerly so one round trip is enough
+}
+message Welcome {
+  string gateway_name = 1;
+  uint32 protocol_version = 2;
+  uint32 udp_port = 3;        // where the phone sends DataMessage datagrams
+}
 
 message GetCapabilities {}
 message GetConfig {}

@@ -1,9 +1,17 @@
 {
-  "platforms": ["apple", "android", "web"],
+  "platforms": [
+    "apple",
+    "android",
+    "web"
+  ],
   "apple": {
-    "modules": ["MuninnCoreModule"]
+    "modules": [
+      "MuninnCoreModule"
+    ]
   },
   "android": {
-    "modules": ["expo.modules.muninncore.MuninnCoreModule"]
+    "modules": [
+      "expo.modules.muninncore.MuninnCoreModule"
+    ]
   }
 }

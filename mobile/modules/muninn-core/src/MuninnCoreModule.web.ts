@@ -1,6 +1,15 @@
 import { NativeModule, registerWebModule } from "expo";
 
-import type { DeviceInfo, MuninnCoreEvents } from "./MuninnCore.types";
+import type {
+  Capabilities,
+  ConfigPatch,
+  ConfigResult,
+  DeviceConfig,
+  DeviceInfo,
+  MuninnCoreEvents,
+} from "./MuninnCore.types";
+
+const emptyConfig: DeviceConfig = { configVersion: 0, mode: "ar", streams: {} };
 
 // Web has no sensor pipeline; exists only so `expo start --web` renders the UI.
 class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
@@ -18,6 +27,24 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
       hasLidar: false,
       arSupported: false,
     };
+  }
+  startDiscovery() {}
+  stopDiscovery() {}
+  connectToGateway(_name: string) {
+    return false;
+  }
+  connectToHost(_host: string, _port: number) {}
+  disconnect() {}
+  startSession() {}
+  stopSession() {}
+  getCapabilities(): Capabilities {
+    return { streams: [], sessionParams: [], config: emptyConfig };
+  }
+  getConfig(): DeviceConfig {
+    return emptyConfig;
+  }
+  setConfig(_patch: ConfigPatch): ConfigResult {
+    return { configVersion: 0, sessionRestarted: false, fields: [] };
   }
 }
 

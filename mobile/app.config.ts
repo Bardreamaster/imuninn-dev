@@ -9,7 +9,7 @@ const config: ExpoConfig = {
   userInterfaceStyle: "dark",
   ios: {
     bundleIdentifier: "com.weijinqi.projects.imuninn",
-    appleTeamId: "36YD756LJ8",
+    appleTeamId: "NHCF5WN8GK",
     supportsTablet: false,
     // Keep screen on while streaming; background capture is a platform limit (§11).
     infoPlist: {
