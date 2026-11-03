@@ -140,7 +140,7 @@ export default function App() {
   return (
     <SafeAreaView style={s.container}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
+      <View style={s.pinned}>
         <View style={s.header}>
           <View>
             <Text style={s.title}>iMuninn</Text>
@@ -149,10 +149,9 @@ export default function App() {
           {status?.remoteControlled ? <Text style={s.badge}>远程控制中</Text> : null}
         </View>
 
-        {showPreview ? (
-          <MuninnPreviewView style={s.preview} />
-        ) : null}
-
+        {showPreview ? <MuninnPreviewView style={s.preview} /> : null}
+      </View>
+      <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8, gap: 16 }}>
         {/* Connection */}
         <View style={s.card}>
           <Text style={s.cardTitle}>连接</Text>
@@ -259,12 +258,13 @@ export default function App() {
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
+  pinned: { paddingHorizontal: 20, paddingTop: 8, gap: 10 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
   title: { color: C.text, fontSize: 28, fontWeight: "700" },
   subtitle: { color: C.muted, fontSize: 13, marginTop: 2 },
   badge: { color: C.bg, backgroundColor: C.warn, fontWeight: "700", fontSize: 12,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: "hidden" },
-  preview: { height: 220, borderRadius: 12, overflow: "hidden", backgroundColor: "#000" },
+  preview: { height: 260, borderRadius: 12, overflow: "hidden", backgroundColor: "#000" },
   card: { backgroundColor: C.card, borderRadius: 12, padding: 16, gap: 10 },
   cardTitle: { color: C.text, fontSize: 16, fontWeight: "600", marginBottom: 2 },
   row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
