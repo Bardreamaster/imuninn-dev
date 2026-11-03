@@ -9,7 +9,7 @@
 | **M2** ✅ 2026-11-03 | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
 | **M3** | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
 | **M4** | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
-| **M5** | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | Android 机型跑通 M1–M3 功能 |
+| **M5** ⏸ 搁置 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 暂无 Android 测试机（2026-11-03 决定） |
 
 ## M0 状态（2026-11-03）
 
@@ -18,7 +18,7 @@
 - [x] `mobile/`：Expo SDK 58 空壳、`app.config.ts`、Config Plugin（相机/运动/本地网络/Bonjour/ARKit）
 - [x] `mobile/modules/muninn-core/`：薄 Expo 适配层 + `ios/Core/`（Pipeline 骨架、DeviceInfo）
 - [x] `host/python/`：`imuninn` 包、`imuninn gateway`（mDNS + Hello/Welcome）
-- [x] 模拟器构建验证（iPhone 18 Pro 模拟器，见 `docs/m0-simulator.png`）
+- [x] 模拟器构建验证（iPhone 18 Pro 模拟器，见 `docs/design/m0-simulator.png`）
 - [x] 真机构建验证（iPhone 17 Pro，AR + LiDAR = true）
 
 ## M1 状态（2026-11-03）
@@ -46,3 +46,11 @@
 - 语义上手机是传感器；USB 模式（usbmuxd/iproxy 转发到手机监听端口）只能这样做；多台 PC 可同时连接。
 - 实测 USB 插着时 Bonjour 直接给出 USB 直连地址（169.254.x.x），往返 1.5 ms（Wi‑Fi 8 ms）。
 - 文档 §7 的"PC 网关"变成可选中继（多接收端想省手机上行流量时用），尚未实现。
+
+## 后续计划（2026-11-03 与用户确认）
+
+1. M3 LiDAR 深度 + MCAP → M4 Profile / 租约 / C++ 库 / bench；M5 Android 搁置。
+2. 开发完成后：界面优化。
+3. Agent 文档：`docs/agents/AGENTS.md` + 一个 MCP server（discover / connect / set / start / snapshot）。
+4. 文档站：Astro Starlight，内容源 `docs/user` + `docs/dev`，部署 Cloudflare Pages。
+5. Release 包：`npx expo run:ios --device --configuration Release`，JS 打进 App，离线可用。

@@ -1,4 +1,4 @@
-# 04 · M1 使用方法：位姿 + IMU 实时流
+# 02 · Python API：位姿 + IMU 实时流
 
 M1 之后手机能把 ARKit 位姿和 CoreMotion IMU 实时发到 PC，PC 可以远程改手机参数。
 
@@ -10,7 +10,7 @@ M1 之后手机能把 ARKit 位姿和 CoreMotion IMU 实时发到 PC，PC 可以
    - `imuninn watch --start` 连第一台找到的手机并开始采集；也可 `imuninn watch iPhone` / `imuninn watch 10.0.0.5:7420`
 3. 也可在手机上点"开始采集"。多台 PC 可同时连接。
 
-USB 插着时 PC 会优先走 Wi‑Fi 地址，USB 直连地址排在后面；想强制走 USB 就把 169.254 地址传给 `connect()`。USB 直连往返约 1.5 ms，Wi‑Fi 约 8 ms。Debug 包还要连 Metro（见 02）。
+USB 插着时 PC 会优先走 Wi‑Fi 地址，USB 直连地址排在后面；想强制走 USB 就把 169.254 地址传给 `connect()`。USB 直连往返约 1.5 ms，Wi‑Fi 约 8 ms。Debug 包还要连 Metro（见 dev/02）。
 
 ## Python API
 

@@ -2,7 +2,7 @@
 
 把手机变成便携的多模态传感器节点：相机、IMU、ARKit/ARCore 位姿和 LiDAR 深度实时传到 PC，通过 Python / C++ / Web 接口交给机器人程序、算法与数据采集流程。
 
-设计文档：[`docs/iMuninn-设计文档.md`](docs/iMuninn-设计文档.md)（原件：[Claude Doc](https://claude.ai/artifact/KZHg3YBu5CtgekPVBK6xBm)）。路线图：[`docs/ROADMAP.md`](docs/ROADMAP.md)。
+文档入口：[`docs/README.md`](docs/README.md)（使用者 / 开发者 / Agent）。设计文档：[`docs/design/iMuninn-设计文档.md`](docs/design/iMuninn-设计文档.md)（原件：[Claude Doc](https://claude.ai/artifact/KZHg3YBu5CtgekPVBK6xBm)）。路线图：[`docs/design/ROADMAP.md`](docs/design/ROADMAP.md)。
 
 ## 仓库结构
 
