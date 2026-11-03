@@ -552,10 +552,10 @@ public final class SessionManager {
     if !dev.isBatteryMonitoringEnabled { DispatchQueue.main.sync { dev.isBatteryMonitoringEnabled = true } }
     h.batteryLevel = dev.batteryLevel
     switch dev.batteryState {
-    case .unplugged: h.batteryState = .unplugged
-    case .charging: h.batteryState = .charging
-    case .full: h.batteryState = .full
-    default: h.batteryState = .unspecified
+    case .unplugged: h.batteryState = .batteryUnplugged
+    case .charging: h.batteryState = .batteryCharging
+    case .full: h.batteryState = .batteryFull
+    default: h.batteryState = .batteryUnspecified
     }
     h.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
     h.poseHz = poseCounter.peek(); h.imuHz = imuCounter.peek(); h.videoFps = videoCounter.peek(); h.depthHz = depthCounter.peek()

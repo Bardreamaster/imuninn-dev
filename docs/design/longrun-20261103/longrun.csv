@@ -1,0 +1,4 @@
+wall_time,elapsed_s,uptime_s,thermal,battery,battery_state,low_power,phone_pose_hz,phone_imu_hz,phone_video_fps,phone_depth_hz,phone_video_kbps,encoder_dropped,pc_pose_hz,pc_imu_hz,pc_video_fps,pc_depth_hz,pc_video_mbps,drop_pose,drop_imu,drop_video,drop_depth,config_version
+2026-11-03 16:15:58,10.0,40.0,nominal,1.0,full,0,60.1,100.1,60.1,60.1,390.0,0,54.4,99.8,54.1,54.3,0.6,0,0,2,0,2
+2026-11-03 16:16:08,20.0,50.0,nominal,1.0,full,0,60.0,100.0,60.0,60.0,411.0,0,60.0,99.9,60.0,60.1,0.41,0,0,2,0,2
+2026-11-03 16:16:18,30.0,60.0,nominal,1.0,full,0,60.0,100.0,60.0,60.0,373.0,0,59.9,99.8,59.9,59.9,0.4,0,0,2,0,2
