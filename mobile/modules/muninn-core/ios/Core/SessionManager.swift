@@ -35,6 +35,7 @@ public struct Status {
   public var encoderDropped: UInt64 = 0
   public var configVersion: UInt32 = 0
   public var remoteControlled = false
+  public var writer: String = ""            // lease holder (client name), "" = free
   public var recording = false
   public var recordingFile: String = ""
   public var recordingBytes: UInt64 = 0
@@ -64,6 +65,7 @@ public final class SessionManager {
   private var remoteControlled = false
   private var lastError = ""
   private var serviceName = ""
+  private var writerId: UInt32? = nil
   private var statusTimer: DispatchSourceTimer?
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
@@ -130,8 +132,58 @@ public final class SessionManager {
 
   private func clientDisconnected(_ c: Client) {
     clientList = Array(control.clients.values)
-    if c.isWriter { remoteControlled = false }
+    if writerId == c.id { releaseLease(broadcast: true) }
     NSLog("[imuninn] client \(c.label) disconnected")
+  }
+
+  // MARK: lease (§6.8 控制权): one writer at a time, auto-released on disconnect.
+
+  private var writerName: String {
+    guard let id = writerId, let c = control.client(byId: id) else { return "" }
+    return c.label
+  }
+
+  /// Returns true if `c` may write. A free lease is granted implicitly.
+  private func acquireLease(_ c: Client) -> Bool {
+    if writerId == nil || writerId == c.id {
+      if writerId == nil {
+        writerId = c.id
+        c.isWriter = true
+        var msg = MnControlMessage()
+        msg.lease.action = .granted
+        msg.lease.holder = c.label
+        control.broadcast(msg)
+      }
+      return true
+    }
+    return false
+  }
+
+  private func releaseLease(broadcast: Bool) {
+    if let id = writerId, let c = control.client(byId: id) { c.isWriter = false }
+    writerId = nil
+    remoteControlled = false
+    if broadcast {
+      var msg = MnControlMessage()
+      msg.lease.action = .release
+      msg.lease.holder = ""
+      control.broadcast(msg)
+    }
+  }
+
+  /// Phone UI takes control back: the remote writer gets REVOKED.
+  public func takeOver() {
+    queue.async {
+      guard let id = self.writerId else { return }
+      let name = self.writerName
+      if let c = self.control.client(byId: id) { c.isWriter = false }
+      self.writerId = nil
+      self.remoteControlled = false
+      var msg = MnControlMessage()
+      msg.lease.action = .revoked
+      msg.lease.holder = name
+      self.control.broadcast(msg)
+    }
   }
 
   private func attachData(id: UInt32, sink: TcpSink) -> Bool {
@@ -167,12 +219,17 @@ public final class SessionManager {
     case .getConfig?:
       reply.config = config.snapshot()
     case .setConfig(let req)?:
+      guard acquireLease(c) else {
+        reply.error.code = 409
+        reply.error.message = "config lease held by \(writerName)"
+        control.send(reply, to: c)
+        return
+      }
       let update = config.apply(req)
       reply.configResult = update.result
       control.send(reply, to: c)
       if !update.changes.isEmpty {
         remoteControlled = true
-        c.isWriter = true
         applyChanges(update)
         broadcastConfig()
       }
@@ -196,9 +253,19 @@ public final class SessionManager {
       reply.timeSyncPong.deviceRecvNs = now
       reply.timeSyncPong.deviceSendNs = deviceTimeNs(fromSeconds: CACurrentMediaTime())
     case .lease(let l)?:
-      // Single writer not enforced yet; acknowledge so clients can proceed (see ROADMAP).
-      reply.lease.action = l.action == .request ? .granted : l.action
-      reply.lease.holder = l.holder
+      switch l.action {
+      case .request:
+        if acquireLease(c) {
+          reply.lease.action = .granted; reply.lease.holder = c.label
+        } else {
+          reply.lease.action = .denied; reply.lease.holder = writerName
+        }
+      case .release:
+        if writerId == c.id { releaseLease(broadcast: true) }
+        reply.lease.action = .release; reply.lease.holder = writerName
+      default:
+        reply.lease.action = .denied; reply.lease.holder = writerName
+      }
     default:
       return
     }
@@ -444,6 +511,7 @@ public final class SessionManager {
     s.encoderDropped = encoder.dropped
     s.configVersion = config.snapshot().configVersion
     s.remoteControlled = remoteControlled
+    s.writer = writerName
     s.recording = file.isRecording
     s.recordingFile = file.url?.lastPathComponent ?? ""
     s.recordingBytes = file.bytes

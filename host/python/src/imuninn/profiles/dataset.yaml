@@ -1,0 +1,17 @@
+# 数据集采集：全部流打开，高码率，深度平滑
+name: dataset
+mode: ar
+streams:
+  imu:
+    enabled: true
+    rate_hz: 200
+  ar_pose:
+    enabled: true
+  rgb:
+    enabled: true
+    bitrate_kbps: 12000
+    keyframe_interval: 60
+  depth:
+    enabled: true
+    smoothed: true
+    rate_divisor: 1

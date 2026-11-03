@@ -12,6 +12,7 @@ SERVICE_TYPE = "_imuninn._tcp.local."
 DEFAULT_CONTROL_PORT = 7420
 
 from .discovery import Phone, discover  # noqa: E402
+from .client import LeaseError  # noqa: E402
 from .session import Device, connect  # noqa: E402
 
-__all__ = ["PROTOCOL_VERSION", "SERVICE_TYPE", "DEFAULT_CONTROL_PORT", "Phone", "discover", "Device", "connect"]
+__all__ = ["PROTOCOL_VERSION", "SERVICE_TYPE", "DEFAULT_CONTROL_PORT", "Phone", "discover", "Device", "connect", "LeaseError"]

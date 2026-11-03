@@ -40,6 +40,7 @@ public class MuninnCoreModule: Module {
           "recordingBytes": Int(s.recordingBytes),
           "configVersion": Int(s.configVersion),
           "remoteControlled": s.remoteControlled,
+          "writer": s.writer,
           "lastError": s.lastError,
         ])
       }
@@ -81,6 +82,17 @@ public class MuninnCoreModule: Module {
     Function("cameraFormats") { (lens: String) -> [String] in
       self.manager.config.cameraFormats(for: lens)
     }
+    Function("takeOver") { self.manager.takeOver() }
+
+    Function("listProfiles") { () -> [String] in ProfileStore.list() }
+    Function("saveProfile") { (name: String) throws in
+      try ProfileStore.save(self.manager.config.snapshot(), as: name)
+    }
+    Function("applyProfile") { (name: String) throws -> [String: Any] in
+      let patch = try ProfileStore.load(name)
+      return ConfigJSON.result(self.manager.setConfigLocally(patch))
+    }
+    Function("deleteProfile") { (name: String) in ProfileStore.delete(name) }
 
     Function("getCapabilities") { () -> [String: Any] in
       let dev = DeviceInfo.current()

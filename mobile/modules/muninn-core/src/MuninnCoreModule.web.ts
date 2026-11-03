@@ -40,6 +40,15 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   cameraFormats(_lens: string) {
     return [];
   }
+  takeOver() {}
+  listProfiles() {
+    return [] as string[];
+  }
+  saveProfile(_name: string) {}
+  applyProfile(_name: string): ConfigResult {
+    return { configVersion: 0, sessionRestarted: false, fields: [] };
+  }
+  deleteProfile(_name: string) {}
   getCapabilities(): Capabilities {
     return { streams: [], sessionParams: [], config: emptyConfig };
   }

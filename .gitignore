@@ -34,3 +34,6 @@ mobile/modules/muninn-core/android/src/main/java/generated/
 # Recordings
 *.mcap
 *.rrd
+
+# C++ build
+host/cpp/build/

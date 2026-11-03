@@ -26,6 +26,9 @@ cd mobile && npx expo run:ios --device <UDID> --no-bundler   # 原生代码改�
 cd mobile && npx expo start                          # 只改 TS 时热更新
 host/python/.venv/bin/imuninn list                   # 发现手机
 host/python/.venv/bin/imuninn watch --start          # 连上并打印样本
+host/python/.venv/bin/imuninn profile apply calibration
+cd host/cpp && cmake -S . -B build -DCMAKE_PREFIX_PATH=/opt/homebrew && cmake --build build   # C++ 库
+host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延迟 / 丢包基准
 ```
 
 新增 Swift 文件后要在 `mobile/ios` 里 `pod install`，否则 Xcode 看不到。

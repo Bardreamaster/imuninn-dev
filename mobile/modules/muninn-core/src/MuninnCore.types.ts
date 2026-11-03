@@ -51,6 +51,8 @@ export interface StatusEvent {
   recordingBytes: number;
   configVersion: number;
   remoteControlled: boolean;
+  /** Config lease holder (PC client name); empty when free. */
+  writer: string;
   lastError: string;
 }
 

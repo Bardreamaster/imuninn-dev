@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Switch,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -110,10 +111,13 @@ export default function App() {
   const [config, setConfig] = useState<DeviceConfig | null>(null);
   const [showPreview, setShowPreview] = useState(true);
   const [lastResult, setLastResult] = useState("");
+  const [profiles, setProfiles] = useState<string[]>([]);
+  const [profileName, setProfileName] = useState("");
 
   useEffect(() => {
     setCaps(MuninnCore.getCapabilities());
     setConfig(MuninnCore.getConfig());
+    setProfiles(MuninnCore.listProfiles());
     const a = MuninnCore.addListener("onStatus", setStatus);
     const b = MuninnCore.addListener("onConfig", (e) => setConfig(e.config));
     MuninnCore.startServer();
@@ -142,7 +146,11 @@ export default function App() {
             <Text style={s.title}>iMuninn</Text>
             <Text style={s.subtitle}>{info.marketingName} · iOS {info.osVersion} · proto v{info.protocolVersion}</Text>
           </View>
-          {status?.remoteControlled ? <Text style={s.badge}>远程控制中</Text> : null}
+          {status?.writer ? (
+            <Pressable onPress={() => MuninnCore.takeOver()}>
+              <Text style={s.badge}>{status.writer} 控制中 · 点此接管</Text>
+            </Pressable>
+          ) : null}
         </View>
 
         {showPreview ? <MuninnPreviewView style={s.preview} /> : null}
@@ -234,6 +242,31 @@ export default function App() {
             <Text style={s.muted}>↻ 标记的参数会重启采集会话</Text>
           </View>
         ) : null}
+
+        {/* Profiles */}
+        <View style={s.card}>
+          <Text style={s.cardTitle}>配置预设</Text>
+          {profiles.length === 0 ? <Text style={s.muted}>还没有预设。把当前配置存成一个：</Text> : null}
+          <View style={s.chips}>
+            {profiles.map((p) => (
+              <Pressable key={p} style={s.chip}
+                onPress={() => { const r = MuninnCore.applyProfile(p); setConfig(MuninnCore.getConfig());
+                  const bad = r.fields.filter((f) => f.status !== "applied");
+                  setLastResult(bad.length ? bad.map((f) => `${f.key}: ${f.status} ${f.reason}`).join("\n") : ""); }}
+                onLongPress={() => { MuninnCore.deleteProfile(p); setProfiles(MuninnCore.listProfiles()); }}>
+                <Text style={s.chipText}>{p}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+            <TextInput style={s.input} placeholder="预设名，如 calibration" placeholderTextColor={C.muted}
+              value={profileName} onChangeText={setProfileName} autoCapitalize="none" autoCorrect={false} />
+            <Button title="保存当前" kind="ghost" disabled={!profileName.trim()} onPress={() => {
+              MuninnCore.saveProfile(profileName.trim()); setProfiles(MuninnCore.listProfiles()); setProfileName("");
+            }} />
+          </View>
+          <Text style={s.muted}>点一下应用，长按删除。PC 端 `imuninn profile` 也能推送 YAML 预设。</Text>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );

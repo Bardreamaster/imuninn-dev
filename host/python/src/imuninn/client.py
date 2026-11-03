@@ -63,6 +63,10 @@ class _UdpProtocol(asyncio.DatagramProtocol):
         self.client._on_data(data)
 
 
+class LeaseError(RuntimeError):
+    """Another client holds the config lease (§6.8 控制权)."""
+
+
 class PhoneClient:
     """One connection to one phone. Create, `await connect()`, use, `await close()`."""
 
@@ -77,6 +81,7 @@ class PhoneClient:
         self.client_id = 0
         self.tcp_port = 0
         self.clock_offset_ns: int | None = None  # pc_time_ns - device_time_ns
+        self.lease_holder: str = ""               # "" = free; set from Lease broadcasts
         self.clock_rtt_ns: int | None = None
         self.stats: dict[str, StreamStats] = defaultdict(StreamStats)
         self.connected = asyncio.Event()
@@ -211,6 +216,15 @@ class PhoneClient:
                     self.config = msg.config_changed.config
                     log.info("config v%d changed on %s", self.config.config_version, self.name)
                     self._emit("config")
+                elif kind == "lease":
+                    action = msg.lease.action
+                    if action in (pb.Lease.ACTION_GRANTED,):
+                        self.lease_holder = msg.lease.holder
+                    elif action in (pb.Lease.ACTION_RELEASE, pb.Lease.ACTION_REVOKED):
+                        if action == pb.Lease.ACTION_REVOKED and msg.lease.holder == self.client_name:
+                            log.warning("config lease revoked by the phone")
+                        self.lease_holder = ""
+                    self._emit("lease")
                 elif kind == "error":
                     log.warning("phone error %d: %s", msg.error.code, msg.error.message)
         except Exception as e:  # connection closed
@@ -268,6 +282,8 @@ class PhoneClient:
         msg.set_config.patch.CopyFrom(patch)
         reply = await self.request(msg)
         if reply.WhichOneof("body") == "error":
+            if reply.error.code == 409:
+                raise LeaseError(reply.error.message)
             raise RuntimeError(reply.error.message)
         # The ConfigChanged broadcast follows asynchronously; bump the version now so
         # a back-to-back set() does not race it and get rejected as stale.
@@ -302,6 +318,27 @@ class PhoneClient:
                 else:
                     v.s = str(value)
         return await self.set_config(patch)
+
+    async def acquire_lease(self) -> bool:
+        msg = pb.ControlMessage()
+        msg.lease.action = pb.Lease.ACTION_REQUEST
+        msg.lease.holder = self.client_name
+        reply = await self.request(msg)
+        granted = reply.lease.action == pb.Lease.ACTION_GRANTED
+        self.lease_holder = reply.lease.holder
+        return granted
+
+    async def release_lease(self) -> None:
+        msg = pb.ControlMessage()
+        msg.lease.action = pb.Lease.ACTION_RELEASE
+        msg.lease.holder = self.client_name
+        await self.request(msg)
+        self.lease_holder = ""
+
+    async def apply_profile(self, name_or_path: str) -> pb.ConfigResult:
+        from .profiles import load, to_patch
+
+        return await self.set_config(to_patch(load(name_or_path)))
 
     async def subscribe(self, stream_ids: list[str], unsubscribe: bool = False) -> None:
         msg = pb.ControlMessage()

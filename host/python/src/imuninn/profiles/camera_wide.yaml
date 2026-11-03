@@ -1,0 +1,10 @@
+# 纯相机模式，广角，无位姿
+name: camera_wide
+mode: camera
+streams:
+  rgb:
+    enabled: true
+    lens: wide
+    bitrate_kbps: 6000
+  imu:
+    enabled: true

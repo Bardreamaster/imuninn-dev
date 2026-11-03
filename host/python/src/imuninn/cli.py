@@ -43,6 +43,16 @@ def main(argv: list[str] | None = None) -> None:
     info = sub.add_parser("info", help="message counts per topic in an MCAP file")
     info.add_argument("input")
 
+    pr = sub.add_parser("profile", help="apply / save / list YAML configuration presets")
+    prs = pr.add_subparsers(dest="pcmd", required=True)
+    pa = prs.add_parser("apply", help="apply a built-in profile name or a YAML file to the phone")
+    pa.add_argument("profile")
+    pa.add_argument("target", nargs="?", default="")
+    ps = prs.add_parser("save", help="save the phone's current config as YAML")
+    ps.add_argument("-o", "--output", required=True)
+    ps.add_argument("target", nargs="?", default="")
+    prs.add_parser("list", help="list built-in profiles")
+
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if args.cmd == "list":
@@ -59,6 +69,8 @@ def main(argv: list[str] | None = None) -> None:
         out = args.output or str(args.input).rsplit(".", 1)[0] + ".mcap"
         n = convert(args.input, out)
         print(f"wrote {n} messages to {out}")
+    elif args.cmd == "profile":
+        _profile(args)
     elif args.cmd == "info":
         from .mcap_io import summary
 
@@ -172,6 +184,32 @@ def _record(args) -> None:
             except KeyboardInterrupt:
                 pass
         print(f"wrote {rec.count} messages to {out}")
+
+
+def _profile(args) -> None:
+    from .profiles import builtin_profiles, resolve_path
+    from .session import connect
+
+    if args.pcmd == "list":
+        for name in builtin_profiles():
+            print(f"{name:16s} {resolve_path(name)}")
+        return
+    with connect(args.target) as dev:
+        if args.pcmd == "apply":
+            r = dev.apply_profile(args.profile)
+            for f in r.fields:
+                status = pb_status(f.status)
+                print(f"  {f.key:28s} {status:9s} {f.reason}")
+            print(f"config v{r.config_version}{' (session restarted)' if r.session_restarted else ''}")
+        elif args.pcmd == "save":
+            dev.save_profile(args.output)
+            print(f"saved {args.output}")
+
+
+def pb_status(status) -> str:
+    from .proto import imuninn_pb2 as pb
+
+    return pb.ConfigResult.FieldResult.Status.Name(status).removeprefix("STATUS_").lower()
 
 
 def _stream_field(sample) -> str:

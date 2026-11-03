@@ -19,6 +19,7 @@ from __future__ import annotations
 import asyncio
 import queue
 import threading
+from pathlib import Path
 from typing import Any, Callable, Iterator
 
 from .client import PhoneClient
@@ -136,6 +137,26 @@ class Device:
 
     def time_sync(self) -> int | None:
         return self._call(self._client.time_sync())
+
+    @property
+    def lease_holder(self) -> str:
+        return self._client.lease_holder
+
+    def acquire_lease(self) -> bool:
+        return self._call(self._client.acquire_lease())
+
+    def release_lease(self) -> None:
+        self._call(self._client.release_lease())
+
+    def apply_profile(self, name_or_path: str) -> pb.ConfigResult:
+        """Apply a YAML profile (built-in name like "calibration", or a file path)."""
+        return self._call(self._client.apply_profile(name_or_path))
+
+    def save_profile(self, path: str, name: str | None = None) -> None:
+        """Write the phone's current config as a YAML profile."""
+        from .profiles import dump, from_config
+
+        dump(from_config(self.get_config(), name or Path(path).stem), path)
 
     def to_pc_time_ns(self, device_time_ns: int) -> int:
         return self._client.to_pc_time_ns(device_time_ns)

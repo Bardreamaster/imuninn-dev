@@ -1,0 +1,15 @@
+# 遥操作低延迟：低码率、短关键帧间隔，不要深度
+name: teleop
+mode: ar
+streams:
+  imu:
+    enabled: true
+    rate_hz: 100
+  ar_pose:
+    enabled: true
+  rgb:
+    enabled: true
+    bitrate_kbps: 2000
+    keyframe_interval: 15
+  depth:
+    enabled: false

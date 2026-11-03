@@ -1,0 +1,64 @@
+{
+  "device": "iPhone18,1",
+  "host": "169.254.83.240",
+  "seconds": 8.0,
+  "control_rtt_ms": {
+    "median": 1.0519169736653566,
+    "p95": 1.5680419746786356,
+    "max": 1.9605420529842377
+  },
+  "streams": [
+    {
+      "stream": "ar_pose",
+      "count": 480,
+      "rate_hz": 60.0,
+      "dropped": 0,
+      "mbps": 0.066687,
+      "latency_ms": {
+        "median": 38.921,
+        "p95": 40.821188,
+        "p99": 42.477188,
+        "max": 50.088813
+      }
+    },
+    {
+      "stream": "depth",
+      "count": 480,
+      "rate_hz": 60.0,
+      "dropped": 0,
+      "mbps": 24.996484,
+      "latency_ms": {
+        "median": 43.703396,
+        "p95": 46.066813,
+        "p99": 52.277521,
+        "max": 62.951813
+      }
+    },
+    {
+      "stream": "imu",
+      "count": 799,
+      "rate_hz": 99.875,
+      "dropped": 0,
+      "mbps": 0.06392,
+      "latency_ms": {
+        "median": 2.633354,
+        "p95": 4.483562,
+        "p99": 8.378562,
+        "max": 24.516312
+      }
+    },
+    {
+      "stream": "rgb",
+      "count": 480,
+      "rate_hz": 60.0,
+      "dropped": 0,
+      "mbps": 0.383198,
+      "latency_ms": {
+        "median": 49.3349585,
+        "p95": 51.612688,
+        "p99": 55.988479,
+        "max": 68.716021
+      }
+    }
+  ]
+}

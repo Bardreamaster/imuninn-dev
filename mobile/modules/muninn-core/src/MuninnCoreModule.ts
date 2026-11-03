@@ -24,6 +24,13 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   listRecordings(): { name: string; bytes: number }[];
   /** Format ids ("WxH@fps") the given lens offers in camera mode. */
   cameraFormats(lens: string): string[];
+  /** Revoke the PC client's config lease; the phone UI becomes the writer. */
+  takeOver(): void;
+
+  listProfiles(): string[];
+  saveProfile(name: string): void;
+  applyProfile(name: string): ConfigResult;
+  deleteProfile(name: string): void;
 
   getCapabilities(): Capabilities;
   getConfig(): DeviceConfig;

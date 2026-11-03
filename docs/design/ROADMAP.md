@@ -8,7 +8,7 @@
 | **M1** ✅ 2026-11-03 | 控制通道（握手、能力描述、订阅、时钟同步）；ARKit 位姿 + CoreMotion IMU 走 UDP；远程配置基础版（流开关、帧率、曝光）；Python API 回调/迭代器 | 机器人程序能通过 Python 拿到手机实时位姿；配置改动在 PC 与手机 UI 同步 |
 | **M2** ✅ 2026-11-03 | 视频：VideoToolbox H.264 编码一次、网络 + 本地录制分发；PC 端解码；Rerun 出口 | 30 fps 端到端延迟实测并记录；决定是否做 UDP 分片 |
 | **M3** ✅ 2026-11-03 | LiDAR 深度（uint16 mm + 置信度，lz4/zstd）；MCAP 原样录制与回放 | 深度与 RGB、位姿按时间戳对齐；MCAP 回放驱动 PC 端测试 |
-| **M4** | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
+| **M4** ✅ 2026-11-03 | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
 | **M5** ⏸ 搁置 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 暂无 Android 测试机（2026-11-03 决定） |
 
 ## M0 状态（2026-11-03）
@@ -27,8 +27,8 @@
 - [x] ARKit 位姿（含每帧内参）+ CoreMotion IMU 走 UDP，真机实测 60 Hz / 100 Hz 零丢包
 - [x] 远程配置：自描述参数、部分更新、钳位/拒绝、ConfigChanged 广播；手机 UI 控件由能力描述生成
 - [x] Python：`imuninn.open()` / `wait_for_device()` / `set()` / `iter()` / `on()`；`imuninn watch`
-- [ ] 租约（单写者）只做了应答，未强制。含义：同一时刻只允许一个 PC 客户端写配置，其余只读，断线自动释放；多台 PC 同时接一台手机时才需要，M4 做
-- [ ] 纯相机模式（M4）
+- [x] 租约（单写者）：M4 已实现（隐式获取、409 拒绝、断线释放、手机一键接管）
+- [x] 纯相机模式（M2 提前做了）
 
 ## M2 状态（2026-11-03）
 
@@ -61,3 +61,11 @@
 - [x] PC：`imuninn.depth.decode`（含跨块 LZ4 字典），Rerun DepthImage
 - [x] MCAP：`imuninn record / convert / info`、`rerun --mcap`、`mcap_io.replay`
 - [x] 真机实测：深度 60 Hz（54 KB/帧），与 RGB 60 fps、位姿 60 Hz、IMU 100 Hz 同时跑零丢包；4 s 录制 1123 条消息回放一致（见 `docs/design/m3-depth.png`）
+
+## M4 状态（2026-11-03）
+
+- [x] 配置预设：YAML（内置 calibration / teleop / dataset / camera_wide），`imuninn profile apply|save|list`，`dev.apply_profile()`；手机本地预设（Documents/profiles）
+- [x] 租约：隐式获取、`LeaseError`、`acquire/release`、断线释放、手机"接管"按钮广播 REVOKED；双客户端实测
+- [x] C++ 客户端库 `host/cpp`（仅依赖 protobuf；WebSocket / UDP / TCP、时钟同步、set、回调），`imuninn_watch` 示例实测 60 Hz / 100 Hz 零丢包
+- [x] `tools/bench/latency.py`：USB 直连实测 IMU 2.6 ms、位姿 39 ms、视频 49 ms、深度 44 ms（`docs/design/m4-bench-usb.json`）
+- [ ] 视频 UDP / RTP：延迟主要在 ARKit 管线与编码，TCP 不是瓶颈，暂不做
