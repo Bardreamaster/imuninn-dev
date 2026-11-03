@@ -1,0 +1,42 @@
+{
+  "hours_requested": 3.0,
+  "samples": 1080,
+  "duration_s": 10805.5,
+  "thermal_states": {
+    "fair": 62,
+    "nominal": 1018
+  },
+  "first_non_nominal_s": 10.0,
+  "battery_start": 1.0,
+  "battery_end": 1.0,
+  "rates": {
+    "pc_pose_hz": {
+      "mean": 59.97888888888889,
+      "min": 54.5,
+      "p5": 59.7
+    },
+    "pc_imu_hz": {
+      "mean": 99.79092592592593,
+      "min": 96.2,
+      "p5": 99.3
+    },
+    "pc_video_fps": {
+      "mean": 59.95953703703704,
+      "min": 53.2,
+      "p5": 59.7
+    },
+    "pc_depth_hz": {
+      "mean": 59.97833333333333,
+      "min": 54.5,
+      "p5": 59.7
+    }
+  },
+  "video_mbps_mean": 2.2308055555555555,
+  "drops_end": {
+    "drop_pose": 38,
+    "drop_imu": 65,
+    "drop_video": 252,
+    "drop_depth": 0
+  },
+  "encoder_dropped_end": 0
+}
