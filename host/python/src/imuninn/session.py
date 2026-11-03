@@ -69,6 +69,12 @@ class DeviceHandle:
     def stop(self) -> None:
         self._s._call(self._dev.stop())
 
+    def start_recording(self) -> None:
+        self._s._call(self._dev.start_recording())
+
+    def stop_recording(self) -> None:
+        self._s._call(self._dev.stop_recording())
+
     def subscribe(self, stream_ids: list[str]) -> None:
         self._s._call(self._dev.subscribe(stream_ids))
 

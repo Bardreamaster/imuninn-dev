@@ -149,7 +149,7 @@ export default function App() {
           {status?.remoteControlled ? <Text style={s.badge}>远程控制中</Text> : null}
         </View>
 
-        {showPreview && info.arSupported ? (
+        {showPreview ? (
           <MuninnPreviewView style={s.preview} />
         ) : null}
 
@@ -191,16 +191,26 @@ export default function App() {
         {/* Session */}
         <View style={s.card}>
           <Text style={s.cardTitle}>会话</Text>
-          <Row k="追踪" v={status?.tracking ?? "none"} color={trackColor} />
-          <Row k="位姿" v={`${status?.poseHz.toFixed(1) ?? 0} Hz`} />
+          <Row k="模式" v={status?.mode === "camera" ? "纯相机（无位姿）" : "AR（位姿）"} />
+          {status?.mode !== "camera" ? <Row k="追踪" v={status?.tracking ?? "none"} color={trackColor} /> : null}
+          {status?.mode !== "camera" ? <Row k="位姿" v={`${status?.poseHz.toFixed(1) ?? 0} Hz`} /> : null}
           <Row k="IMU" v={`${status?.imuHz.toFixed(1) ?? 0} Hz`} />
-          <Row k="UDP 已发 / 丢弃" v={`${status?.udpSent ?? 0} / ${status?.udpDropped ?? 0}`} />
+          <Row k="视频" v={`${status?.videoHz.toFixed(1) ?? 0} fps · ${((status?.videoKbps ?? 0) / 1000).toFixed(1)} Mbps`} />
+          <Row k="丢弃 UDP / TCP / 编码" v={`${status?.udpDropped ?? 0} / ${status?.tcpDropped ?? 0} / ${status?.encoderDropped ?? 0}`} />
           <Row k="配置版本" v={status?.configVersion ?? 0} />
-          <View style={{ flexDirection: "row", gap: 10 }}>
+          {status?.recording ? (
+            <Row k="录制中" v={`${status.recordingFile} · ${(status.recordingBytes / 1e6).toFixed(1)} MB`} color={C.err} />
+          ) : null}
+          <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             {status?.sessionRunning ? (
               <Button title="停止采集" kind="danger" onPress={() => MuninnCore.stopSession()} />
             ) : (
               <Button title="开始采集" onPress={() => MuninnCore.startSession()} />
+            )}
+            {status?.recording ? (
+              <Button title="停止录制" kind="danger" onPress={() => MuninnCore.stopRecording()} />
+            ) : (
+              <Button title="录制到手机" kind="ghost" disabled={!status?.sessionRunning} onPress={() => MuninnCore.startRecording()} />
             )}
             <Button title={showPreview ? "隐藏预览" : "显示预览"} kind="ghost" onPress={() => setShowPreview((v) => !v)} />
           </View>
@@ -224,10 +234,17 @@ export default function App() {
                     <Switch value={sc?.enabled ?? false}
                       onValueChange={(v) => applyPatch({ streams: { [st.streamId]: { enabled: v } } })} />
                   </View>
-                  {st.params.map((spec) => (
-                    <ParamControl key={spec.key} spec={spec} value={sc?.params[spec.key] ?? spec.current}
-                      onChange={(v) => applyPatch({ streams: { [st.streamId]: { params: { [spec.key]: v } } } })} />
-                  ))}
+                  {st.params.map((spec) => {
+                    let eff = spec;
+                    if (st.streamId === "rgb" && spec.key === "camera_format") {
+                      const lens = String(sc?.params["lens"] ?? "wide");
+                      eff = { ...spec, choices: MuninnCore.cameraFormats(lens) };
+                    }
+                    return (
+                      <ParamControl key={spec.key} spec={eff} value={sc?.params[spec.key] ?? spec.current}
+                        onChange={(v) => applyPatch({ streams: { [st.streamId]: { params: { [spec.key]: v } } } })} />
+                    );
+                  })}
                 </View>
               );
             })}

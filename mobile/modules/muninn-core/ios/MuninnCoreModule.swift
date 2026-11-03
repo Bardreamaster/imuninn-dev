@@ -20,12 +20,20 @@ public class MuninnCoreModule: Module {
           "connection": s.connection,
           "gatewayName": s.gatewayName,
           "gatewayHost": s.gatewayHost,
+          "mode": s.mode,
           "sessionRunning": s.sessionRunning,
           "tracking": s.tracking,
           "poseHz": s.poseHz,
           "imuHz": s.imuHz,
+          "videoHz": s.videoHz,
+          "videoKbps": s.videoKbps,
           "udpSent": Int(s.udpSent),
           "udpDropped": Int(s.udpDropped),
+          "tcpDropped": Int(s.tcpDropped),
+          "encoderDropped": Int(s.encoderDropped),
+          "recording": s.recording,
+          "recordingFile": s.recordingFile,
+          "recordingBytes": Int(s.recordingBytes),
           "configVersion": Int(s.configVersion),
           "remoteControlled": s.remoteControlled,
           "lastError": s.lastError,
@@ -73,6 +81,14 @@ public class MuninnCoreModule: Module {
 
     Function("startSession") { self.manager.startSession() }
     Function("stopSession") { self.manager.stopSession() }
+    Function("startRecording") { self.manager.startRecording() }
+    Function("stopRecording") { self.manager.stopRecording() }
+    Function("listRecordings") { () -> [[String: Any]] in
+      FileSink.recordings().map { ["name": $0.name, "bytes": Int($0.bytes)] }
+    }
+    Function("cameraFormats") { (lens: String) -> [String] in
+      self.manager.config.cameraFormats(for: lens)
+    }
 
     Function("getCapabilities") { () -> [String: Any] in
       let dev = DeviceInfo.current()

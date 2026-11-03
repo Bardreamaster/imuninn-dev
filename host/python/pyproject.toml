@@ -12,7 +12,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-rerun = ["rerun-sdk>=0.20"]
+rerun = ["rerun-sdk>=0.20", "numpy"]
+video = ["av>=12", "numpy"]
 mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 

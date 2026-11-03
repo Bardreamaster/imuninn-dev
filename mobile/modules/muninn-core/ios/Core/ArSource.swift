@@ -21,6 +21,8 @@ public final class ArSource: NSObject, ARSessionDelegate {
   public private(set) var frameCount: UInt64 = 0
 
   public var onPose: ((MnPoseSample) -> Void)?
+  /// Captured image for the video pipeline. The buffer must be consumed promptly (§8.5).
+  public var onImage: ((CVPixelBuffer, Double, simd_float3x3) -> Void)?
   public var onTracking: ((ARCamera.TrackingState) -> Void)?
 
   public private(set) var videoFormatId: String
@@ -137,6 +139,7 @@ public final class ArSource: NSObject, ARSessionDelegate {
     p.intrinsics.cx = Double(k.columns.2.x)
     p.intrinsics.cy = Double(k.columns.2.y)
     onPose?(p)
+    onImage?(frame.capturedImage, frame.timestamp, k)
   }
 
   public func session(_ session: ARSession, cameraDidChangeTrackingState camera: ARCamera) {

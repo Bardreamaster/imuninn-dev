@@ -15,63 +15,80 @@ public struct ConfigUpdate {
   public var needsRestart: Bool { changes.contains { $0.apply == .restartSession } }
 }
 
+/// What the hardware offers; filled by SessionManager at startup.
+public struct ConfigEnvironment {
+  public var arVideoFormats: [String] = []
+  public var lenses: [String] = []
+  public var cameraFormats: [String: [String]] = [:]   // lens -> format ids
+  public var imuAvailable = false
+  public var arAvailable = false
+  public init() {}
+}
+
 public final class ConfigStore {
   public private(set) var config = MnDeviceConfig()
   private var specs: [String: [String: MnParamSpec]] = [:]   // stream -> key -> spec
   private var sessionSpecs: [String: MnParamSpec] = [:]
   private var streamDescriptors: [MnStreamDescriptor] = []
+  private let env: ConfigEnvironment
   private let lock = NSLock()
 
-  public init(videoFormatIds: [String], imuAvailable: Bool, arAvailable: Bool) {
+  private static func spec(_ key: String, _ label: String, _ kind: MnParamSpec.Kind, _ apply: MnParamSpec.Apply,
+                           unit: String = "", min: Double = 0, max: Double = 0, step: Double = 0,
+                           choices: [String] = [], current: MnValue) -> MnParamSpec {
+    var s = MnParamSpec()
+    s.key = key; s.label = label; s.kind = kind; s.apply = apply; s.unit = unit
+    s.min = min; s.max = max; s.step = step; s.choices = choices
+    s.current = current; s.`default` = current
+    return s
+  }
+  private static func b(_ v: Bool) -> MnValue { var m = MnValue(); m.b = v; return m }
+  private static func i(_ v: Int64) -> MnValue { var m = MnValue(); m.i = v; return m }
+  private static func s(_ v: String) -> MnValue { var m = MnValue(); m.s = v; return m }
+
+  private func addStream(_ id: String, _ kind: MnStreamKind, _ transport: MnTransport, enabled: Bool, params: [MnParamSpec]) {
+    specs[id] = Dictionary(uniqueKeysWithValues: params.map { ($0.key, $0) })
+    var d = MnStreamDescriptor()
+    d.streamID = id; d.kind = kind; d.transport = transport; d.params = params
+    streamDescriptors.append(d)
+    var c = MnStreamConfig()
+    c.streamID = id; c.enabled = enabled
+    for p in params { c.params[p.key] = p.current }
+    c.delivery.transport = transport
+    c.delivery.dropPolicy = kind == .depth ? .none : .latestOnly
+    config.streams.append(c)
+  }
+
+  public init(env: ConfigEnvironment) {
+    self.env = env
     config.configVersion = 1
-    config.mode = .ar
+    config.mode = env.arAvailable ? .ar : .camera
 
-    // session.mode
-    var mode = MnParamSpec()
-    mode.key = "mode"; mode.label = "Session mode"; mode.kind = .enum; mode.apply = .restartSession
-    mode.choices = ["ar", "camera"]
-    mode.current.s = "ar"; mode.`default`.s = "ar"
-    sessionSpecs["mode"] = mode
+    sessionSpecs["mode"] = Self.spec("mode", "Session mode", .enum, .restartSession,
+                                     choices: ["ar", "camera"], current: Self.s(env.arAvailable ? "ar" : "camera"))
 
-    // imu
-    var imuRate = MnParamSpec()
-    imuRate.key = "rate_hz"; imuRate.label = "IMU rate"; imuRate.unit = "Hz"; imuRate.kind = .int
-    imuRate.apply = .immediate; imuRate.min = 10; imuRate.max = 200; imuRate.step = 10
-    imuRate.current.i = 100; imuRate.`default`.i = 100
-    specs["imu"] = ["rate_hz": imuRate]
-    var imuDesc = MnStreamDescriptor()
-    imuDesc.streamID = "imu"; imuDesc.kind = .imu; imuDesc.transport = .udp
-    imuDesc.params = [imuRate]
-    streamDescriptors.append(imuDesc)
-    var imuCfg = MnStreamConfig()
-    imuCfg.streamID = "imu"; imuCfg.enabled = imuAvailable
-    imuCfg.params["rate_hz"] = imuRate.current
-    imuCfg.delivery.transport = .udp; imuCfg.delivery.dropPolicy = .latestOnly
-    config.streams.append(imuCfg)
+    addStream("imu", .imu, .udp, enabled: env.imuAvailable, params: [
+      Self.spec("rate_hz", "IMU rate", .int, .immediate, unit: "Hz", min: 10, max: 200, step: 10, current: Self.i(100)),
+      Self.spec("raw", "Raw sensors (uncalibrated)", .bool, .immediate, current: Self.b(false)),
+    ])
 
-    // ar_pose
-    var fmt = MnParamSpec()
-    fmt.key = "video_format"; fmt.label = "Video format"; fmt.kind = .enum; fmt.apply = .restartSession
-    fmt.choices = videoFormatIds
-    fmt.current.s = videoFormatIds.first ?? ""; fmt.`default`.s = fmt.current.s
-    var exp = MnParamSpec()
-    exp.key = "exposure_locked"; exp.label = "Lock exposure"; exp.kind = .bool; exp.apply = .immediate
-    exp.current.b = false; exp.`default`.b = false
-    var foc = MnParamSpec()
-    foc.key = "focus_locked"; foc.label = "Lock focus"; foc.kind = .bool; foc.apply = .restartSession
-    foc.current.b = false; foc.`default`.b = false
-    specs["ar_pose"] = ["video_format": fmt, "exposure_locked": exp, "focus_locked": foc]
-    var poseDesc = MnStreamDescriptor()
-    poseDesc.streamID = "ar_pose"; poseDesc.kind = .pose; poseDesc.transport = .udp
-    poseDesc.params = [fmt, exp, foc]
-    streamDescriptors.append(poseDesc)
-    var poseCfg = MnStreamConfig()
-    poseCfg.streamID = "ar_pose"; poseCfg.enabled = arAvailable
-    poseCfg.params["video_format"] = fmt.current
-    poseCfg.params["exposure_locked"] = exp.current
-    poseCfg.params["focus_locked"] = foc.current
-    poseCfg.delivery.transport = .udp; poseCfg.delivery.dropPolicy = .latestOnly
-    config.streams.append(poseCfg)
+    addStream("ar_pose", .pose, .udp, enabled: env.arAvailable, params: [
+      Self.spec("video_format", "AR video format", .enum, .restartSession,
+                choices: env.arVideoFormats, current: Self.s(env.arVideoFormats.first ?? "")),
+      Self.spec("exposure_locked", "Lock exposure", .bool, .immediate, current: Self.b(false)),
+      Self.spec("focus_locked", "Lock focus", .bool, .restartSession, current: Self.b(false)),
+    ])
+
+    let wideFormats = env.cameraFormats["wide"] ?? env.cameraFormats.values.first ?? []
+    let defaultFormat = wideFormats.first(where: { $0.hasPrefix("1920x1080@30") }) ?? wideFormats.first ?? ""
+    addStream("rgb", .video, .tcp, enabled: true, params: [
+      Self.spec("lens", "Lens (camera mode only)", .enum, .restartSession,
+                choices: env.lenses, current: Self.s(env.lenses.first ?? "wide")),
+      Self.spec("camera_format", "Camera format (camera mode only)", .enum, .restartSession,
+                choices: wideFormats, current: Self.s(defaultFormat)),
+      Self.spec("bitrate_kbps", "H.264 bitrate", .int, .immediate, unit: "kbps", min: 500, max: 20000, step: 500, current: Self.i(4000)),
+      Self.spec("keyframe_interval", "Keyframe interval", .int, .immediate, unit: "frames", min: 1, max: 300, step: 1, current: Self.i(60)),
+    ])
   }
 
   // MARK: queries
@@ -103,11 +120,16 @@ public final class ConfigStore {
     return config
   }
 
+  public var mode: MnSessionMode { snapshot().mode }
+
   public func streamConfig(_ id: String) -> MnStreamConfig? {
     config.streams.first { $0.streamID == id }
   }
 
-  public func isEnabled(_ id: String) -> Bool { streamConfig(id)?.enabled ?? false }
+  public func isEnabled(_ id: String) -> Bool {
+    lock.lock(); defer { lock.unlock() }
+    return streamConfig(id)?.enabled ?? false
+  }
 
   public func param(_ stream: String, _ key: String) -> MnValue? {
     lock.lock(); defer { lock.unlock() }
@@ -138,11 +160,11 @@ public final class ConfigStore {
     if patch.mode != .unspecified, patch.mode != config.mode {
       var fr = MnConfigResult.FieldResult()
       fr.key = "session.mode"
-      if patch.mode == .camera {
-        fr.status = .rejected; fr.reason = "camera mode not implemented yet (M4)"
+      if patch.mode == .ar, !env.arAvailable {
+        fr.status = .rejected; fr.reason = "ARKit not supported on this device"
       } else {
         config.mode = patch.mode
-        fr.status = .applied; fr.effective.s = "ar"
+        fr.status = .applied; fr.effective.s = patch.mode == .camera ? "camera" : "ar"
         changes.append(AppliedChange(stream: "", key: "mode", value: fr.effective, apply: .restartSession))
       }
       result.fields.append(fr)
@@ -200,12 +222,12 @@ public final class ConfigStore {
           }
           let clamped = min(max(v, spec.min), spec.max)
           fr.status = clamped == v ? .applied : .clamped
-          v = clamped
-          effective.f = v
+          effective.f = clamped
         case .enum, .string:
           guard case .s(let s)? = value.v else { fr.status = .rejected; fr.reason = "expected string"; result.fields.append(fr); continue }
-          if spec.kind == .enum, !spec.choices.contains(s) {
-            fr.status = .rejected; fr.reason = "not one of \(spec.choices)"
+          let choices = dynamicChoices(ps.streamID, key) ?? spec.choices
+          if spec.kind == .enum, !choices.contains(s) {
+            fr.status = .rejected; fr.reason = "not one of \(choices)"
             result.fields.append(fr); continue
           }
           effective.s = s; fr.status = .applied
@@ -225,4 +247,13 @@ public final class ConfigStore {
     result.sessionRestarted = changes.contains { $0.apply == .restartSession }
     return ConfigUpdate(result: result, changes: changes)
   }
+
+  /// Camera formats depend on the chosen lens; accept any format that lens offers.
+  private func dynamicChoices(_ stream: String, _ key: String) -> [String]? {
+    guard stream == "rgb", key == "camera_format" else { return nil }
+    let lens = streamConfig("rgb")?.params["lens"]?.s ?? "wide"
+    return env.cameraFormats[lens]
+  }
+
+  public func cameraFormats(for lens: String) -> [String] { env.cameraFormats[lens] ?? [] }
 }

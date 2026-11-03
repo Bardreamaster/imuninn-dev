@@ -20,7 +20,15 @@ def main(argv: list[str] | None = None) -> None:
     w.add_argument("--every", type=int, default=30, help="print one sample out of N")
     w.add_argument("--start", action="store_true", help="send SessionControl START after connect")
 
+    r = sub.add_parser("rerun", help="visualise pose / IMU / video live in the Rerun viewer")
+    r.add_argument("--no-spawn", action="store_true", help="connect to an already running viewer")
+    r.add_argument("--start", action="store_true", help="send SessionControl START after connect")
+    r.add_argument("--every", type=int, default=1, help="decode one video frame out of N")
+
     args = p.parse_args(argv)
+    if args.cmd == "rerun":
+        _rerun(args)
+        return
     if args.cmd == "gateway":
         from .gateway import run_gateway
 
@@ -63,5 +71,26 @@ def _watch(args) -> None:
                     f"{stream} seq={sample.header.seq} t={t:.3f} "
                     f"a=({a.x:+.2f},{a.y:+.2f},{a.z:+.2f}) g=({g.x:+.3f},{g.y:+.3f},{g.z:+.3f})"
                 )
+            elif isinstance(sample, pb.VideoFrame):
+                print(
+                    f"{stream} seq={sample.header.seq} t={t:.3f} {sample.width}x{sample.height} "
+                    f"{'I' if sample.keyframe else 'P'} {len(sample.data)} B rot={sample.rotation_deg} fx={sample.intrinsics.fx:.1f}"
+                )
             else:
                 print(f"{stream} seq={sample.header.seq} t={t:.3f}")
+
+
+def _rerun(args) -> None:
+    import logging
+
+    from .rerun_bridge import run
+    from .session import open as open_session
+
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    with open_session() as s:
+        print("waiting for a phone...")
+        dev = s.wait_for_device()
+        print(f"connected: {dev!r}")
+        if args.start:
+            dev.start()
+        run(s, spawn=not args.no_spawn, every_nth_video=args.every)

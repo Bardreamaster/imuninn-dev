@@ -208,6 +208,7 @@ message Welcome {
   string gateway_name = 1;
   uint32 protocol_version = 2;
   uint32 udp_port = 3;        // where the phone sends DataMessage datagrams
+  uint32 tcp_port = 4;        // length-prefixed DataMessage stream (video / depth)
 }
 
 message GetCapabilities {}
@@ -249,6 +250,8 @@ message SessionControl {
     ACTION_UNSPECIFIED = 0;
     ACTION_START = 1;
     ACTION_STOP = 2;
+    ACTION_START_RECORDING = 3;   // local recording on the phone (FileSink)
+    ACTION_STOP_RECORDING = 4;
   }
   Action action = 1;
 }
@@ -328,6 +331,9 @@ enum PixelFormat {
 // Image orientation: ARKit captured images are sensor-native landscape and
 // do not rotate with the device (§5.4). `rotation_deg` says how to rotate to
 // make the image upright for display; data is always sent as captured.
+// `rotation_deg`: rotate the image clockwise by this much to view it upright when
+// the phone is held in portrait. Back cameras deliver landscape-right sensor frames
+// (90), the front camera landscape-left (270). Intrinsics are in sensor frame.
 message VideoFrame {
   Header header = 1;
   PixelFormat format = 2;

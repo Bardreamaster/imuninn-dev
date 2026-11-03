@@ -1,4 +1,10 @@
 // CoreMotion IMU source (§5.1). Timestamps share the ARKit time base (seconds since boot).
+//
+// Two modes:
+//  - calibrated (default): CMDeviceMotion — accel = gravity + userAcceleration,
+//    gyro = bias-corrected rotationRate, both on one timestamp.
+//  - raw: CMAccelerometerData + CMGyroData straight from the sensors (uncalibrated,
+//    separate timestamps; a sample is emitted per gyro update with the latest accel).
 import CoreMotion
 import Foundation
 
@@ -15,54 +21,86 @@ public final class ImuSource {
   }()
   private var seq: UInt64 = 0
   public private(set) var rateHz: Int = 100
+  public private(set) var raw = false
   public var onSample: ((MnImuSample) -> Void)?
   public private(set) var running = false
+  private var lastAccel: (x: Double, y: Double, z: Double, t: Double)?
+  private static let g = 9.80665
 
   public init() {}
 
-  public var available: Bool { motion.isDeviceMotionAvailable }
+  public var available: Bool { motion.isDeviceMotionAvailable || (motion.isGyroAvailable && motion.isAccelerometerAvailable) }
 
-  public func start(rateHz: Int) {
+  public func start(rateHz: Int, raw: Bool) {
     stop()
     self.rateHz = rateHz
-    guard motion.isDeviceMotionAvailable else { return }
-    motion.deviceMotionUpdateInterval = 1.0 / Double(rateHz)
+    self.raw = raw
+    let interval = 1.0 / Double(rateHz)
     running = true
-    // Device motion gives accel and gyro on one timestamp. Total acceleration is
-    // gravity + userAcceleration (in g); rotationRate is bias-corrected rad/s.
-    motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: queue) { [weak self] m, err in
-      guard let self, let m else {
-        if let err { NSLog("[imuninn] imu error: \(err)") }
-        return
+    if raw {
+      guard motion.isGyroAvailable, motion.isAccelerometerAvailable else { return }
+      motion.accelerometerUpdateInterval = interval
+      motion.gyroUpdateInterval = interval
+      motion.startAccelerometerUpdates(to: queue) { [weak self] a, _ in
+        guard let a else { return }
+        self?.lastAccel = (a.acceleration.x * Self.g, a.acceleration.y * Self.g, a.acceleration.z * Self.g, a.timestamp)
       }
-      let g = 9.80665
-      var s = MnImuSample()
-      s.header.streamID = Self.streamId
-      s.header.seq = self.seq
-      self.seq &+= 1
-      s.header.deviceTimeNs = deviceTimeNs(fromSeconds: m.timestamp)
-      s.accel.x = (m.gravity.x + m.userAcceleration.x) * g
-      s.accel.y = (m.gravity.y + m.userAcceleration.y) * g
-      s.accel.z = (m.gravity.z + m.userAcceleration.z) * g
-      s.gyro.x = m.rotationRate.x
-      s.gyro.y = m.rotationRate.y
-      s.gyro.z = m.rotationRate.z
-      if m.magneticField.accuracy != .uncalibrated {
-        s.mag.x = m.magneticField.field.x
-        s.mag.y = m.magneticField.field.y
-        s.mag.z = m.magneticField.field.z
+      motion.startGyroUpdates(to: queue) { [weak self] gy, _ in
+        guard let self, let gy, let acc = self.lastAccel else { return }
+        var s = self.header(time: gy.timestamp)
+        s.accel.x = acc.x; s.accel.y = acc.y; s.accel.z = acc.z
+        s.gyro.x = gy.rotationRate.x; s.gyro.y = gy.rotationRate.y; s.gyro.z = gy.rotationRate.z
+        self.onSample?(s)
       }
-      self.onSample?(s)
+    } else {
+      guard motion.isDeviceMotionAvailable else { return }
+      motion.deviceMotionUpdateInterval = interval
+      motion.startDeviceMotionUpdates(using: .xArbitraryZVertical, to: queue) { [weak self] m, err in
+        guard let self, let m else {
+          if let err { NSLog("[imuninn] imu error: \(err)") }
+          return
+        }
+        var s = self.header(time: m.timestamp)
+        s.accel.x = (m.gravity.x + m.userAcceleration.x) * Self.g
+        s.accel.y = (m.gravity.y + m.userAcceleration.y) * Self.g
+        s.accel.z = (m.gravity.z + m.userAcceleration.z) * Self.g
+        s.gyro.x = m.rotationRate.x; s.gyro.y = m.rotationRate.y; s.gyro.z = m.rotationRate.z
+        if m.magneticField.accuracy != .uncalibrated {
+          s.mag.x = m.magneticField.field.x; s.mag.y = m.magneticField.field.y; s.mag.z = m.magneticField.field.z
+        }
+        self.onSample?(s)
+      }
     }
+  }
+
+  private func header(time: TimeInterval) -> MnImuSample {
+    var s = MnImuSample()
+    s.header.streamID = Self.streamId
+    s.header.seq = seq
+    seq &+= 1
+    s.header.deviceTimeNs = deviceTimeNs(fromSeconds: time)
+    return s
   }
 
   public func setRate(_ hz: Int) {
     rateHz = hz
-    if running { motion.deviceMotionUpdateInterval = 1.0 / Double(hz) }
+    guard running else { return }
+    let interval = 1.0 / Double(hz)
+    if raw {
+      motion.accelerometerUpdateInterval = interval
+      motion.gyroUpdateInterval = interval
+    } else {
+      motion.deviceMotionUpdateInterval = interval
+    }
   }
 
   public func stop() {
-    if running { motion.stopDeviceMotionUpdates() }
+    if running {
+      motion.stopDeviceMotionUpdates()
+      motion.stopGyroUpdates()
+      motion.stopAccelerometerUpdates()
+    }
     running = false
+    lastAccel = nil
   }
 }

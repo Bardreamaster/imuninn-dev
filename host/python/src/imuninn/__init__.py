@@ -11,6 +11,7 @@ PROTOCOL_VERSION = 1
 SERVICE_TYPE = "_imuninn._tcp.local."
 DEFAULT_CONTROL_PORT = 7420
 DEFAULT_DATA_PORT = 7421
+DEFAULT_TCP_PORT = 7422
 
 from .session import DeviceHandle, Session, open  # noqa: E402
 
@@ -19,6 +20,7 @@ __all__ = [
     "SERVICE_TYPE",
     "DEFAULT_CONTROL_PORT",
     "DEFAULT_DATA_PORT",
+    "DEFAULT_TCP_PORT",
     "Session",
     "DeviceHandle",
     "open",

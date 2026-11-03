@@ -22,6 +22,11 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
 
   startSession(): void;
   stopSession(): void;
+  startRecording(): void;
+  stopRecording(): void;
+  listRecordings(): { name: string; bytes: number }[];
+  /** Format ids ("WxH@fps") the given lens offers in camera mode. */
+  cameraFormats(lens: string): string[];
 
   getCapabilities(): Capabilities;
   getConfig(): DeviceConfig;

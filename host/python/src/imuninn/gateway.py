@@ -19,7 +19,7 @@ from websockets.asyncio.server import ServerConnection, serve
 from zeroconf import IPVersion, ServiceInfo
 from zeroconf.asyncio import AsyncZeroconf
 
-from . import DEFAULT_CONTROL_PORT, DEFAULT_DATA_PORT, PROTOCOL_VERSION, SERVICE_TYPE
+from . import DEFAULT_CONTROL_PORT, DEFAULT_DATA_PORT, DEFAULT_TCP_PORT, PROTOCOL_VERSION, SERVICE_TYPE
 from .proto import imuninn_pb2 as pb
 
 log = logging.getLogger("imuninn.gateway")
@@ -190,6 +190,16 @@ class Device:
         msg.session_control.action = pb.SessionControl.ACTION_STOP
         await self.send(msg)
 
+    async def start_recording(self) -> None:
+        msg = pb.ControlMessage()
+        msg.session_control.action = pb.SessionControl.ACTION_START_RECORDING
+        await self.send(msg)
+
+    async def stop_recording(self) -> None:
+        msg = pb.ControlMessage()
+        msg.session_control.action = pb.SessionControl.ACTION_STOP_RECORDING
+        await self.send(msg)
+
     async def time_sync(self, rounds: int = 8) -> int | None:
         """NTP-style offset estimate; keeps the lowest-RTT sample."""
         best_rtt = None
@@ -237,10 +247,12 @@ class Gateway:
         data_port: int = DEFAULT_DATA_PORT,
         advertise: bool = True,
         auto_subscribe: bool = True,
+        tcp_port: int = DEFAULT_TCP_PORT,
     ):
         self.name = name or socket.gethostname().split(".")[0]
         self.control_port = control_port
         self.data_port = data_port
+        self.tcp_port = tcp_port
         self.advertise = advertise
         self.auto_subscribe = auto_subscribe
         self.devices: dict[ServerConnection, Device] = {}
@@ -291,6 +303,7 @@ class Gateway:
                     reply.welcome.gateway_name = self.name
                     reply.welcome.protocol_version = PROTOCOL_VERSION
                     reply.welcome.udp_port = self.data_port
+                    reply.welcome.tcp_port = self.tcp_port
                     await ws.send(reply.SerializeToString())
                     self._emit_device(dev, "connected")
                     asyncio.create_task(self._post_hello(dev))
@@ -342,6 +355,41 @@ class Gateway:
         dev = self._device_for(addr)
         if dev is None:
             return
+        self._dispatch(dev, msg)
+
+    async def _handle_tcp(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
+        """Length-prefixed DataMessage stream (video / depth), one connection per phone."""
+        addr = writer.get_extra_info("peername")
+        log.info("tcp data connection from %s", addr)
+        dev: Device | None = None
+        try:
+            while True:
+                head = await reader.readexactly(4)
+                n = int.from_bytes(head, "little")
+                if n > 64 * 1024 * 1024:
+                    log.warning("tcp frame too large (%d) from %s", n, addr)
+                    break
+                payload = await reader.readexactly(n)
+                if dev is None:
+                    dev = self._device_for_ip(addr[0])
+                    if dev is None:
+                        continue
+                msg = pb.DataMessage()
+                msg.ParseFromString(payload)
+                self._dispatch(dev, msg)
+        except (asyncio.IncompleteReadError, ConnectionResetError):
+            pass
+        finally:
+            writer.close()
+            log.info("tcp data connection closed %s", addr)
+
+    def _device_for_ip(self, ip: str) -> Device | None:
+        for dev in self.devices.values():
+            if dev.ws.remote_address and dev.ws.remote_address[0] == ip:
+                return dev
+        return None
+
+    def _dispatch(self, dev: Device, msg: pb.DataMessage) -> None:
         body = msg.WhichOneof("body")
         if body in ("imu", "pose", "video", "depth", "gap"):
             header = getattr(msg, body).header
@@ -370,6 +418,7 @@ class Gateway:
         transport, _ = await loop.create_datagram_endpoint(
             lambda: _UdpProtocol(self), local_addr=("0.0.0.0", self.data_port)
         )
+        tcp_server = await asyncio.start_server(self._handle_tcp, "0.0.0.0", self.tcp_port, limit=64 * 1024 * 1024)
         azc = None
         info = None
         if self.advertise:
@@ -378,18 +427,19 @@ class Gateway:
                 f"{self.name}.{SERVICE_TYPE}",
                 addresses=[socket.inet_aton(self.ip)],
                 port=self.control_port,
-                properties={"proto": str(PROTOCOL_VERSION), "udp": str(self.data_port)},
+                properties={"proto": str(PROTOCOL_VERSION), "udp": str(self.data_port), "tcp": str(self.tcp_port)},
                 server=f"{self.name}.local.",
             )
             azc = AsyncZeroconf(ip_version=IPVersion.V4Only, interfaces=[self.ip])
             await azc.async_register_service(info)
-            log.info("advertising %s at %s (control %d, udp %d)", info.name, self.ip, self.control_port, self.data_port)
+            log.info("advertising %s at %s (control %d, udp %d, tcp %d)", info.name, self.ip, self.control_port, self.data_port, self.tcp_port)
         try:
             async with serve(self._handle_ws, "0.0.0.0", self.control_port, max_size=16 * 1024 * 1024):
                 self._ready.set()
                 await asyncio.Future()
         finally:
             transport.close()
+            tcp_server.close()
             if azc is not None and info is not None:
                 await azc.async_unregister_service(info)
                 await azc.async_close()

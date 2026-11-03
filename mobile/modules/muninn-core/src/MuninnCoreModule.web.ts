@@ -37,6 +37,14 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   disconnect() {}
   startSession() {}
   stopSession() {}
+  startRecording() {}
+  stopRecording() {}
+  listRecordings() {
+    return [];
+  }
+  cameraFormats(_lens: string) {
+    return [];
+  }
   getCapabilities(): Capabilities {
     return { streams: [], sessionParams: [], config: emptyConfig };
   }

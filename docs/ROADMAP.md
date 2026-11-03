@@ -27,5 +27,5 @@
 - [x] ARKit 位姿（含每帧内参）+ CoreMotion IMU 走 UDP，真机实测 60 Hz / 100 Hz 零丢包
 - [x] 远程配置：自描述参数、部分更新、钳位/拒绝、ConfigChanged 广播；手机 UI 控件由能力描述生成
 - [x] Python：`imuninn.open()` / `wait_for_device()` / `set()` / `iter()` / `on()`；`imuninn watch`
-- [ ] 租约（单写者）只做了应答，未强制
+- [ ] 租约（单写者）只做了应答，未强制。含义：同一时刻只允许一个 PC 客户端写配置，其余只读，断线自动释放；多台 PC 同时接一台手机时才需要，M4 做
 - [ ] 纯相机模式（M4）
