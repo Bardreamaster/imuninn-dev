@@ -73,6 +73,8 @@ def main() -> None:
                 window_bytes["rgb"] += len(sample.data)
 
         dev.on("*", on_any)
+        if "health" in {s.stream_id for s in dev.capabilities.streams}:
+            dev.set("health.rate_hz", 1.0)
 
         with open(csv_path, "w", newline="") as f:
             w = csv.DictWriter(f, fieldnames=FIELDS)

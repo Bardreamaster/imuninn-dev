@@ -121,6 +121,12 @@ def _watch(args) -> None:
                     f"{stream} seq={sample.header.seq} t={t:.3f} "
                     f"a=({a.x:+.2f},{a.y:+.2f},{a.z:+.2f}) g=({g.x:+.3f},{g.y:+.3f},{g.z:+.3f})"
                 )
+            elif isinstance(sample, pb.DeviceHealth):
+                print(
+                    f"{stream} seq={sample.header.seq} t={t:.3f} thermal={pb.DeviceHealth.Thermal.Name(sample.thermal).removeprefix('THERMAL_').lower()} "
+                    f"battery={sample.battery_level:.2f} {pb.DeviceHealth.BatteryState.Name(sample.battery_state).removeprefix('BATTERY_').lower()} "
+                    f"pose={sample.pose_hz:.0f} imu={sample.imu_hz:.0f} video={sample.video_fps:.0f} depth={sample.depth_hz:.0f} up={sample.uptime_s:.0f}s"
+                )
             elif isinstance(sample, pb.DepthFrame):
                 from .depth import decode
 
@@ -227,4 +233,4 @@ def _stream_field(sample) -> str:
     from .proto import imuninn_pb2 as pb
 
     return {pb.ImuSample: "imu", pb.PoseSample: "pose", pb.VideoFrame: "video",
-            pb.DepthFrame: "depth", pb.Gap: "gap"}[type(sample)]
+            pb.DepthFrame: "depth", pb.Gap: "gap", pb.DeviceHealth: "health"}[type(sample)]

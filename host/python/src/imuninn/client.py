@@ -217,9 +217,6 @@ class PhoneClient:
                     self.config = msg.config_changed.config
                     log.info("config v%d changed on %s", self.config.config_version, self.name)
                     self._emit("config")
-                elif kind == "health":
-                    self.health = msg.health
-                    self._emit("health")
                 elif kind == "lease":
                     action = msg.lease.action
                     if action in (pb.Lease.ACTION_GRANTED,):
@@ -258,8 +255,10 @@ class PhoneClient:
             log.warning("bad data message (%d bytes)", len(payload))
             return
         body = msg.WhichOneof("body")
-        if body in ("imu", "pose", "video", "depth", "gap"):
+        if body in ("imu", "pose", "video", "depth", "gap", "health"):
             self.stats[getattr(msg, body).header.stream_id].observe(getattr(msg, body).header)
+        if body == "health":
+            self.health = msg.health
         for cb in list(self._listeners):
             try:
                 cb(msg)

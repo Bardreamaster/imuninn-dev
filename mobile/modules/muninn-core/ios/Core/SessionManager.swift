@@ -70,7 +70,8 @@ public final class SessionManager {
   private var serviceName = ""
   private var writerId: UInt32? = nil
   private var statusTimer: DispatchSourceTimer?
-  private var healthTick = 0
+  private var healthSeq: UInt64 = 0
+  private var lastHealth: Double = 0
   private let startTime = CACurrentMediaTime()
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
@@ -496,8 +497,11 @@ public final class SessionManager {
   }
 
   private func emitStatus() {
-    healthTick += 1
-    if healthTick % 25 == 0 { broadcastHealth() }   // 5 s at 5 Hz
+    let rate = max(0.1, config.double("health", "rate_hz"))
+    if config.isEnabled("health"), CACurrentMediaTime() - lastHealth >= 1.0 / rate {
+      lastHealth = CACurrentMediaTime()
+      publishHealth()
+    }
     var s = Status()
     s.server = control.state
     s.serviceName = serviceName
@@ -537,10 +541,15 @@ public final class SessionManager {
     onStatus?(s)
   }
 
-  private func broadcastHealth() {
-    guard !clientList.isEmpty else { return }
+  private func publishHealth() {
+    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("health") }
+    guard wanted else { return }
     var h = MnDeviceHealth()
-    h.deviceTimeNs = deviceTimeNs(fromSeconds: CACurrentMediaTime())
+    h.header.streamID = "health"
+    h.header.seq = healthSeq
+    healthSeq &+= 1
+    h.header.deviceTimeNs = deviceTimeNs(fromSeconds: CACurrentMediaTime())
+    stamp(&h.header)
     switch ProcessInfo.processInfo.thermalState {
     case .nominal: h.thermal = .nominal
     case .fair: h.thermal = .fair
@@ -562,9 +571,10 @@ public final class SessionManager {
     h.videoKbps = videoBytes.peek()
     h.encoderDropped = encoder.dropped
     h.uptimeS = CACurrentMediaTime() - startTime
-    var msg = MnControlMessage()
-    msg.health = h
-    control.broadcast(msg)
+    var d = MnDataMessage()
+    d.health = h
+    for c in clientList where c.subscribed.contains("health") { c.udp.send(d) }
+    if file.isRecording { file.write(d) }
   }
 
   // MARK: helpers

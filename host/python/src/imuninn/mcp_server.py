@@ -267,7 +267,7 @@ def record(path: str, seconds: float = 5.0, streams: str = "") -> dict:
         dev.subscribe([s.stream_id for s in dev.capabilities.streams], unsubscribe=True)
         dev.subscribe(streams.split(","))
     dev.start()
-    field = {pb.ImuSample: "imu", pb.PoseSample: "pose", pb.VideoFrame: "video", pb.DepthFrame: "depth", pb.Gap: "gap"}
+    field = {pb.ImuSample: "imu", pb.PoseSample: "pose", pb.VideoFrame: "video", pb.DepthFrame: "depth", pb.Gap: "gap", pb.DeviceHealth: "health"}
     with McapRecorder(path, dev.info, dev.capabilities, dev.clock_offset_ns) as rec:
         rec.write_config(dev.config)
         t_end = time.time() + seconds

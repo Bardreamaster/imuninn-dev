@@ -46,6 +46,7 @@ public final class ConfigStore {
   private static func b(_ v: Bool) -> MnValue { var m = MnValue(); m.b = v; return m }
   private static func i(_ v: Int64) -> MnValue { var m = MnValue(); m.i = v; return m }
   private static func s(_ v: String) -> MnValue { var m = MnValue(); m.s = v; return m }
+  private static func f(_ v: Double) -> MnValue { var m = MnValue(); m.f = v; return m }
 
   private func addStream(_ id: String, _ kind: MnStreamKind, _ transport: MnTransport, enabled: Bool, params: [MnParamSpec]) {
     specs[id] = Dictionary(uniqueKeysWithValues: params.map { ($0.key, $0) })
@@ -89,6 +90,10 @@ public final class ConfigStore {
                 choices: wideFormats, current: Self.s(defaultFormat)),
       Self.spec("bitrate_kbps", "H.264 bitrate", .int, .immediate, unit: "kbps", min: 500, max: 20000, step: 500, current: Self.i(4000)),
       Self.spec("keyframe_interval", "Keyframe interval", .int, .immediate, unit: "frames", min: 1, max: 300, step: 1, current: Self.i(60)),
+    ])
+
+    addStream("health", .health, .udp, enabled: true, params: [
+      Self.spec("rate_hz", "Health report rate", .float, .immediate, unit: "Hz", min: 0.1, max: 5, current: Self.f(0.2)),
     ])
 
     if env.depthAvailable {
@@ -147,6 +152,10 @@ public final class ConfigStore {
 
   public func bool(_ stream: String, _ key: String) -> Bool { param(stream, key)?.b ?? false }
   public func int(_ stream: String, _ key: String) -> Int { Int(param(stream, key)?.i ?? 0) }
+  public func double(_ stream: String, _ key: String) -> Double {
+    guard let v = param(stream, key) else { return 0 }
+    switch v.v { case .f(let f)?: return f; case .i(let i)?: return Double(i); default: return 0 }
+  }
   public func string(_ stream: String, _ key: String) -> String { param(stream, key)?.s ?? "" }
 
   // MARK: updates (§6.8 steps 3-5)

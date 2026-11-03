@@ -23,6 +23,7 @@ MAGIC = b"IMUNINN1"
 _TOPIC_TO_CLASS = {
     "/imu": "ImuSample", "/ar_pose": "PoseSample", "/rgb": "VideoFrame", "/depth": "DepthFrame",
     "/gap": "Gap", "/config": "ConfigChanged", "/device": "DeviceInfo", "/capabilities": "Capabilities",
+    "/health": "DeviceHealth",
 }
 
 _BODY_TO_TOPIC = {
@@ -32,6 +33,7 @@ _BODY_TO_TOPIC = {
     "depth": "/depth",
     "gap": "/gap",
     "config_changed": "/config",
+    "health": "/health",
 }
 
 

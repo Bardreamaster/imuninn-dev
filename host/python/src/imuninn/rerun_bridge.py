@@ -102,6 +102,10 @@ def _log_stream(rr, samples, every_nth_video: int) -> None:
                 continue
             for img in decoder.decode(sample, upright=False):
                 rr.log("world/phone/cam/image", rr.Image(img).compress(jpeg_quality=80))
+        elif isinstance(sample, pb.DeviceHealth):
+            rr.log("plots/health/thermal", rr.Scalars(float(sample.thermal)))
+            rr.log("plots/health/battery", rr.Scalars(float(sample.battery_level)))
+            rr.log("plots/health/rates", rr.Scalars([sample.pose_hz, sample.imu_hz, sample.video_fps, sample.depth_hz]))
         elif isinstance(sample, pb.DepthFrame):
             counts["depth"] += 1
             d_mm, _conf = decode_depth(sample, upright=False)

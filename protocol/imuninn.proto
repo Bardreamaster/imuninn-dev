@@ -105,6 +105,7 @@ enum StreamKind {
   STREAM_KIND_VIDEO = 3;
   STREAM_KIND_DEPTH = 4;
   STREAM_KIND_CONFIG = 5;   // config-change events (recorded as its own MCAP channel)
+  STREAM_KIND_HEALTH = 6;   // DeviceHealth: thermal, battery, phone-side rates
 }
 
 message StreamDescriptor {
@@ -196,7 +197,6 @@ message ControlMessage {
     TimeSyncPing time_sync_ping = 40;
     TimeSyncPong time_sync_pong = 41;
     Lease lease = 50;
-    DeviceHealth health = 60;                // phone -> clients, broadcast every few seconds
     Error error = 90;
   }
 }
@@ -291,9 +291,9 @@ message Lease {
 
 message Error { uint32 code = 1; string message = 2; }
 
-// Periodic health report (§11 后台限制 / thermal throttling visibility).
+// Periodic health report, stream "health" (§11 thermal throttling visibility).
 message DeviceHealth {
-  uint64 device_time_ns = 1;
+  Header header = 1;
   enum Thermal {
     THERMAL_UNSPECIFIED = 0;
     THERMAL_NOMINAL = 1;
@@ -420,5 +420,6 @@ message DataMessage {
     DepthFrame depth = 4;
     Gap gap = 5;
     ConfigChanged config_changed = 6;
+    DeviceHealth health = 7;
   }
 }

@@ -38,6 +38,16 @@ dev.save_profile("now.yaml")
 
 注：IMU raw 模式下 CoreMotion 陀螺最高约 100 Hz，`rate_hz: 200` 会被硬件限制。
 
+## 健康状态流（`health`）
+
+手机每 `health.rate_hz`（默认 0.2 Hz，可到 5 Hz）发一条 `DeviceHealth`：热状态（nominal / fair / serious / critical）、电量与充电状态、低电量模式、手机端各流实际帧率、编码器丢帧、运行时长。和其他流一样可订阅、可录进 MCAP（`/health`），Rerun 里在 `plots/health/*`。长时测试脚本 `tools/bench/longrun.py` 就是靠它画温度 / 帧率曲线。
+
+```python
+dev.set("health.rate_hz", 1.0)
+for h in dev.iter("health"):
+    print(h.thermal, h.battery_level, h.video_fps)
+```
+
 ## 控制权租约
 
 同一时刻只有一个 PC 能改参数，其余只读：
