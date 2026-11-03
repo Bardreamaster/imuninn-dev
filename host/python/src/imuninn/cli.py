@@ -1,57 +1,65 @@
 from __future__ import annotations
 
 import argparse
+import logging
 
-from . import DEFAULT_CONTROL_PORT, DEFAULT_DATA_PORT, PROTOCOL_VERSION, __version__
+from . import PROTOCOL_VERSION, __version__
 
 
 def main(argv: list[str] | None = None) -> None:
-    p = argparse.ArgumentParser(prog="imuninn", description="iMuninn PC gateway")
+    p = argparse.ArgumentParser(prog="imuninn", description="iMuninn PC client")
     p.add_argument("--version", action="version", version=f"imuninn {__version__} (protocol v{PROTOCOL_VERSION})")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    g = sub.add_parser("gateway", help="run the gateway (mDNS + control + UDP), print stream rates")
-    g.add_argument("--name", help="service name shown to phones (default: hostname)")
-    g.add_argument("--port", type=int, default=DEFAULT_CONTROL_PORT, help="control WebSocket port")
-    g.add_argument("--data-port", type=int, default=DEFAULT_DATA_PORT, help="UDP data port")
+    ls = sub.add_parser("list", help="discover phones on the local network")
+    ls.add_argument("--timeout", type=float, default=2.0)
 
-    w = sub.add_parser("watch", help="print incoming samples (pose / imu) as text")
+    def add_target(sp):
+        sp.add_argument("target", nargs="?", default="", help="phone name, host, or host:port (default: first phone found)")
+        sp.add_argument("--start", action="store_true", help="send SessionControl START after connect")
+
+    w = sub.add_parser("watch", help="print incoming samples as text")
+    add_target(w)
     w.add_argument("--stream", default=None, help="only this stream id (default: all)")
     w.add_argument("--every", type=int, default=30, help="print one sample out of N")
-    w.add_argument("--start", action="store_true", help="send SessionControl START after connect")
 
     r = sub.add_parser("rerun", help="visualise pose / IMU / video live in the Rerun viewer")
+    add_target(r)
     r.add_argument("--no-spawn", action="store_true", help="connect to an already running viewer")
-    r.add_argument("--start", action="store_true", help="send SessionControl START after connect")
     r.add_argument("--every", type=int, default=1, help="decode one video frame out of N")
 
     args = p.parse_args(argv)
-    if args.cmd == "rerun":
-        _rerun(args)
-        return
-    if args.cmd == "gateway":
-        from .gateway import run_gateway
-
-        run_gateway(args.name, args.port, args.data_port)
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
+    if args.cmd == "list":
+        _list(args)
     elif args.cmd == "watch":
         _watch(args)
+    elif args.cmd == "rerun":
+        _rerun(args)
+
+
+def _list(args) -> None:
+    from .discovery import discover
+
+    phones = discover(args.timeout)
+    if not phones:
+        print("no phones found (is the iMuninn app open and on the same Wi-Fi?)")
+    for ph in phones:
+        others = [a for a in ph.addresses if a != ph.host]
+        extra = f"  (also {', '.join(others)})" if others else ""
+        print(f"{ph.name:30s} {ph.address:22s} proto v{ph.protocol_version}{extra}")
 
 
 def _watch(args) -> None:
-    import logging
-
     from .proto import imuninn_pb2 as pb
-    from .session import open as open_session
+    from .session import connect
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    with open_session() as s:
-        print("waiting for a phone...")
-        dev = s.wait_for_device()
+    with connect(args.target) as dev:
         print(f"connected: {dev!r}")
         if args.start:
             dev.start()
         n = 0
-        for stream, sample in s.iter(None):
+        for stream, sample in dev.iter(None):
             if args.stream and stream != args.stream:
                 continue
             n += 1
@@ -81,16 +89,11 @@ def _watch(args) -> None:
 
 
 def _rerun(args) -> None:
-    import logging
-
     from .rerun_bridge import run
-    from .session import open as open_session
+    from .session import connect
 
-    logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
-    with open_session() as s:
-        print("waiting for a phone...")
-        dev = s.wait_for_device()
+    with connect(args.target) as dev:
         print(f"connected: {dev!r}")
         if args.start:
             dev.start()
-        run(s, spawn=not args.no_spawn, every_nth_video=args.every)
+        run(dev, spawn=not args.no_spawn, every_nth_video=args.every)

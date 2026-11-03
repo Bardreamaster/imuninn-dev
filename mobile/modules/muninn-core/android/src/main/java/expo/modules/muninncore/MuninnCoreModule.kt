@@ -5,7 +5,7 @@ import android.provider.Settings
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 
-const val PROTOCOL_VERSION = 1 // keep in sync with protocol/VERSION
+const val PROTOCOL_VERSION = 2 // keep in sync with protocol/VERSION
 
 // Thin Expo adapter; Android data path lands after iOS (§1 开发顺序).
 class MuninnCoreModule : Module() {

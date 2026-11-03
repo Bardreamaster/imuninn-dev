@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
 
@@ -109,7 +108,6 @@ export default function App() {
   const [status, setStatus] = useState<StatusEvent | null>(null);
   const [caps, setCaps] = useState<Capabilities | null>(null);
   const [config, setConfig] = useState<DeviceConfig | null>(null);
-  const [host, setHost] = useState("");
   const [showPreview, setShowPreview] = useState(true);
   const [lastResult, setLastResult] = useState("");
 
@@ -118,11 +116,11 @@ export default function App() {
     setConfig(MuninnCore.getConfig());
     const a = MuninnCore.addListener("onStatus", setStatus);
     const b = MuninnCore.addListener("onConfig", (e) => setConfig(e.config));
-    MuninnCore.startDiscovery();
+    MuninnCore.startServer();
     return () => {
       a.remove();
       b.remove();
-      MuninnCore.stopDiscovery();
+      MuninnCore.stopServer();
     };
   }, []);
 
@@ -133,8 +131,6 @@ export default function App() {
     setLastResult(bad.length ? bad.map((f) => `${f.key}: ${f.status} ${f.reason}`).join("\n") : "");
   };
 
-  const connected = status?.connection === "ready";
-  const connColor = connected ? C.ok : status?.connection === "failed" ? C.err : C.muted;
   const trackColor = status?.tracking === "normal" ? C.ok : status?.tracking === "limited" ? C.warn : C.muted;
 
   return (
@@ -152,39 +148,25 @@ export default function App() {
         {showPreview ? <MuninnPreviewView style={s.preview} /> : null}
       </View>
       <ScrollView contentContainerStyle={{ padding: 20, paddingTop: 8, gap: 16 }}>
-        {/* Connection */}
+        {/* Server */}
         <View style={s.card}>
-          <Text style={s.cardTitle}>连接</Text>
-          <Row k="状态" v={status?.connection ?? "idle"} color={connColor} />
-          {connected ? <Row k="网关" v={`${status?.gatewayName} ${status?.gatewayHost}`} /> : null}
+          <Text style={s.cardTitle}>服务</Text>
+          <Row k="状态" v={status?.server ?? "stopped"}
+            color={status?.server === "listening" ? C.ok : status?.server?.startsWith("failed") ? C.err : C.muted} />
+          <Row k="名称" v={status?.serviceName ?? ""} />
+          {(status?.addresses ?? []).map((a) => {
+            const [iface, ip] = a.split(" ");
+            return <Row key={a} k={iface} v={`${ip}:${status?.controlPort ?? 0}`} />;
+          })}
           {status?.lastError ? <Text style={s.err}>{status.lastError}</Text> : null}
-          {!connected ? (
-            <>
-              <Text style={s.key}>发现的网关</Text>
-              {(status?.gateways ?? []).length === 0 ? (
-                <Text style={s.muted}>搜索中… 请在 PC 上运行 `imuninn gateway`</Text>
-              ) : null}
-              <View style={s.chips}>
-                {(status?.gateways ?? []).map((g) => (
-                  <Pressable key={g} style={s.chip} onPress={() => MuninnCore.connectToGateway(g)}>
-                    <Text style={s.chipText}>{g}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
-                <TextInput
-                  style={s.input} placeholder="手动输入 host:port" placeholderTextColor={C.muted}
-                  value={host} onChangeText={setHost} autoCapitalize="none" autoCorrect={false}
-                />
-                <Button title="连接" kind="ghost" disabled={!host.includes(":")} onPress={() => {
-                  const [h, p] = host.split(":");
-                  MuninnCore.connectToHost(h, Number(p) || 7420);
-                }} />
-              </View>
-            </>
-          ) : (
-            <Button title="断开" kind="danger" onPress={() => MuninnCore.disconnect()} />
-          )}
+          <Text style={s.key}>已连接的 PC（{status?.clients.length ?? 0}）</Text>
+          {(status?.clients ?? []).length === 0 ? (
+            <Text style={s.muted}>等待连接… PC 上运行 `imuninn list` / `imuninn watch`</Text>
+          ) : null}
+          {(status?.clients ?? []).map((c) => (
+            <Row key={c.id} k={`${c.name}${c.writer ? " ✎" : ""}`}
+              v={`${c.host} · ${c.subscribed.join(",") || "未订阅"}`} />
+          ))}
         </View>
 
         {/* Session */}
@@ -195,7 +177,7 @@ export default function App() {
           {status?.mode !== "camera" ? <Row k="位姿" v={`${status?.poseHz.toFixed(1) ?? 0} Hz`} /> : null}
           <Row k="IMU" v={`${status?.imuHz.toFixed(1) ?? 0} Hz`} />
           <Row k="视频" v={`${status?.videoHz.toFixed(1) ?? 0} fps · ${((status?.videoKbps ?? 0) / 1000).toFixed(1)} Mbps`} />
-          <Row k="丢弃 UDP / TCP / 编码" v={`${status?.udpDropped ?? 0} / ${status?.tcpDropped ?? 0} / ${status?.encoderDropped ?? 0}`} />
+          <Row k="编码器丢帧" v={status?.encoderDropped ?? 0} />
           <Row k="配置版本" v={status?.configVersion ?? 0} />
           {status?.recording ? (
             <Row k="录制中" v={`${status.recordingFile} · ${(status.recordingBytes / 1e6).toFixed(1)} MB`} color={C.err} />

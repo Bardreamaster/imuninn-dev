@@ -2,7 +2,7 @@
 // (Swift / Kotlin / Python / C++). See protocol/README.md for channel layout,
 // versioning rules and coordinate conventions. Design doc: docs/iMuninn-设计文档.md §6.
 //
-// Draft v0.1 (M0). Every change to this file must bump PROTOCOL_VERSION in
+// v2 (M2: phone is the server). Every change to this file must bump PROTOCOL_VERSION in
 // protocol/VERSION and be committed together with all consumers.
 
 syntax = "proto3";
@@ -200,15 +200,26 @@ message ControlMessage {
   }
 }
 
-message Hello {
-  DeviceInfo device = 1;
-  Capabilities capabilities = 2;   // sent eagerly so one round trip is enough
+// Direction: the PHONE is the server. It advertises `_imuninn._tcp` over Bonjour
+// and listens for control (WebSocket), data-TCP connections; clients (PCs) connect.
+// A client opens the control WebSocket and sends Hello; the phone answers Welcome.
+message ClientInfo {
+  string name = 1;            // e.g. hostname or script name
+  string version = 2;         // client library version
 }
-message Welcome {
-  string gateway_name = 1;
-  uint32 protocol_version = 2;
-  uint32 udp_port = 3;        // where the phone sends DataMessage datagrams
-  uint32 tcp_port = 4;        // length-prefixed DataMessage stream (video / depth)
+
+message Hello {               // client -> phone
+  ClientInfo client = 1;
+  uint32 udp_port = 2;        // where this client receives DataMessage datagrams
+  uint32 protocol_version = 3;
+}
+
+message Welcome {             // phone -> client
+  DeviceInfo device = 1;
+  Capabilities capabilities = 2;
+  uint32 protocol_version = 3;
+  uint32 tcp_port = 4;        // connect here for the length-prefixed DataMessage stream
+  uint32 client_id = 5;       // first 4 bytes (LE) the client writes on that TCP connection
 }
 
 message GetCapabilities {}

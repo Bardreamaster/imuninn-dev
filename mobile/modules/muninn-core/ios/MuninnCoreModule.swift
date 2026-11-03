@@ -12,14 +12,20 @@ public class MuninnCoreModule: Module {
       "protocolVersion": Int(MuninnCore.protocolVersion),
     ])
 
-    Events("onStatus", "onConfig", "onGateways")
+    Events("onStatus", "onConfig")
 
     OnCreate {
       self.manager.onStatus = { [weak self] s in
         self?.sendEvent("onStatus", [
-          "connection": s.connection,
-          "gatewayName": s.gatewayName,
-          "gatewayHost": s.gatewayHost,
+          "server": s.server,
+          "serviceName": s.serviceName,
+          "addresses": s.addresses,
+          "controlPort": Int(s.controlPort),
+          "tcpPort": Int(s.tcpPort),
+          "clients": s.clients.map { c -> [String: Any] in
+            ["id": Int(c.id), "name": c.name, "host": c.host, "subscribed": c.subscribed,
+             "udpDropped": Int(c.udpDropped), "tcpDropped": Int(c.tcpDropped), "writer": c.writer]
+          },
           "mode": s.mode,
           "sessionRunning": s.sessionRunning,
           "tracking": s.tracking,
@@ -27,9 +33,6 @@ public class MuninnCoreModule: Module {
           "imuHz": s.imuHz,
           "videoHz": s.videoHz,
           "videoKbps": s.videoKbps,
-          "udpSent": Int(s.udpSent),
-          "udpDropped": Int(s.udpDropped),
-          "tcpDropped": Int(s.tcpDropped),
           "encoderDropped": Int(s.encoderDropped),
           "recording": s.recording,
           "recordingFile": s.recordingFile,
@@ -37,16 +40,14 @@ public class MuninnCoreModule: Module {
           "configVersion": Int(s.configVersion),
           "remoteControlled": s.remoteControlled,
           "lastError": s.lastError,
-          "gateways": s.gateways,
         ])
       }
       self.manager.onConfigChanged = { [weak self] cfg in
         self?.sendEvent("onConfig", ["config": ConfigJSON.config(cfg)])
       }
-      self.manager.onGateways = { [weak self] list in
-        self?.sendEvent("onGateways", ["gateways": list.map { $0.name }])
-      }
     }
+
+    View(MuninnPreviewView.self) {}
 
     Function("getDeviceInfo") { () -> [String: Any] in
       let d = DeviceInfo.current()
@@ -64,20 +65,10 @@ public class MuninnCoreModule: Module {
       ]
     }
 
-    View(MuninnPreviewView.self) {}
-
-    Function("startDiscovery") { self.manager.startDiscovery() }
-    Function("stopDiscovery") { self.manager.stopDiscovery() }
-
-    Function("connectToGateway") { (name: String) -> Bool in
-      guard let g = self.manager.discovery.results.first(where: { $0.name == name }) else { return false }
-      self.manager.connect(to: g.endpoint, name: g.name)
-      return true
+    Function("startServer") { (name: String?) in
+      self.manager.startServer(name: (name?.isEmpty == false) ? name : nil)
     }
-    Function("connectToHost") { (host: String, port: Int) in
-      self.manager.connect(host: host, port: UInt16(port))
-    }
-    Function("disconnect") { self.manager.disconnect() }
+    Function("stopServer") { self.manager.stopServer() }
 
     Function("startSession") { self.manager.startSession() }
     Function("stopSession") { self.manager.stopSession() }
@@ -119,13 +110,12 @@ enum ConfigJSON {
     }
   }
 
-  static func value(from any: Any, kindHint: MnParamSpec.Kind? = nil) -> MnValue {
+  static func value(from any: Any) -> MnValue {
     var v = MnValue()
     switch any {
     case let b as Bool: v.b = b
     case let i as Int: v.i = Int64(i)
-    case let d as Double:
-      if kindHint == .int || d.rounded() == d && kindHint != .float { v.i = Int64(d) } else { v.f = d }
+    case let d as Double: if d.rounded() == d { v.i = Int64(d) } else { v.f = d }
     case let s as String: v.s = s
     default: break
     }

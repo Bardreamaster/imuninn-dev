@@ -1,4 +1,4 @@
-"""iMuninn PC-side gateway and client API."""
+"""iMuninn PC-side client API. The phone is the server; PCs connect to it."""
 
 from importlib.metadata import PackageNotFoundError, version
 
@@ -7,21 +7,11 @@ try:
 except PackageNotFoundError:  # editable / source checkout
     __version__ = "0.0.0"
 
-PROTOCOL_VERSION = 1
+PROTOCOL_VERSION = 2
 SERVICE_TYPE = "_imuninn._tcp.local."
 DEFAULT_CONTROL_PORT = 7420
-DEFAULT_DATA_PORT = 7421
-DEFAULT_TCP_PORT = 7422
 
-from .session import DeviceHandle, Session, open  # noqa: E402
+from .discovery import Phone, discover  # noqa: E402
+from .session import Device, connect  # noqa: E402
 
-__all__ = [
-    "PROTOCOL_VERSION",
-    "SERVICE_TYPE",
-    "DEFAULT_CONTROL_PORT",
-    "DEFAULT_DATA_PORT",
-    "DEFAULT_TCP_PORT",
-    "Session",
-    "DeviceHandle",
-    "open",
-]
+__all__ = ["PROTOCOL_VERSION", "SERVICE_TYPE", "DEFAULT_CONTROL_PORT", "Phone", "discover", "Device", "connect"]

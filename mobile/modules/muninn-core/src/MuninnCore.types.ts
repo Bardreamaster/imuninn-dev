@@ -15,14 +15,28 @@ export interface DeviceInfo {
   arSupported: boolean;
 }
 
-export type ConnectionState = "idle" | "connecting" | "ready" | "failed" | "cancelled";
 export type TrackingState = "none" | "limited" | "normal";
+
+export interface ClientStatus {
+  id: number;
+  name: string;
+  host: string;
+  subscribed: string[];
+  udpDropped: number;
+  tcpDropped: number;
+  writer: boolean;
+}
 
 /** Throttled status from native (§4.3): 5 Hz, never per-sample. */
 export interface StatusEvent {
-  connection: ConnectionState;
-  gatewayName: string;
-  gatewayHost: string;
+  /** "starting" | "listening" | "stopped" | "failed: …" */
+  server: string;
+  serviceName: string;
+  /** "en0 10.0.0.5" per interface, Wi-Fi first. */
+  addresses: string[];
+  controlPort: number;
+  tcpPort: number;
+  clients: ClientStatus[];
   mode: "ar" | "camera";
   sessionRunning: boolean;
   tracking: TrackingState;
@@ -30,9 +44,6 @@ export interface StatusEvent {
   imuHz: number;
   videoHz: number;
   videoKbps: number;
-  udpSent: number;
-  udpDropped: number;
-  tcpDropped: number;
   encoderDropped: number;
   recording: boolean;
   recordingFile: string;
@@ -40,7 +51,6 @@ export interface StatusEvent {
   configVersion: number;
   remoteControlled: boolean;
   lastError: string;
-  gateways: string[];
 }
 
 export type ParamKind = "bool" | "int" | "float" | "enum" | "string" | "unknown";
@@ -99,5 +109,4 @@ export interface ConfigResult {
 export type MuninnCoreEvents = {
   onStatus: (e: StatusEvent) => void;
   onConfig: (e: { config: DeviceConfig }) => void;
-  onGateways: (e: { gateways: string[] }) => void;
 };

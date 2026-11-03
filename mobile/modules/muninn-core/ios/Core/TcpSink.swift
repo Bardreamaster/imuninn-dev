@@ -4,52 +4,45 @@ import Foundation
 import Network
 
 public final class TcpSink {
-  private var connection: NWConnection?
-  private let queue = DispatchQueue(label: "imuninn.tcp")
-  private var ready = false
+  private let connection: NWConnection
+  private let queue: DispatchQueue
+  private var ready = true
   private var inFlight = 0
   public private(set) var sent: UInt64 = 0
   public private(set) var dropped: UInt64 = 0
   public private(set) var bytes: UInt64 = 0
   /// Set when a frame was dropped so the encoder can resync with a keyframe.
   public var onDroppedVideo: (() -> Void)?
+  public var onClosed: (() -> Void)?
 
-  public init() {}
-
-  public var isReady: Bool { ready }
-
-  public func connect(host: NWEndpoint.Host, port: UInt16) {
-    disconnect()
-    guard let p = NWEndpoint.Port(rawValue: port) else { return }
-    let params = NWParameters.tcp
-    if let tcp = params.defaultProtocolStack.transportProtocol as? NWProtocolTCP.Options {
-      tcp.noDelay = true
-    }
-    let conn = NWConnection(host: host, port: p, using: params)
-    conn.stateUpdateHandler = { [weak self] st in
+  /// Wraps an already-started connection (accepted by DataServer).
+  public init(connection: NWConnection, queue: DispatchQueue) {
+    self.connection = connection
+    self.queue = queue
+    connection.stateUpdateHandler = { [weak self] st in
       switch st {
-      case .ready: self?.ready = true
-      case .failed(let e):
-        NSLog("[imuninn] tcp failed: \(e)")
+      case .failed, .cancelled:
         self?.ready = false
-      case .cancelled: self?.ready = false
+        self?.onClosed?()
       default: break
       }
     }
-    conn.start(queue: queue)
-    connection = conn
+    // Detect peer close: a read that completes with EOF/error.
+    connection.receive(minimumIncompleteLength: 1, maximumLength: 1) { [weak self] _, _, complete, err in
+      if complete || err != nil { self?.ready = false; self?.connection.cancel() }
+    }
   }
 
+  public var isReady: Bool { ready }
+
   public func disconnect() {
-    connection?.cancel()
-    connection = nil
+    connection.cancel()
     ready = false
-    inFlight = 0
   }
 
   /// `droppable`: video frames may be skipped under backpressure; depth / gaps are not.
   public func send(_ msg: MnDataMessage, droppable: Bool, keyframe: Bool = false) {
-    guard ready, let conn = connection, let payload = try? msg.serializedData() else {
+    guard ready, let payload = try? msg.serializedData() else {
       dropped &+= 1
       return
     }
@@ -65,8 +58,11 @@ public final class TcpSink {
     inFlight += 1
     sent &+= 1
     bytes &+= UInt64(frame.count)
-    conn.send(content: frame, completion: .contentProcessed { [weak self] _ in
-      self?.queue.async { self?.inFlight -= 1 }
+    connection.send(content: frame, completion: .contentProcessed { [weak self] err in
+      self?.queue.async {
+        self?.inFlight -= 1
+        if err != nil { self?.ready = false }
+      }
     })
   }
 }

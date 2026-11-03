@@ -3,7 +3,7 @@ import ARKit
 import Foundation
 import UIKit
 
-public let protocolVersion: UInt32 = 1  // keep in sync with protocol/VERSION
+public let protocolVersion: UInt32 = 2  // keep in sync with protocol/VERSION
 
 public struct DeviceInfo: Codable {
   public let deviceId: String

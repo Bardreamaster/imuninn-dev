@@ -28,13 +28,8 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
       arSupported: false,
     };
   }
-  startDiscovery() {}
-  stopDiscovery() {}
-  connectToGateway(_name: string) {
-    return false;
-  }
-  connectToHost(_host: string, _port: number) {}
-  disconnect() {}
+  startServer(_name?: string) {}
+  stopServer() {}
   startSession() {}
   stopSession() {}
   startRecording() {}

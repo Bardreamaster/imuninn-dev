@@ -13,12 +13,9 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   protocolVersion: number;
   getDeviceInfo(): DeviceInfo;
 
-  startDiscovery(): void;
-  stopDiscovery(): void;
-  /** Connect to a gateway found by discovery, by its service name. */
-  connectToGateway(name: string): boolean;
-  connectToHost(host: string, port: number): void;
-  disconnect(): void;
+  /** Advertise `_imuninn._tcp` and listen for PC clients. `name` defaults to the device name. */
+  startServer(name?: string): void;
+  stopServer(): void;
 
   startSession(): void;
   stopSession(): void;

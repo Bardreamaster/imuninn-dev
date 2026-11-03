@@ -1,4 +1,5 @@
-// Orchestrates discovery, control channel, sources, encoder, config and sinks.
+// Orchestrates the servers, sources, encoder, config and per-client sinks.
+// The phone is the server (§6.7): PCs discover it over Bonjour and connect.
 // Owns all state; the Expo module is a thin adapter over this class (§4.2).
 import CoreVideo
 import Foundation
@@ -6,10 +7,23 @@ import Network
 import QuartzCore
 import simd
 
+public struct ClientStatus {
+  public var id: UInt32
+  public var name: String
+  public var host: String
+  public var subscribed: [String]
+  public var udpDropped: UInt64
+  public var tcpDropped: UInt64
+  public var writer: Bool
+}
+
 public struct Status {
-  public var connection: String = "idle"          // idle | connecting | ready | failed | cancelled
-  public var gatewayName: String = ""
-  public var gatewayHost: String = ""
+  public var server: String = "stopped"           // starting | listening | failed: … | stopped
+  public var serviceName: String = ""
+  public var addresses: [String] = []             // "en0 10.0.0.5"
+  public var controlPort: UInt16 = 0
+  public var tcpPort: UInt16 = 0
+  public var clients: [ClientStatus] = []
   public var mode: String = "ar"
   public var sessionRunning = false
   public var tracking: String = "none"            // none | limited | normal
@@ -17,9 +31,6 @@ public struct Status {
   public var imuHz: Double = 0
   public var videoHz: Double = 0
   public var videoKbps: Double = 0
-  public var udpSent: UInt64 = 0
-  public var udpDropped: UInt64 = 0
-  public var tcpDropped: UInt64 = 0
   public var encoderDropped: UInt64 = 0
   public var configVersion: UInt32 = 0
   public var remoteControlled = false
@@ -27,7 +38,6 @@ public struct Status {
   public var recordingFile: String = ""
   public var recordingBytes: UInt64 = 0
   public var lastError: String = ""
-  public var gateways: [String] = []
 }
 
 public extension Notification.Name {
@@ -36,11 +46,11 @@ public extension Notification.Name {
 
 public final class SessionManager {
   public static let shared = SessionManager()
+  public static let defaultControlPort: UInt16 = 7420
+  public static let defaultTcpPort: UInt16 = 7422
 
-  public let discovery = Discovery()
-  public let control = ControlClient()
-  public let udp = UdpSink()
-  public let tcp = TcpSink()
+  public let control = ControlServer()
+  public let data = DataServer()
   public let file = FileSink()
   public let ar = ArSource()
   public let camera = CameraSource()
@@ -49,11 +59,10 @@ public final class SessionManager {
   public let config: ConfigStore
 
   private let queue = DispatchQueue(label: "imuninn.session")
-  private var subscribed: Set<String> = []
   private var sessionRunning = false
   private var remoteControlled = false
   private var lastError = ""
-  private var gatewayName = ""
+  private var serviceName = ""
   private var statusTimer: DispatchSourceTimer?
   private var poseCounter = RateCounter()
   private var imuCounter = RateCounter()
@@ -61,13 +70,11 @@ public final class SessionManager {
   private var videoBytes = ByteRate()
   private var videoSeq: UInt64 = 0
   private var lastIntrinsics = simd_float3x3(1)
-  private var pendingEndpoint: NWEndpoint?
-  private var wantConnected = false
-  private var reconnectDelay: Double = 1
+  /// Snapshot of clients for the hot data path (avoids locking the control queue).
+  private var clientList: [Client] = []
 
   public var onStatus: ((Status) -> Void)?
   public var onConfigChanged: ((MnDeviceConfig) -> Void)?
-  public var onGateways: (([GatewayEndpoint]) -> Void)?
 
   private init() {
     var env = ConfigEnvironment()
@@ -78,103 +85,77 @@ public final class SessionManager {
     env.imuAvailable = imu.available
     config = ConfigStore(env: env)
 
-    discovery.onChange = { [weak self] list in self?.onGateways?(list) }
-    control.onState = { [weak self] st in self?.controlStateChanged(st) }
-    control.onMessage = { [weak self] msg in self?.queue.async { self?.handle(msg) } }
+    control.onConnect = { [weak self] c in self?.queue.async { self?.clientConnected(c) } }
+    control.onDisconnect = { [weak self] c in self?.queue.async { self?.clientDisconnected(c) } }
+    control.onMessage = { [weak self] c, msg in self?.queue.async { self?.handle(c, msg) } }
+    data.onAttach = { [weak self] id, sink in self?.attachData(id: id, sink: sink) ?? false }
     ar.onPose = { [weak self] p in self?.publishPose(p) }
     ar.onImage = { [weak self] pb, t, k in self?.handleImage(pb, t, k) }
     camera.onFrame = { [weak self] f in self?.handleImage(f.pixelBuffer, f.timeSeconds, f.intrinsics) }
     imu.onSample = { [weak self] s in self?.publishImu(s) }
     encoder.onFrame = { [weak self] f in self?.publishVideo(f) }
-    tcp.onDroppedVideo = { [weak self] in self?.encoder.requestKeyframe() }
     startStatusTimer()
   }
 
   public var isCameraMode: Bool { config.mode == .camera }
 
-  // MARK: discovery / connection
+  // MARK: server lifecycle
 
-  public func startDiscovery() { discovery.start() }
-  public func stopDiscovery() { discovery.stop() }
-
-  public func connect(to endpoint: NWEndpoint, name: String) {
+  public func startServer(name: String? = nil, controlPort: UInt16 = defaultControlPort, tcpPort: UInt16 = defaultTcpPort) {
     queue.async {
-      self.gatewayName = name
-      self.pendingEndpoint = endpoint
-      self.wantConnected = true
-      self.reconnectDelay = 1
-      self.lastError = ""
-      self.control.connect(to: endpoint)
+      self.serviceName = name ?? DeviceInfo.current().deviceName
+      self.control.start(port: controlPort, serviceName: self.serviceName)
+      self.data.start(port: tcpPort)
     }
   }
 
-  public func connect(host: String, port: UInt16) {
-    guard let p = NWEndpoint.Port(rawValue: port) else { return }
-    connect(to: .hostPort(host: NWEndpoint.Host(host), port: p), name: "\(host):\(port)")
-  }
-
-  public func disconnect() {
+  public func stopServer() {
     queue.async {
-      self.wantConnected = false
-      self.control.cancel()
-      self.udp.disconnect()
-      self.tcp.disconnect()
-      self.subscribed = []
-      self.remoteControlled = false
+      self.control.stop()
+      self.data.stop()
+      self.clientList = []
     }
   }
 
-  private func controlStateChanged(_ st: ControlClient.State) {
-    queue.async {
-      switch st {
-      case .ready:
-        self.reconnectDelay = 1
-        self.sendHello()
-      case .failed(let e):
-        self.lastError = e
-        self.udp.disconnect(); self.tcp.disconnect()
-        self.scheduleReconnect()
-      case .cancelled:
-        self.udp.disconnect(); self.tcp.disconnect()
-        self.scheduleReconnect()
-      default: break
-      }
-    }
+  private func clientConnected(_ c: Client) {
+    clientList = Array(control.clients.values)
+    NSLog("[imuninn] client \(c.id) connected from \(String(describing: c.remoteHost))")
   }
 
-  /// Reconnect with backoff (1 → 10 s) until `disconnect()` is called (§6.7).
-  private func scheduleReconnect() {
-    guard wantConnected, let ep = pendingEndpoint else { return }
-    let delay = reconnectDelay
-    reconnectDelay = min(10, reconnectDelay * 2)
-    queue.asyncAfter(deadline: .now() + delay) { [weak self] in
-      guard let self, self.wantConnected, self.control.state != .ready else { return }
-      self.subscribed = []
-      self.control.connect(to: ep)
-    }
+  private func clientDisconnected(_ c: Client) {
+    clientList = Array(control.clients.values)
+    if c.isWriter { remoteControlled = false }
+    NSLog("[imuninn] client \(c.label) disconnected")
   }
 
-  private func sendHello() {
-    var msg = MnControlMessage()
-    msg.hello.device = deviceInfoProto()
-    msg.hello.capabilities = config.capabilities(device: msg.hello.device)
-    control.send(msg)
+  private func attachData(id: UInt32, sink: TcpSink) -> Bool {
+    var ok = false
+    queue.sync {
+      guard let c = control.client(byId: id) else { return }
+      c.tcp?.disconnect()
+      c.tcp = sink
+      sink.onDroppedVideo = { [weak self] in self?.encoder.requestKeyframe() }
+      sink.onClosed = { [weak c] in c?.tcp = nil }
+      encoder.requestKeyframe()
+      ok = true
+    }
+    return ok
   }
 
   // MARK: control messages
 
-  private func handle(_ msg: MnControlMessage) {
+  private func handle(_ c: Client, _ msg: MnControlMessage) {
     var reply = MnControlMessage()
     reply.requestID = msg.requestID
     switch msg.body {
-    case .welcome(let w)?:
-      if let host = control.remoteHost {
-        if w.udpPort > 0 { udp.connect(host: host, port: UInt16(w.udpPort)) }
-        if w.tcpPort > 0 { tcp.connect(host: host, port: UInt16(w.tcpPort)) }
-      }
-      if !w.gatewayName.isEmpty { gatewayName = w.gatewayName }
-      encoder.requestKeyframe()
-      return
+    case .hello(let h)?:
+      c.name = h.client.name
+      if let host = c.remoteHost, h.udpPort > 0 { c.udp.connect(host: host, port: UInt16(h.udpPort)) }
+      reply.welcome.device = deviceInfoProto()
+      reply.welcome.capabilities = config.capabilities(device: reply.welcome.device)
+      reply.welcome.protocolVersion = protocolVersion
+      reply.welcome.tcpPort = UInt32(data.port)
+      reply.welcome.clientID = c.id
     case .getCapabilities?:
       reply.capabilities = config.capabilities(device: deviceInfoProto())
     case .getConfig?:
@@ -182,16 +163,17 @@ public final class SessionManager {
     case .setConfig(let req)?:
       let update = config.apply(req)
       reply.configResult = update.result
-      control.send(reply)
+      control.send(reply, to: c)
       if !update.changes.isEmpty {
         remoteControlled = true
+        c.isWriter = true
         applyChanges(update)
         broadcastConfig()
       }
       return
     case .subscribe(let s)?:
-      if s.unsubscribe { subscribed.subtract(s.streamIds) } else { subscribed.formUnion(s.streamIds) }
-      if subscribed.contains("rgb") { encoder.requestKeyframe() }
+      if s.unsubscribe { c.subscribed.subtract(s.streamIds) } else { c.subscribed.formUnion(s.streamIds) }
+      if c.subscribed.contains("rgb") { encoder.requestKeyframe() }
       return
     case .sessionControl(let sc)?:
       switch sc.action {
@@ -214,7 +196,7 @@ public final class SessionManager {
     default:
       return
     }
-    control.send(reply)
+    control.send(reply, to: c)
   }
 
   // MARK: session
@@ -300,7 +282,7 @@ public final class SessionManager {
   private func broadcastConfig() {
     var msg = MnControlMessage()
     msg.configChanged.config = config.snapshot()
-    control.send(msg)
+    control.broadcast(msg)
     onConfigChanged?(config.snapshot())
   }
 
@@ -324,13 +306,15 @@ public final class SessionManager {
     header.configVersion = config.snapshot().configVersion
   }
 
+  private var anySubscriber: Bool { clientList.contains { !$0.subscribed.isEmpty } }
+
   private func publishPose(_ p: MnPoseSample) {
     poseCounter.tick()
     var p = p
     stamp(&p.header)
     var d = MnDataMessage()
     d.pose = p
-    if subscribed.contains(ArSource.poseStreamId) { udp.send(d) }
+    for c in clientList where c.subscribed.contains(ArSource.poseStreamId) { c.udp.send(d) }
     if file.isRecording { file.write(d) }
   }
 
@@ -340,12 +324,14 @@ public final class SessionManager {
     stamp(&s.header)
     var d = MnDataMessage()
     d.imu = s
-    if subscribed.contains(ImuSource.streamId) { udp.send(d) }
+    for c in clientList where c.subscribed.contains(ImuSource.streamId) { c.udp.send(d) }
     if file.isRecording { file.write(d) }
   }
 
   private func handleImage(_ pb: CVPixelBuffer, _ t: Double, _ k: simd_float3x3?) {
-    guard config.isEnabled("rgb"), subscribed.contains("rgb") || file.isRecording else { return }
+    guard config.isEnabled("rgb") else { return }
+    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("rgb") && $0.tcp != nil }
+    guard wanted else { return }
     if let k { lastIntrinsics = k }
     encoder.encode(pb, timeSeconds: t)
   }
@@ -370,7 +356,9 @@ public final class SessionManager {
     v.rotationDeg = (isCameraMode && camera.lens == .front) ? 270 : 90
     var d = MnDataMessage()
     d.video = v
-    if subscribed.contains("rgb") { tcp.send(d, droppable: true, keyframe: f.keyframe) }
+    for c in clientList where c.subscribed.contains("rgb") {
+      c.tcp?.send(d, droppable: true, keyframe: f.keyframe)
+    }
     if file.isRecording { file.write(d) }
   }
 
@@ -386,15 +374,16 @@ public final class SessionManager {
 
   private func emitStatus() {
     var s = Status()
-    switch control.state {
-    case .idle: s.connection = "idle"
-    case .resolving, .connecting: s.connection = "connecting"
-    case .ready: s.connection = "ready"
-    case .failed: s.connection = "failed"
-    case .cancelled: s.connection = "cancelled"
+    s.server = control.state
+    s.serviceName = serviceName
+    s.addresses = NetInfo.ipv4Addresses().map { "\($0.interface) \($0.address)" }
+    s.controlPort = control.port
+    s.tcpPort = data.port
+    s.clients = clientList.map {
+      ClientStatus(id: $0.id, name: $0.label, host: $0.remoteHost.map { "\($0)" } ?? "",
+                   subscribed: Array($0.subscribed).sorted(), udpDropped: $0.udp.dropped,
+                   tcpDropped: $0.tcp?.dropped ?? 0, writer: $0.isWriter)
     }
-    s.gatewayName = gatewayName
-    if let h = control.remoteHost { s.gatewayHost = "\(h)" }
     s.mode = isCameraMode ? "camera" : "ar"
     s.sessionRunning = sessionRunning
     if isCameraMode {
@@ -410,9 +399,6 @@ public final class SessionManager {
     s.imuHz = imuCounter.rate()
     s.videoHz = videoCounter.rate()
     s.videoKbps = videoBytes.kbps()
-    s.udpSent = udp.sent
-    s.udpDropped = udp.dropped
-    s.tcpDropped = tcp.dropped
     s.encoderDropped = encoder.dropped
     s.configVersion = config.snapshot().configVersion
     s.remoteControlled = remoteControlled
@@ -420,7 +406,6 @@ public final class SessionManager {
     s.recordingFile = file.url?.lastPathComponent ?? ""
     s.recordingBytes = file.bytes
     s.lastError = lastError
-    s.gateways = discovery.results.map { $0.name }
     onStatus?(s)
   }
 

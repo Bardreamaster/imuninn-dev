@@ -1,18 +1,19 @@
 from imuninn.proto import imuninn_pb2 as pb
 
 
-def test_hello_roundtrip():
+def test_welcome_roundtrip():
     m = pb.ControlMessage(request_id=1)
-    m.hello.device.model = "iPhone17,1"
-    m.hello.device.platform = pb.PLATFORM_IOS
-    m.hello.device.protocol_version = 1
-    m.hello.device.has_lidar = True
+    m.welcome.device.model = "iPhone18,1"
+    m.welcome.device.platform = pb.PLATFORM_IOS
+    m.welcome.protocol_version = 2
+    m.welcome.device.has_lidar = True
+    m.welcome.client_id = 3
     raw = m.SerializeToString()
     back = pb.ControlMessage()
     back.ParseFromString(raw)
-    assert back.WhichOneof("body") == "hello"
-    assert back.hello.device.model == "iPhone17,1"
-    assert back.hello.device.has_lidar
+    assert back.WhichOneof("body") == "welcome"
+    assert back.welcome.device.model == "iPhone18,1"
+    assert back.welcome.device.has_lidar and back.welcome.client_id == 3
 
 
 def test_header_on_imu():

@@ -1,6 +1,6 @@
 """Rerun visualisation (§7.2): one replaceable sink on the gateway.
 
-    imuninn rerun            # spawn the viewer, log pose / IMU / video live
+    imuninn rerun [phone]    # spawn the viewer, log pose / IMU / video live
 
 Optional dependency: `pip install imuninn[rerun,video]`.
 """
@@ -13,7 +13,7 @@ import time
 import numpy as np
 
 from .proto import imuninn_pb2 as pb
-from .session import Session
+from .session import Device
 
 log = logging.getLogger("imuninn.rerun")
 
@@ -22,7 +22,7 @@ log = logging.getLogger("imuninn.rerun")
 _ARKIT_TO_RDF = np.array([[1, 0, 0], [0, -1, 0], [0, 0, -1]], dtype=np.float64)
 
 
-def run(session: Session, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
+def run(dev: Device, app_id: str = "imuninn", spawn: bool = True, every_nth_video: int = 1) -> None:
     import os
     import sys
 
@@ -43,7 +43,7 @@ def run(session: Session, app_id: str = "imuninn", spawn: bool = True, every_nth
     t0 = time.time()
     counts = {"imu": 0, "ar_pose": 0, "rgb": 0}
 
-    for stream, sample in session.iter(None):
+    for stream, sample in dev.iter(None):
         t = sample.header.device_time_ns * 1e-9
         rr.set_time("device", timestamp=t)
         rr.set_time("seq", sequence=sample.header.seq)
