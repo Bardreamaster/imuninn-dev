@@ -119,6 +119,7 @@ class SessionManager private constructor(private val ctx: Context) {
     env.cameraFormats = camera.lenses.associate { it.lens to it.formats }
     env.imuAvailable = imu.available
     env.depthAvailable = false
+    env.camera = CameraRanges.probe(camera.lenses.firstOrNull()?.characteristics)
     config = ConfigStore(env)
     camera.lenses.firstOrNull()?.let {
       if (!it.timestampsRealtime) Log.w(TAG, "camera timestamps are not CLOCK_BOOTTIME on this device; video/IMU time bases may differ")
@@ -359,7 +360,7 @@ class SessionManager private constructor(private val ctx: Context) {
           ?.let { targets += it }
       }
       if (targets.isNotEmpty()) {
-        camera.start(lens, fmt, config.bool("ar_pose", "exposure_locked"), config.bool("ar_pose", "focus_locked"), targets)
+        camera.start(lens, fmt, config.cameraSettings(), targets)
       }
     } else {
       lastError = "AR mode not implemented on Android"
@@ -390,10 +391,9 @@ class SessionManager private constructor(private val ctx: Context) {
       when (c.stream to c.key) {
         "imu" to "rate_hz" -> imu.setRate(c.value.i.toInt())
         "imu" to "raw", "imu" to "enabled", "ar_pose" to "enabled", "rgb" to "enabled", "depth" to "enabled" -> restartSources()
-        "ar_pose" to "exposure_locked" -> camera.setExposureLocked(c.value.b)
         "rgb" to "bitrate_kbps" -> encoder.setBitrate(c.value.i.toInt() * 1000)
         "rgb" to "keyframe_interval" -> encoder.setKeyframeInterval(c.value.i.toInt())
-        else -> {}
+        else -> if (c.stream == "rgb" && c.key in CameraControl.cameraKeys) camera.applyCamera(config.cameraSettings())
       }
     }
   }

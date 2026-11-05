@@ -32,7 +32,8 @@ Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）�
 | UDP：IMU、health | `UdpSink.kt` | ✅（有 10.0.2.2 回环处理） |
 | IMU：SensorManager，校准 / raw 两种 | `ImuSource.kt` | ✅（模拟器虚拟传感器，可在 Extended Controls 里摆姿态） |
 | 视频：Camera2 → MediaCodec H.264（Surface 输入，零拷贝）→ Annex-B | `CameraSource.kt` / `VideoEncoder.kt` | ✅（模拟器虚拟场景相机 + 软件编码器） |
-| 相机模式：镜头、格式、曝光锁、对焦锁 | `CameraSource.kt` | ✅（模拟器只有一前一后两个镜头） |
+| 相机模式：镜头、格式 | `CameraSource.kt` | ✅（模拟器只有一前一后两个镜头） |
+| 相机控制 `rgb.*`（曝光/ISO/快门/EV、白平衡、对焦、变焦、手电、HDR、低光、防抖），与 iOS 同一套参数 | `CameraControl.kt` → Camera2 `CaptureRequest` | ✅ 参数通路；模拟器 HAL 不支持手动曝光/白平衡/变焦，走回退 |
 | 本地录制 `.imuninn`、Profile JSON | `FileSink.kt` / `ProfileStore.kt` | ✅ |
 | 健康上报：thermal / battery / 低电量 | `SessionManager.publishHealth` | ✅（数值是模拟器编的） |
 | **AR 位姿（ARCore）** | ❌ 仅可用性检测（`ArSource.kt` 顶部注释写了要做的事） | ❌ Apple Silicon 上只有 arm64 镜像，ARCore 不支持 |
@@ -40,6 +41,25 @@ Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）�
 | 预览 | `MuninnPreviewView.kt`（TextureView） | ✅ |
 
 因此 Android 当前只有**相机模式**；`DeviceInfo.arSupported` 恒为 false，`session.mode` 设成 `ar` 会被拒绝。
+
+## 相机控制参数在 Android 上的映射（`CameraControl.kt`）
+
+参数名、取值、范围语义与 iOS 完全一致（`docs/user/03-视频与相机模式.md`），范围从主摄的 `CameraCharacteristics` 探测。能力不足时**不报错**，退而求其次并在日志里提示一次：
+
+| 参数 | Camera2 | 需要的能力 / 回退 |
+| --- | --- | --- |
+| `exposure_mode` auto / locked / manual | `CONTROL_AE_MODE` + `CONTROL_AE_LOCK`；manual = `AE_MODE_OFF` + `SENSOR_SENSITIVITY` + `SENSOR_EXPOSURE_TIME` | `MANUAL_SENSOR`；没有则按 locked 处理 |
+| `exposure_bias` | `CONTROL_AE_EXPOSURE_COMPENSATION`（按 `AE_COMPENSATION_STEP` 取整） | 范围来自设备（模拟器 ±3 EV） |
+| `white_balance_mode` manual | `AWB_MODE_OFF` + `COLOR_CORRECTION_GAINS`（色温→RGGB 增益，tint 调绿通道） | `MANUAL_POST_PROCESSING`；没有则选最接近色温的 AWB 预设（白炽/荧光/日光/阴天/阴影） |
+| `focus_mode` locked | `AF_MODE_OFF` + 最近一次 `CaptureResult.LENS_FOCUS_DISTANCE` | 固定对焦机型保持自动 |
+| `focus_mode` manual + `lens_position` | `AF_MODE_OFF` + `LENS_FOCUS_DISTANCE = (1 − pos) × 最近对焦屈光度`（0 近 … 1 远，同 iOS） | `LENS_INFO_MINIMUM_FOCUS_DISTANCE > 0` |
+| `zoom` | API 30+ `CONTROL_ZOOM_RATIO`，否则 `SCALER_CROP_REGION` | 上限 `CONTROL_ZOOM_RATIO_RANGE`（≤10） |
+| `torch` | `FLASH_MODE_TORCH` | `FLASH_INFO_AVAILABLE` |
+| `hdr` | `CONTROL_SCENE_MODE_HDR` | 场景模式列表里有 HDR |
+| `low_light_boost` | API 35 `AE_MODE_ON_LOW_LIGHT_BOOST_BRIGHTNESS_PRIORITY` | 列表里有该 AE 模式 |
+| `stabilization` | `CONTROL_VIDEO_STABILIZATION_MODE`（cinematic = API 33 PREVIEW_STABILIZATION）+ OIS 开关 | off 同时关 OIS，保证内参 |
+
+模拟器实测（2026-11-05）：14 个参数全部 applied / 正确 clamped（`zoom` 上限 1）/ 非法枚举 rejected，改动期间视频和 IMU 不断流；HAL 没有 `MANUAL_SENSOR`、`MANUAL_POST_PROCESSING`，所以手动曝光退化为锁定、手动白平衡退化为预设（日志各提示一次）。真机效果待验证。
 
 ## 与 iOS 的差异
 

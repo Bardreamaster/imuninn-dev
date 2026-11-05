@@ -9,6 +9,8 @@ import android.hardware.camera2.CameraCaptureSession
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraDevice
 import android.hardware.camera2.CameraManager
+import android.hardware.camera2.CaptureResult
+import android.hardware.camera2.TotalCaptureResult
 import android.hardware.camera2.CameraMetadata
 import android.hardware.camera2.CaptureRequest
 import android.media.MediaCodec
@@ -97,9 +99,17 @@ class CameraSource(ctx: Context) {
     private set
   var fps = 30
     private set
-  private var exposureLocked = false
-  private var focusLocked = false
+  private var settings = CameraSettings()
+  private var ranges = CameraRanges()
+  /** Last focus distance (diopters) the HAL reported; used when focus_mode becomes "locked". */
+  @Volatile private var lastFocusDiopters: Float? = null
   var onError: ((String) -> Unit)? = null
+
+  private val captureCallback = object : CameraCaptureSession.CaptureCallback() {
+    override fun onCaptureCompleted(session: CameraCaptureSession, request: CaptureRequest, result: TotalCaptureResult) {
+      result.get(CaptureResult.LENS_FOCUS_DISTANCE)?.let { lastFocusDiopters = it }
+    }
+  }
 
   /** Lenses by role: first back camera = wide; shorter/longer focal back cameras = ultra_wide/telephoto; front. */
   val lenses: List<LensInfo> by lazy {
@@ -142,15 +152,17 @@ class CameraSource(ctx: Context) {
   fun intrinsics(): CameraIntrinsics? = current?.intrinsics(width, height)
 
   /** Opens the lens and streams into `targets` (preview and/or encoder surfaces). */
-  fun start(lensName: String, formatId: String, exposureLocked: Boolean, focusLocked: Boolean, targets: List<Surface>) {
+  fun start(lensName: String, formatId: String, camera: CameraSettings, targets: List<Surface>) {
     stop()
     val info = lens(lensName) ?: lenses.firstOrNull() ?: run { onError?.invoke("no camera"); return }
     val (w, h, f) = parse(formatId).takeIf { it.first > 0 } ?: parse(info.formats.firstOrNull() ?: "1280x720@30")
     current = info
     this.formatId = if (w > 0) "${w}x${h}@$f" else formatId
     width = w; height = h; fps = if (f > 0) f else 30
-    this.exposureLocked = exposureLocked
-    this.focusLocked = focusLocked
+    settings = camera
+    ranges = CameraRanges.probe(info.characteristics)
+    CameraControl.resetWarnings()
+    lastFocusDiopters = null
     this.targets = targets
     if (targets.isEmpty()) return
     running = true
@@ -187,7 +199,7 @@ class CameraSource(ctx: Context) {
         override fun onConfigured(s: CameraCaptureSession) {
           if (!running) { s.close(); return }
           session = s
-          try { s.setRepeatingRequest(b.build(), null, handler) } catch (e: Exception) { Log.w(TAG, "camera request failed: $e") }
+          try { s.setRepeatingRequest(b.build(), captureCallback, handler) } catch (e: Exception) { Log.w(TAG, "camera request failed: $e") }
         }
         override fun onConfigureFailed(s: CameraCaptureSession) {
           Log.w(TAG, "camera session configure failed")
@@ -201,27 +213,21 @@ class CameraSource(ctx: Context) {
   }
 
   private fun applyControls(b: CaptureRequest.Builder) {
-    b.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO)
     b.set(CaptureRequest.CONTROL_AE_TARGET_FPS_RANGE, Range(fps, fps))
-    b.set(CaptureRequest.CONTROL_AE_LOCK, exposureLocked)
-    val afModes = current?.characteristics?.get(CameraCharacteristics.CONTROL_AF_AVAILABLE_MODES) ?: intArrayOf()
-    val af = when {
-      focusLocked && afModes.contains(CameraMetadata.CONTROL_AF_MODE_OFF) -> CameraMetadata.CONTROL_AF_MODE_OFF
-      afModes.contains(CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_VIDEO) -> CameraMetadata.CONTROL_AF_MODE_CONTINUOUS_VIDEO
-      else -> CameraMetadata.CONTROL_AF_MODE_AUTO
-    }
-    b.set(CaptureRequest.CONTROL_AF_MODE, af)
+    val ch = current?.characteristics ?: return
+    CameraControl.applyAll(settings, b, ch, ranges, lastFocusDiopters)
   }
 
-  fun setExposureLocked(locked: Boolean) {
-    exposureLocked = locked
+  /** Re-apply the rgb.* camera controls to the running stream (all keys are immediate). */
+  fun applyCamera(camera: CameraSettings) {
+    settings = camera
     val b = request ?: return
     val s = session ?: return
     handler.post {
       try {
-        b.set(CaptureRequest.CONTROL_AE_LOCK, locked)
-        s.setRepeatingRequest(b.build(), null, handler)
-      } catch (e: Exception) { Log.w(TAG, "exposure lock failed: $e") }
+        applyControls(b)
+        s.setRepeatingRequest(b.build(), captureCallback, handler)
+      } catch (e: Exception) { Log.w(TAG, "camera control failed: $e") }
     }
   }
 

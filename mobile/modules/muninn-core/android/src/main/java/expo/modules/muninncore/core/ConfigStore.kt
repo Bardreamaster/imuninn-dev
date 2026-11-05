@@ -33,6 +33,7 @@ data class ConfigEnvironment(
   var imuAvailable: Boolean = false,
   var arAvailable: Boolean = false,
   var depthAvailable: Boolean = false,
+  var camera: CameraRanges = CameraRanges(),
 )
 
 fun pbBool(v: Boolean): Value = Value.newBuilder().setB(v).build()
@@ -82,8 +83,6 @@ class ConfigStore(private val env: ConfigEnvironment) {
 
     addStream("ar_pose", StreamKind.STREAM_KIND_POSE, Transport.TRANSPORT_UDP, env.arAvailable, listOf(
       spec("video_format", "AR video format", ParamSpec.Kind.KIND_ENUM, R, pbStr(env.arVideoFormats.firstOrNull() ?: ""), choices = env.arVideoFormats),
-      spec("exposure_locked", "Lock exposure", ParamSpec.Kind.KIND_BOOL, I, pbBool(false)),
-      spec("focus_locked", "Lock focus", ParamSpec.Kind.KIND_BOOL, R, pbBool(false)),
     ))
 
     val wideFormats = env.cameraFormats["wide"] ?: env.cameraFormats.values.firstOrNull() ?: emptyList()
@@ -93,6 +92,21 @@ class ConfigStore(private val env: ConfigEnvironment) {
       spec("camera_format", "Camera format (camera mode only)", ParamSpec.Kind.KIND_ENUM, R, pbStr(defaultFormat), choices = wideFormats),
       spec("bitrate_kbps", "H.264 bitrate", ParamSpec.Kind.KIND_INT, I, pbInt(4000), unit = "kbps", min = 500.0, max = 20000.0, step = 500.0),
       spec("keyframe_interval", "Keyframe interval", ParamSpec.Kind.KIND_INT, I, pbInt(60), unit = "frames", min = 1.0, max = 300.0, step = 1.0),
+      // --- camera controls (Camera2 CaptureRequest); ranges probed from the wide camera at startup ---
+      spec("exposure_mode", "Exposure", ParamSpec.Kind.KIND_ENUM, I, pbStr("auto"), choices = listOf("auto", "locked", "manual")),
+      spec("iso", "ISO (manual)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(100.0), min = env.camera.isoMin.toDouble(), max = env.camera.isoMax.toDouble()),
+      spec("exposure_ms", "Shutter (manual)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(8.0), unit = "ms", min = env.camera.durationMinMs, max = env.camera.durationMaxMs),
+      spec("exposure_bias", "EV bias", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(0.0), unit = "EV", min = env.camera.biasMin.toDouble(), max = env.camera.biasMax.toDouble(), step = 0.5),
+      spec("white_balance_mode", "White balance", ParamSpec.Kind.KIND_ENUM, I, pbStr("auto"), choices = listOf("auto", "locked", "manual")),
+      spec("wb_temperature_k", "WB temperature (manual)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(5000.0), unit = "K", min = 2000.0, max = 10000.0, step = 100.0),
+      spec("wb_tint", "WB tint (manual)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(0.0), min = -150.0, max = 150.0, step = 5.0),
+      spec("focus_mode", "Focus", ParamSpec.Kind.KIND_ENUM, I, pbStr("auto"), choices = listOf("auto", "locked", "manual")),
+      spec("lens_position", "Lens position (manual)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(0.5), min = 0.0, max = 1.0, step = 0.05),
+      spec("zoom", "Zoom (camera mode)", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(1.0), unit = "x", min = 1.0, max = env.camera.zoomMax, step = 0.1),
+      spec("torch", "Torch (camera mode)", ParamSpec.Kind.KIND_BOOL, I, pbBool(false)),
+      spec("hdr", "Video HDR (camera mode)", ParamSpec.Kind.KIND_BOOL, I, pbBool(false)),
+      spec("low_light_boost", "Low-light boost (camera mode)", ParamSpec.Kind.KIND_BOOL, I, pbBool(false)),
+      spec("stabilization", "Stabilization (camera mode; off keeps intrinsics exact)", ParamSpec.Kind.KIND_ENUM, I, pbStr("off"), choices = listOf("off", "standard", "cinematic")),
     ))
 
     addStream("health", StreamKind.STREAM_KIND_HEALTH, Transport.TRANSPORT_UDP, true, listOf(
@@ -263,4 +277,15 @@ class ConfigStore(private val env: ConfigEnvironment) {
   }
 
   fun cameraFormats(lens: String): List<String> = env.cameraFormats[lens] ?: emptyList()
+
+  /** Current rgb.* camera controls as a struct for CameraControl. */
+  fun cameraSettings(): CameraSettings = CameraSettings(
+    exposureMode = string("rgb", "exposure_mode"),
+    iso = double("rgb", "iso").toFloat(), exposureMs = double("rgb", "exposure_ms"), exposureBias = double("rgb", "exposure_bias").toFloat(),
+    whiteBalanceMode = string("rgb", "white_balance_mode"),
+    wbTemperatureK = double("rgb", "wb_temperature_k").toFloat(), wbTint = double("rgb", "wb_tint").toFloat(),
+    focusMode = string("rgb", "focus_mode"), lensPosition = double("rgb", "lens_position").toFloat(),
+    zoom = double("rgb", "zoom"), torch = bool("rgb", "torch"), hdr = bool("rgb", "hdr"),
+    lowLightBoost = bool("rgb", "low_light_boost"), stabilization = string("rgb", "stabilization"),
+  )
 }
