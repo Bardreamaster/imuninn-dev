@@ -27,17 +27,20 @@ if (!webCodecsAvailable()) log("此浏览器没有 WebCodecs，视频不能解�
 
 // ---------------------------------------------------------------- stream stats
 class StreamStat {
-  n = 0; drops = 0; lastSeq = -1; private win: number[] = []; hz = 0;
+  n = 0; drops = 0; lastSeq = -1; private win: number[] = [];
   observe(h: Header): void {
     this.n++;
     if (this.lastSeq >= 0 && h.seq > this.lastSeq + 1) this.drops += h.seq - this.lastSeq - 1;
     this.lastSeq = h.seq;
-    const now = performance.now();
-    this.win.push(now);
-    while (this.win.length && this.win[0] < now - 2000) this.win.shift();
-    this.hz = this.win.length / 2;
+    this.win.push(performance.now());
   }
-  reset(): void { this.n = 0; this.drops = 0; this.lastSeq = -1; this.win = []; this.hz = 0; }
+  /** Rate over the last 2 s, evaluated now (so a stopped stream decays to 0). */
+  get hz(): number {
+    const now = performance.now();
+    while (this.win.length && this.win[0] < now - 2000) this.win.shift();
+    return this.win.length / 2;
+  }
+  reset(): void { this.n = 0; this.drops = 0; this.lastSeq = -1; this.win = []; }
 }
 const stats: Record<string, StreamStat> = {};
 function stat(id: string): StreamStat { return (stats[id] ??= new StreamStat()); }
