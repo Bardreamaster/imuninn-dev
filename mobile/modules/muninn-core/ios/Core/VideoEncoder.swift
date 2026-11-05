@@ -90,6 +90,12 @@ public final class VideoEncoder {
     if status != noErr {
       inFlight -= 1
       dropped &+= 1
+      // kVTInvalidSessionErr: the hardware encoder session died (app was backgrounded).
+      if status == kVTInvalidSessionErr {
+        NSLog("[imuninn] encoder session invalid; recreating")
+        invalidate()
+        inFlight = 0
+      }
     }
   }
 

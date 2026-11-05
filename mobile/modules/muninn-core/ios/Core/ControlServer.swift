@@ -104,6 +104,12 @@ public final class ControlServer {
     if state != "listening" { start(port: wantedPort, serviceName: wantedName) }
   }
 
+  /// Unconditional rebuild: a suspended app's listener can look alive but be dead.
+  public func restart() {
+    guard wantedPort != 0 else { return }
+    start(port: wantedPort, serviceName: wantedName)
+  }
+
   private func scheduleRestart() {
     restartTimer?.cancel()
     let t = DispatchSource.makeTimerSource(queue: queue)

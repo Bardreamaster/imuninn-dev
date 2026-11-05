@@ -133,8 +133,11 @@ public final class SessionManager {
     nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in
       self?.queue.async {
         guard let self else { return }
-        self.control.restartIfNeeded()
-        self.data.restartIfNeeded()
+        // Sockets and the hardware encoder do not survive suspension; rebuild them all.
+        self.control.restart()
+        self.data.restart()
+        self.clientList = []
+        self.encoder.invalidate()
         if self.resumeSessionOnForeground || self.sessionRunning || self.previewEnabled {
           self.restartSources()
         }

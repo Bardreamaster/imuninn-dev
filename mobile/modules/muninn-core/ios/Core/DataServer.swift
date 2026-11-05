@@ -54,4 +54,9 @@ public final class DataServer {
     guard wantedPort != 0 else { return }
     if listener == nil || listener?.state != .ready { start(port: wantedPort) }
   }
+
+  public func restart() {
+    guard wantedPort != 0 else { return }
+    start(port: wantedPort)
+  }
 }
