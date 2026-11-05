@@ -33,6 +33,17 @@ for (let i = 0; i < 256; i++) {
   for (let c = 0; c < 3; c++) LUT[i * 3 + c] = anchors[a][c] + (anchors[b][c] - anchors[a][c]) * f;
 }
 
+/** Auto range: ~98th percentile of valid depth, rounded up to 0.5 m, so close scenes are not all blue. */
+export function depthRangeMm(depth: Uint16Array): number {
+  const hist = new Uint32Array(64); // 0..16 m in 250 mm bins
+  let n = 0;
+  for (let i = 0; i < depth.length; i += 4) { const d = depth[i]; if (d) { hist[Math.min(63, d >> 8)]++; n++; } }
+  if (!n) return 5000;
+  let acc = 0;
+  for (let b = 0; b < 64; b++) { acc += hist[b]; if (acc >= n * 0.98) return Math.max(500, Math.ceil(((b + 1) * 256) / 500) * 500); }
+  return 5000;
+}
+
 /** Colourise depth (mm) into RGBA; invalid (0) is black, low confidence is dimmed. */
 export function depthToImage(depth: Uint16Array, conf: Uint8Array | null, w: number, h: number, maxMm = 5000): ImageData {
   const img = new ImageData(w, h);

@@ -14,6 +14,7 @@
         <button id="btn-connect">连接</button>
         <button id="btn-start" disabled>开始采集</button>
         <button id="btn-stop" disabled>停止</button>
+        <label class="muted"><input id="depth-enable" type="checkbox" disabled /> 深度</label>
         <span id="device-name" class="muted"></span>
       </div>
       <div id="source-file" class="source">
@@ -28,7 +29,7 @@
     <div id="streams"></div>
     <main id="grid">
       <section class="panel" id="panel-video"><h2>视频 <span class="stat" id="stat-rgb"></span></h2><div class="canvas-box"><canvas id="video"></canvas></div></section>
-      <section class="panel" id="panel-depth"><h2>深度 <span class="stat" id="stat-depth"></span><span class="legend">0 m <i></i> 5 m</span></h2><div class="canvas-box"><canvas id="depth"></canvas></div></section>
+      <section class="panel" id="panel-depth"><h2>深度 <span class="stat" id="stat-depth"></span><span class="legend">0 m <i></i> <span id="depth-max">5 m</span></span></h2><div class="canvas-box"><canvas id="depth"></canvas></div></section>
       <section class="panel" id="panel-pose"><h2>位姿轨迹（俯视 X–Z） <span class="stat" id="stat-ar_pose"></span></h2><div class="canvas-box"><canvas id="pose"></canvas></div><pre id="pose-text" class="mono"></pre></section>
       <section class="panel" id="panel-imu"><h2>IMU <span class="stat" id="stat-imu"></span></h2><div class="canvas-box split"><canvas id="accel"></canvas><canvas id="gyro"></canvas></div></section>
       <section class="panel" id="panel-health"><h2>设备状态 <span class="stat" id="stat-health"></span></h2><div id="health" class="mono"></div></section>

@@ -10,6 +10,7 @@ export interface Welcome {
   device: { device_name?: string; model?: string; platform?: number; has_lidar?: boolean };
   streams: { stream_id: string; kind: number }[];
   subscribed: string[];
+  depth_enabled?: boolean;
 }
 
 export class LiveSource {

@@ -1,4 +1,4 @@
-import { decodeDepth, depthToImage } from "./depth";
+import { decodeDepth, depthRangeMm, depthToImage } from "./depth";
 import { LiveSource, type Welcome } from "./live";
 import { McapSource } from "./mcap";
 import { RollingPlot, TrajectoryPlot } from "./plots";
@@ -71,7 +71,9 @@ function handle(b: Body): void {
       stat(b.msg.header.stream_id).observe(b.msg.header);
       try {
         const { depth, conf } = decodeDepth(b.msg);
-        depthPending = depthToImage(depth, conf, b.msg.width, b.msg.height);
+        const range = depthRangeMm(depth);
+        depthPending = depthToImage(depth, conf, b.msg.width, b.msg.height, range);
+        $("depth-max").textContent = `${(range / 1000).toFixed(1)} m`;
         depthSwap = b.msg.rotation_deg === 90 || b.msg.rotation_deg === 270;
         (depthPending as any)._rot = b.msg.rotation_deg;
       } catch (e) { log(`depth decode error: ${e}`); }
@@ -154,12 +156,14 @@ if (location.protocol === "https:") log("页面是 https，浏览器会拒绝连
 
 live.onStatus = (s) => { setStatus(s); log(s); };
 live.onBody = handle;
-live.onClose = () => { $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true; $("btn-connect").textContent = "连接"; };
+live.onClose = () => { $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true; $<HTMLInputElement>("depth-enable").disabled = true; $("btn-connect").textContent = "连接"; };
 live.onWelcome = (w: Welcome) => {
   const d = w.device;
   $("device-name").textContent = `${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""}${w.mode === "replay" ? " · 回放" : ""}`;
   const isLive = w.mode === "live";
   $<HTMLButtonElement>("btn-start").disabled = !isLive; $<HTMLButtonElement>("btn-stop").disabled = !isLive;
+  $<HTMLInputElement>("depth-enable").disabled = !isLive || !d.has_lidar;
+  $<HTMLInputElement>("depth-enable").checked = !!w.depth_enabled;
   $("btn-connect").textContent = "断开";
   renderStreamToggles(w.streams.map((s) => s.stream_id), new Set(w.subscribed), (id, on) => live.subscribe([id], !on));
   log(`welcome: ${JSON.stringify(d)}`);
@@ -174,6 +178,7 @@ $("btn-connect").onclick = () => {
 };
 $("btn-start").onclick = () => live.start();
 $("btn-stop").onclick = () => live.stop();
+$<HTMLInputElement>("depth-enable").onchange = (e) => live.set("depth.enabled", (e.target as HTMLInputElement).checked);
 
 function renderStreamToggles(ids: string[], on: Set<string>, cb: (id: string, on: boolean) => void): void {
   const box = $("streams");

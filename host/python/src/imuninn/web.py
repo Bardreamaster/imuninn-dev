@@ -136,6 +136,7 @@ class Relay:
             "device": MessageToDict(self.device, preserving_proto_field_name=True),
             "streams": [{"stream_id": s, "kind": k} for s, k in self.streams],
             "subscribed": sorted(b.streams),
+            "depth_enabled": self._depth_enabled(),
         }
         await ws.send(json.dumps(welcome))
         sender = asyncio.create_task(b.sender())
@@ -154,6 +155,10 @@ class Relay:
             sender.cancel()
             self.browsers.discard(b)
             log.info("browser disconnected (%d left, %d frames dropped for it)", len(self.browsers), b.dropped)
+
+    def _depth_enabled(self) -> bool:
+        cfg = self.phone.config if self.phone is not None else None
+        return any(s.stream_id == "depth" and s.enabled for s in cfg.streams) if cfg is not None else False
 
     async def _control(self, b: _Browser, msg: dict) -> None:
         t = msg.get("type")
