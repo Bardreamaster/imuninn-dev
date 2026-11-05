@@ -4,6 +4,25 @@ Android 端是 iOS 端的移植（`docs/design/iMuninn-设计文档.md` §5.2）
 `mobile/modules/muninn-core/android/`，结构与 `ios/Core/` 一一对应。本页记录环境、
 构建、模拟器测试方法，以及当前实现到哪一步。
 
+## 模拟器实测（2026-11-05）
+
+Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）、虚拟场景相机，PC 经 `adb forward` 连 `127.0.0.1`。截图 `docs/design/m5-emulator.png`。
+
+| 项目 | 结果 |
+| --- | --- |
+| 握手 | `platform=ANDROID`，流 `imu / ar_pose / rgb / health`，镜头 `wide, front`，格式 `640x480@30, 1280x720@30, 1280x960@30` |
+| IMU | 100 Hz（`imu.rate_hz` 改 57 → 夹到 60，改回 100 生效；raw 模式可用） |
+| 视频 | 640x480@30 → `c2.android.avc.encoder`，30 fps、4 Mbps，`imuninn rerun --video decode` PyAV 解码正常；切 `front` 镜头会重启会话并恢复 |
+| health | 每 5 s 一条（thermal nominal、电池 100% 未充电、uptime） |
+| 多客户端 | 两个 PC 同时各收 100 Hz / 30 fps；一个断开另一个不受影响 |
+| 租约 | 第二个客户端 `SetConfig` → 409 `LeaseError`；`acquire` 被拒；持有者 release 后可获得；断开自动释放 |
+| 配置校验 | 未知参数、`session.mode=ar`、非法 enum 都被拒并给出原因；`rgb.lens` 改动 `session_restarted=true` |
+| PC Profile | `imuninn profile apply teleop / camera_wide` 生效（`depth` 流在 Android 不存在 → rejected，符合预期） |
+| 录制 | PC `imuninn record` 9 s → MCAP 1031 条（imu 800、rgb 228、health 2）；手机端 `START_RECORDING` 生成 `files/recordings/*.imuninn`，`imuninn convert` 后 270 条 |
+| 手机 UI | 预览、5 Hz 状态（IMU 99.3 Hz、30 fps、4.1 Mbps）、客户端列表、配置控件 |
+
+注意：模拟器 `SENSOR_INFO_TIMESTAMP_SOURCE` 是 UNKNOWN，日志有告警；时钟同步 rtt 1–4 ms（adb 转发）。应用冷启动后 JS 约 20 s 才调用 `startServer`，这之前连不上。
+
 ## 实现状态（2026-11-03）
 
 | 部分 | Android 实现 | 模拟器能否验证 |
@@ -56,7 +75,13 @@ sdkmanager --sdk_root="$ANDROID_HOME" --licenses
 avdmanager create avd -n imuninn -k "system-images;android-36;google_apis;arm64-v8a" -d pixel_7
 ```
 
-（版本号以 `npx expo run:android` 实际要求为准；它会报出需要的 compileSdk / build-tools。）
+Expo 58 还要 NDK 和 CMake（expo-modules-core 编 C++）：
+
+```bash
+sdkmanager --sdk_root="$ANDROID_HOME" "ndk;27.1.12297006" "cmake;3.22.1"
+```
+
+本机（LM007833，2026-11-05）实际装的是：Homebrew `openjdk@17`（`JAVA_HOME=/opt/homebrew/opt/openjdk@17`，没用 cask 免 sudo）、`platforms;android-37.0`、`build-tools;37.0.0`、`platform-tools`、`emulator`、AVD 名 `imuninn`。Gradle 9.4.1 wrapper 下载常超时，可手动 `curl` 到 `~/.gradle/wrapper/dists/gradle-9.4.1-bin/<hash>/` 解压并 `touch gradle-9.4.1-bin.zip.ok`。
 
 ## 构建与运行（模拟器）
 

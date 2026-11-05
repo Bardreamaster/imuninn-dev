@@ -81,7 +81,7 @@
 - [x] Kotlin 端：控制通道（WebSocket + NSD）、TCP/UDP/文件 Sink、ConfigStore/Profile/租约、SensorManager IMU、Camera2 + MediaCodec H.264、health、预览视图、运行时相机权限
 - [x] `tools/gen-proto.sh` 生成 Java 类到 `android/src/main/java/generated/`
 - [x] 模拟器 UDP 回环处理（`adb forward` 进来的对端是 127.0.0.1 → 发往 10.0.2.2）
-- [ ] 本机装 JDK 17 + Android SDK + arm64 模拟器，`npx expo run:android` 编译通过
-- [ ] 模拟器实测：`imuninn watch 127.0.0.1 --start` 收到 IMU / 视频 / health；Rerun 出画面；配置修改、Profile、租约、录制
+- [x] 2026-11-05：本机装 JDK 17 + Android SDK + arm64 模拟器，Gradle 编译通过（只改了两处 Float/Double）
+- [x] 2026-11-05 模拟器实测：IMU 100 Hz、视频 30 fps、health、多客户端、租约、配置校验、PC Profile、PC/手机端录制全部通过（见 `docs/dev/05-Android.md`、`docs/design/m5-emulator.png`）
 - [ ] ARCore 位姿 + 深度（需真机）
 - [ ] ROS 2 桥接（可选）

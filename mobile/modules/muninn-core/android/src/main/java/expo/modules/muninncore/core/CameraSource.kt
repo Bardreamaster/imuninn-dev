@@ -56,13 +56,13 @@ class CameraSource(ctx: Context) {
         val sx = width.toDouble() / active.width()
         val sy = height.toDouble() / active.height()
         val s = maxOf(sx, sy)
-        return CameraIntrinsics(width, height, cal[0] * s, cal[1] * s,
+        return CameraIntrinsics(width, height, cal[0].toDouble() * s, cal[1].toDouble() * s,
           (cal[2] - active.width() / 2.0) * s + width / 2.0, (cal[3] - active.height() / 2.0) * s + height / 2.0)
       }
       val phys = characteristics.get(CameraCharacteristics.SENSOR_INFO_PHYSICAL_SIZE)
       if (phys != null && focalMm > 0f && phys.width > 0f) {
         // Assume the output spans the full sensor width (true for 4:3; 16:9 crops rows, same fx).
-        val fx = focalMm / phys.width * width
+        val fx = (focalMm / phys.width * width).toDouble()
         return CameraIntrinsics(width, height, fx, fx, width / 2.0, height / 2.0)
       }
       return CameraIntrinsics(width, height, 0.0, 0.0, width / 2.0, height / 2.0)
