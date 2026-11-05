@@ -19,7 +19,9 @@ export default function App() {
   const [profileName, setProfileName] = useState("");
 
   const listening = status?.server === "listening";
-  const serverColor = listening ? C.ok : status?.server?.startsWith("failed") ? C.err : C.muted;
+  const serverColor = listening ? C.ok : status?.server === "failed" ? C.err : C.muted;
+  const serverLabel = listening ? `${(status?.clients ?? []).length} 台 PC`
+    : status?.server === "failed" ? "网络错误，重试中" : status?.server === "starting" ? "启动中" : status?.server === "stopped" ? "已停止" : "…";
   const trackColor = status?.tracking === "normal" ? C.ok : status?.tracking === "limited" ? C.warn : C.muted;
   const camera = status?.mode === "camera";
   const clients = status?.clients ?? [];
@@ -36,7 +38,7 @@ export default function App() {
           <View style={{ alignItems: "flex-end", gap: 6 }}>
             <View style={S.pill}>
               <View style={[S.dot, { backgroundColor: serverColor }]} />
-              <Text style={S.pillText}>{listening ? `${clients.length} 台 PC` : status?.server ?? "…"}</Text>
+              <Text style={S.pillText} numberOfLines={1}>{serverLabel}</Text>
             </View>
             {status?.writer ? (
               <Pressable onPress={() => MuninnCore.takeOver()}>
@@ -92,6 +94,7 @@ export default function App() {
         {/* Server */}
         <Card title="服务" collapsible initiallyOpen={clients.length === 0}>
           <Row k="状态" v={status?.server ?? "stopped"} color={serverColor} />
+          {status?.serverError ? <Text style={S.err} numberOfLines={3}>{status.serverError}</Text> : null}
           <Row k="Bonjour 名称" v={status?.serviceName ?? ""} />
           {(status?.addresses ?? []).map((a) => {
             const [iface, ip] = a.split(" ");

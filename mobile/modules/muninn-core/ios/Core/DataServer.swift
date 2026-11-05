@@ -14,13 +14,20 @@ public final class DataServer {
 
   public func start(port: UInt16) {
     stop()
+    wantedPort = port
     let params = NWParameters.tcp
     params.includePeerToPeer = true
     params.allowLocalEndpointReuse = true
     if let tcp = params.defaultProtocolStack.transportProtocol as? NWProtocolTCP.Options { tcp.noDelay = true }
     guard let p = NWEndpoint.Port(rawValue: port), let l = try? NWListener(using: params, on: p) else { return }
     l.stateUpdateHandler = { [weak self] st in
-      if case .ready = st { self?.port = l.port?.rawValue ?? port }
+      switch st {
+      case .ready: self?.port = l.port?.rawValue ?? port
+      case .failed(let e):
+        NSLog("[imuninn] data listener failed: \(e); restarting")
+        self?.queue.asyncAfter(deadline: .now() + 2) { self?.start(port: port) }
+      default: break
+      }
     }
     l.newConnectionHandler = { [weak self] conn in
       conn.start(queue: self?.queue ?? .global())
@@ -36,7 +43,15 @@ public final class DataServer {
   }
 
   public func stop() {
+    listener?.stateUpdateHandler = nil
     listener?.cancel()
     listener = nil
+  }
+
+  private var wantedPort: UInt16 = 0
+
+  public func restartIfNeeded() {
+    guard wantedPort != 0 else { return }
+    if listener == nil || listener?.state != .ready { start(port: wantedPort) }
   }
 }

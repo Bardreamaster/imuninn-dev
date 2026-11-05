@@ -29,8 +29,10 @@ export interface ClientStatus {
 
 /** Throttled status from native (§4.3): 5 Hz, never per-sample. */
 export interface StatusEvent {
-  /** "starting" | "listening" | "stopped" | "failed: …" */
+  /** "starting" | "listening" | "stopped" | "failed" */
   server: string;
+  /** Last listener error, if any (short text). */
+  serverError: string;
   serviceName: string;
   /** "en0 10.0.0.5" per interface, Wi-Fi first. */
   addresses: string[];

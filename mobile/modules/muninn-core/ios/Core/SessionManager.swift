@@ -20,7 +20,8 @@ public struct ClientStatus {
 }
 
 public struct Status {
-  public var server: String = "stopped"           // starting | listening | failed: … | stopped
+  public var server: String = "stopped"           // starting | listening | failed | stopped
+  public var serverError: String = ""             // last listener error (shown in the server card)
   public var serviceName: String = ""
   public var addresses: [String] = []             // "en0 10.0.0.5"
   public var controlPort: UInt16 = 0
@@ -71,6 +72,7 @@ public final class SessionManager {
   private var serviceName = ""
   private var writerId: UInt32? = nil
   private var statusTimer: DispatchSourceTimer?
+  private var resumeSessionOnForeground = false
   private var healthSeq: UInt64 = 0
   private var lastHealth: Double = 0
   private let startTime = CACurrentMediaTime()
@@ -111,9 +113,35 @@ public final class SessionManager {
     imu.onSample = { [weak self] s in self?.publishImu(s) }
     encoder.onFrame = { [weak self] f in self?.publishVideo(f) }
     startStatusTimer()
+    observeAppLifecycle()
   }
 
   public var isCameraMode: Bool { config.mode == .camera }
+
+  // MARK: app lifecycle (§11 后台限制): no background capture, but foreground must recover
+
+  private func observeAppLifecycle() {
+    let nc = NotificationCenter.default
+    nc.addObserver(forName: UIApplication.didEnterBackgroundNotification, object: nil, queue: nil) { [weak self] _ in
+      self?.queue.async {
+        guard let self else { return }
+        self.resumeSessionOnForeground = self.sessionRunning
+        // iOS stops the camera anyway; stop cleanly so nothing is half-alive when we come back.
+        self.ar.stop(); self.camera.stop(); self.imu.stop()
+      }
+    }
+    nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in
+      self?.queue.async {
+        guard let self else { return }
+        self.control.restartIfNeeded()
+        self.data.restartIfNeeded()
+        if self.resumeSessionOnForeground || self.sessionRunning || self.previewEnabled {
+          self.restartSources()
+        }
+        self.resumeSessionOnForeground = false
+      }
+    }
+  }
 
   // MARK: server lifecycle
 
@@ -501,6 +529,7 @@ public final class SessionManager {
     }
     var s = Status()
     s.server = control.state
+    s.serverError = control.lastError
     s.serviceName = serviceName
     s.addresses = NetInfo.ipv4Addresses().map { "\($0.interface) \($0.address)" }
     s.controlPort = control.port

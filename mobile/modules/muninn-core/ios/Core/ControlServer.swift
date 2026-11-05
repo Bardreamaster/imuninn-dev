@@ -34,7 +34,11 @@ public final class ControlServer {
   public private(set) var clients: [UInt32: Client] = [:]
   private var nextId: UInt32 = 1
   public private(set) var port: UInt16 = 0
-  public private(set) var state: String = "stopped"
+  public private(set) var state: String = "stopped"     // starting | listening | failed | stopped
+  public private(set) var lastError: String = ""
+  private var wantedPort: UInt16 = 0
+  private var wantedName: String = ""
+  private var restartTimer: DispatchSourceTimer?
 
   public var onMessage: ((Client, MnControlMessage) -> Void)?
   public var onConnect: ((Client) -> Void)?
@@ -44,6 +48,8 @@ public final class ControlServer {
 
   public func start(port: UInt16, serviceName: String) {
     stop()
+    wantedPort = port
+    wantedName = serviceName
     let params = NWParameters.tcp
     params.includePeerToPeer = true
     params.allowLocalEndpointReuse = true
@@ -52,7 +58,8 @@ public final class ControlServer {
     ws.maximumMessageSize = 16 * 1024 * 1024
     params.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
     guard let p = NWEndpoint.Port(rawValue: port), let l = try? NWListener(using: params, on: p) else {
-      state = "failed: cannot listen on \(port)"
+      state = "failed"; lastError = "cannot listen on \(port)"
+      scheduleRestart()
       return
     }
     l.service = NWListener.Service(name: serviceName, type: Self.serviceType,
@@ -63,8 +70,15 @@ public final class ControlServer {
       case .ready:
         self.port = l.port?.rawValue ?? port
         self.state = "listening"
-      case .failed(let e): self.state = "failed: \(e.localizedDescription)"
-      case .cancelled: self.state = "stopped"
+        self.lastError = ""
+      case .failed(let e):
+        // iOS reclaims sockets while the app is suspended; rebuild the listener.
+        self.state = "failed"; self.lastError = e.localizedDescription
+        self.scheduleRestart()
+      case .waiting(let e):
+        self.lastError = e.localizedDescription
+      case .cancelled:
+        if self.state != "stopped" { self.state = "stopped" }
       default: break
       }
     }
@@ -75,11 +89,31 @@ public final class ControlServer {
   }
 
   public func stop() {
+    restartTimer?.cancel(); restartTimer = nil
+    listener?.stateUpdateHandler = nil
     listener?.cancel()
     listener = nil
     for c in clients.values { c.connection.cancel() }
     clients = [:]
     state = "stopped"
+  }
+
+  /// Rebuild the listener (after suspension or a network change) if it is not listening.
+  public func restartIfNeeded() {
+    guard wantedPort != 0 else { return }
+    if state != "listening" { start(port: wantedPort, serviceName: wantedName) }
+  }
+
+  private func scheduleRestart() {
+    restartTimer?.cancel()
+    let t = DispatchSource.makeTimerSource(queue: queue)
+    t.schedule(deadline: .now() + 2)
+    t.setEventHandler { [weak self] in
+      guard let self, self.state != "listening", self.wantedPort != 0 else { return }
+      self.start(port: self.wantedPort, serviceName: self.wantedName)
+    }
+    t.resume()
+    restartTimer = t
   }
 
   private func accept(_ conn: NWConnection) {

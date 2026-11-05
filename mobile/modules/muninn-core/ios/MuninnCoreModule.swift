@@ -21,6 +21,7 @@ public class MuninnCoreModule: Module {
       self.manager.onStatus = { [weak self] s in
         self?.sendEvent("onStatus", [
           "server": s.server,
+          "serverError": s.serverError,
           "serviceName": s.serviceName,
           "addresses": s.addresses,
           "controlPort": Int(s.controlPort),
