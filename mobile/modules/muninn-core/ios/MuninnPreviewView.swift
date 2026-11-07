@@ -8,24 +8,32 @@ import ExpoModulesCore
 import UIKit
 
 final class MuninnPreviewView: ExpoView {
-  private let arView = ARSCNView()
+  // Shared between all instances (inline + full-screen): attaching a second
+  // AVCaptureVideoPreviewLayer to a running session, or building a second ARSCNView,
+  // stalls the main thread for ~1 s. The view that is currently in a window owns them.
+  private static let sharedArView: ARSCNView = {
+    let v = ARSCNView()
+    v.session = SessionManager.shared.ar.session
+    v.automaticallyUpdatesLighting = false
+    v.rendersCameraGrain = false
+    v.backgroundColor = .black
+    return v
+  }()
+  private static let sharedPreviewLayer: AVCaptureVideoPreviewLayer = {
+    let l = AVCaptureVideoPreviewLayer(session: SessionManager.shared.camera.session)
+    l.videoGravity = .resizeAspect
+    return l
+  }()
+  private var arView: ARSCNView { Self.sharedArView }
+  private var previewLayer: AVCaptureVideoPreviewLayer { Self.sharedPreviewLayer }
   private let cameraView = UIView()
-  private let previewLayer: AVCaptureVideoPreviewLayer
   private var observers: [NSObjectProtocol] = []
 
   required init(appContext: AppContext? = nil) {
-    previewLayer = AVCaptureVideoPreviewLayer(session: SessionManager.shared.camera.session)
     super.init(appContext: appContext)
     backgroundColor = .black
-    arView.session = SessionManager.shared.ar.session
-    arView.automaticallyUpdatesLighting = false
-    arView.rendersCameraGrain = false
-    arView.backgroundColor = .black
-    previewLayer.videoGravity = .resizeAspect
-    cameraView.layer.addSublayer(previewLayer)
     // ARSCNView can only aspect-fill, so it gets a centred sub-frame with the format's
     // aspect (letterboxed by layout); the capture preview layer aspect-fits by itself.
-    addSubview(arView)
     cameraView.translatesAutoresizingMaskIntoConstraints = false
     addSubview(cameraView)
     NSLayoutConstraint.activate([
@@ -46,10 +54,25 @@ final class MuninnPreviewView: ExpoView {
     observers.forEach { NotificationCenter.default.removeObserver($0) }
   }
 
+  /// Take the shared views when we appear; the previous owner is already gone or hidden.
+  override func didMoveToWindow() {
+    super.didMoveToWindow()
+    guard window != nil else { return }
+    CATransaction.begin(); CATransaction.setDisableActions(true)
+    if arView.superview !== self { arView.removeFromSuperview(); addSubview(arView) }
+    if previewLayer.superlayer !== cameraView.layer { previewLayer.removeFromSuperlayer(); cameraView.layer.addSublayer(previewLayer) }
+    CATransaction.commit()
+    bringSubviewToFront(cameraView)
+    applyMode()
+  }
+
   override func layoutSubviews() {
     super.layoutSubviews()
+    guard arView.superview === self else { return }
+    CATransaction.begin(); CATransaction.setDisableActions(true)
     previewLayer.frame = cameraView.bounds
     arView.frame = fitRect(for: SessionManager.shared.ar.videoFormatId)
+    CATransaction.commit()
     applyRotation()
   }
 

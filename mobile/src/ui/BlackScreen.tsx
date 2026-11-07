@@ -26,7 +26,7 @@ export function useBlackScreen(enabled: boolean, setEnabled: (v: boolean) => voi
   };
 
   const dim = useCallback(() => {
-    if (savedBrightness.current === null) savedBrightness.current = MuninnCore.getScreenBrightness();
+    if (savedBrightness.current === null) savedBrightness.current = MuninnCore.uiInfo().brightness;
     MuninnCore.setScreenBrightness(0);
     setDimmed(true);
   }, []);

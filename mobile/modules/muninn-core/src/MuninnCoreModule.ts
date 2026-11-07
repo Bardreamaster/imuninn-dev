@@ -9,6 +9,13 @@ import type {
   MuninnCoreEvents,
 } from "./MuninnCore.types";
 
+export interface UiInfo {
+  top: number; left: number; bottom: number; right: number;
+  notch: "top" | "left" | "right" | "bottom";
+  brightness: number;
+  language: string;
+}
+
 declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   protocolVersion: number;
   getDeviceInfo(): DeviceInfo;
@@ -26,10 +33,10 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   listRecordings(): { name: string; bytes: number }[];
   getPreference(key: string): string | null;
   setPreference(key: string, value: string): void;
-  getScreenBrightness(): number;
   setScreenBrightness(value: number): void;
   /** BCP-47 tag of the system's first preferred language, e.g. "zh-Hans-CN". */
-  systemLanguage(): string;
+  /** System language, screen brightness (0..1), window safe-area insets and the edge the camera island is on. */
+  uiInfo(): UiInfo;
   /** Format ids ("WxH@fps") the given lens offers in camera mode. */
   cameraFormats(lens: string): string[];
   /** Revoke the PC client's config lease; the phone UI becomes the writer. */

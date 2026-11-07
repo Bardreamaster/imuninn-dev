@@ -5,14 +5,16 @@ import { t } from "./i18n";
 import { C, S } from "./theme";
 
 /** Fixed preview box: the 4:3 sensor aspect, rotated for portrait (3:4). Formats with
- *  another aspect (16:9) sit inside it with black bars, so the layout never moves. */
-export function previewAspect(landscape: boolean, _status: StatusEvent | null = null): number {
-  return landscape ? 4 / 3 : 3 / 4;
+ *  another aspect (16:9) sit inside it with black bars, so the layout never moves.
+ *  `compact` (portrait only): a 4:3 box with the 3:4 video letterboxed inside, like a
+ *  video player's small mode, so more of the controls fit on screen. */
+export function previewAspect(landscape: boolean, compact = false): number {
+  return landscape || compact ? 4 / 3 : 3 / 4;
 }
 
-export function Preview({ status, width, height, onFullscreen, fullscreen }: {
+export function Preview({ status, width, height, onFullscreen, fullscreen, compact, onToggleCompact }: {
   status: StatusEvent | null; landscape?: boolean; width: number; height: number;
-  onFullscreen?: () => void; fullscreen?: boolean;
+  onFullscreen?: () => void; fullscreen?: boolean; compact?: boolean; onToggleCompact?: () => void;
 }) {
   const camera = status?.mode === "camera";
   return (
@@ -24,6 +26,11 @@ export function Preview({ status, width, height, onFullscreen, fullscreen }: {
         <Text style={S.overlayText}>{t("video")} {status?.videoHz.toFixed(0) ?? 0} fps</Text>
         {status?.recording ? <Text style={[S.overlayText, { color: C.err }]}>● REC</Text> : null}
         <View style={{ flex: 1 }} />
+        {onToggleCompact ? (
+          <Pressable onPress={onToggleCompact} hitSlop={10}>
+            <Text style={[S.overlayText, { fontWeight: "700" }]}>{compact ? t("preview.tall") : t("preview.compact")}</Text>
+          </Pressable>
+        ) : null}
         {onFullscreen ? (
           <Pressable onPress={onFullscreen} hitSlop={10}>
             <Text style={[S.overlayText, { fontWeight: "700" }]}>{fullscreen ? t("exit.fullscreen") : t("fullscreen")}</Text>
@@ -39,7 +46,7 @@ export function Preview({ status, width, height, onFullscreen, fullscreen }: {
 export function FullscreenPreview({ status, visible, onClose }: { status: StatusEvent | null; visible: boolean; onClose: () => void }) {
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
-  const aspect = previewAspect(landscape, status);
+  const aspect = previewAspect(landscape);
   let w = width, h = width / aspect;
   if (h > height) { h = height; w = height * aspect; }
   return (

@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Pressable, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { MuninnCore } from "./modules/muninn-core/src";
 import { BlackOverlay, useBlackScreen } from "./src/ui/BlackScreen";
@@ -22,13 +22,25 @@ export default function App() {
   };
   const [profileName, setProfileName] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
+  const [compact, setCompact] = useState(() => { try { return MuninnCore.getPreference("previewBox") === "compact"; } catch { return false; } });
+  const toggleCompact = () => {
+    const next = !compact;
+    setCompact(next);
+    try { MuninnCore.setPreference("previewBox", next ? "compact" : "tall"); } catch { /* ignore */ }
+  };
   const black = useBlackScreen(config?.session?.black_screen === true,
     (v) => applyPatch({ session: { black_screen: v } }));
   const { width: winW, height: winH } = useWindowDimensions();
   const landscape = winW > winH;
-  // Fixed 3:4 (portrait) / 4:3 (landscape) preview box; other formats get black bars inside it.
-  const aspect = previewAspect(landscape);
-  const previewW = landscape ? Math.min(winW * 0.5, (winH - 60) * aspect) : winW - 32;
+  // Safe area by hand: in landscape UIKit insets both sides by the island depth, which
+  // left a blank strip beside the cards; only the island's edge needs the inset.
+  const sa = (() => { try { return MuninnCore.uiInfo(); } catch { return { top: 0, left: 0, bottom: 0, right: 0, notch: "top" as const }; } })();
+  const padLeft = landscape && sa.notch !== "left" ? 0 : sa.left;
+  const padRight = landscape && sa.notch !== "right" ? 0 : sa.right;
+  // Fixed 3:4 (portrait; 4:3 in compact mode) / 4:3 (landscape) preview box; the video
+  // is aspect-fitted inside it with black bars.
+  const aspect = previewAspect(landscape, compact);
+  const previewW = landscape ? Math.min((winW - padLeft - padRight) * 0.5, (winH - sa.top - sa.bottom - 60) * aspect) : winW - padLeft - padRight - 32;
   const previewH = previewW / aspect;
 
   const listening = status?.server === "listening";
@@ -40,7 +52,7 @@ export default function App() {
   const camera = status?.mode === "camera";
 
   return (
-    <SafeAreaView style={S.container}>
+    <View style={[S.container, { paddingTop: sa.top, paddingBottom: sa.bottom, paddingLeft: padLeft, paddingRight: padRight }]}>
       <StatusBar style="light" hidden={black.dimmed} />
       <BlackOverlay visible={black.dimmed} onTap={black.touch} />
       <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }} onTouchStart={black.touch}>
@@ -64,7 +76,8 @@ export default function App() {
         </View>
 
         {(showPreview || status?.sessionRunning) && !fullscreen && !black.dimmed ? (
-          <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)} />
+          <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)}
+            compact={compact} onToggleCompact={landscape ? undefined : toggleCompact} />
         ) : null}
       </View>
 
@@ -192,6 +205,6 @@ export default function App() {
         </Card>
       </ScrollView>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }

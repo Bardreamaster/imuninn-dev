@@ -40,6 +40,8 @@ const zh = {
   "dim.tap": "采集中 · 点击唤醒",
   "camera.mode": "相机模式",
   "fullscreen": "⤢ 全屏",
+  "preview.compact": "▭ 小窗",
+  "preview.tall": "□ 大窗",
   "exit.fullscreen": "✕ 退出全屏",
   // config
   "config": "配置",
@@ -115,6 +117,8 @@ const en: Record<keyof typeof zh, string | ((...a: any[]) => string)> = {
   "dim.tap": "Capturing · tap to wake",
   "camera.mode": "Camera mode",
   "fullscreen": "⤢ Full screen",
+  "preview.compact": "▭ Small",
+  "preview.tall": "□ Large",
   "exit.fullscreen": "✕ Exit full screen",
   "config": "Configuration",
   "restart.note": "↻ parameters restart the capture session; lens / camera format only show in camera mode",
@@ -164,7 +168,7 @@ const listeners = new Set<() => void>();
 
 function detectSystem(): Lang {
   try {
-    return MuninnCore.systemLanguage().toLowerCase().startsWith("zh") ? "zh" : "en";
+    return MuninnCore.uiInfo().language.toLowerCase().startsWith("zh") ? "zh" : "en";
   } catch {
     return "en";
   }

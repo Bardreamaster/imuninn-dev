@@ -100,12 +100,16 @@ public class MuninnCoreModule: Module {
       UserDefaults.standard.set(value, forKey: "imuninn.\(key)")
     }
     // Screen brightness (0..1) for the black-screen mode; the idle timer stays disabled.
-    Function("getScreenBrightness") { () -> Double in Double(UIScreen.main.brightness) }
     Function("setScreenBrightness") { (value: Double) in
       DispatchQueue.main.async { UIScreen.main.brightness = CGFloat(max(0, min(1, value))) }
     }
-    Function("systemLanguage") { () -> String in
-      Locale.preferredLanguages.first ?? "en"
+    // One call for the UI-environment bits (the module definition is near the Swift
+    // type-checker's limit, so these share a function): system language, screen
+    // brightness, window safe-area insets and which edge the camera island is on
+    // ("top" in portrait, "left"/"right" in landscape; UIKit insets both sides
+    // symmetrically in landscape, the JS layout skips the empty one).
+    Function("uiInfo") { () -> [String: Any] in
+      return UIInfo.sync()
     }
     Function("cameraFormats") { (lens: String) -> [String] in
       self.manager.config.cameraFormats(for: lens)
@@ -252,5 +256,34 @@ enum ConfigJSON {
         return ["key": f.key, "status": status, "effective": value(f.effective), "reason": f.reason]
       },
     ]
+  }
+}
+
+// UI-environment snapshot for the JS layout (kept outside the module class: referencing
+// the module's own statics inside `definition()` trips the Swift type checker).
+enum UIInfo {
+  static func sync() -> [String: Any] {
+    if Thread.isMainThread { return read() }
+    return DispatchQueue.main.sync { read() }
+  }
+
+  static func read() -> [String: Any] {
+    let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+    let window = scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first
+    let i: UIEdgeInsets = window?.safeAreaInsets ?? UIEdgeInsets.zero
+    var notch = "top"
+    switch scene?.interfaceOrientation ?? UIInterfaceOrientation.portrait {
+    case .landscapeRight: notch = "left"     // device turned left: island on the left
+    case .landscapeLeft: notch = "right"
+    case .portraitUpsideDown: notch = "bottom"
+    default: break
+    }
+    var out: [String: Any] = [:]
+    out["top"] = Double(i.top); out["left"] = Double(i.left)
+    out["bottom"] = Double(i.bottom); out["right"] = Double(i.right)
+    out["notch"] = notch
+    out["brightness"] = Double(UIScreen.main.brightness)
+    out["language"] = Locale.preferredLanguages.first ?? "en"
+    return out
   }
 }
