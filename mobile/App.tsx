@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { MuninnCore } from "./modules/muninn-core/src";
+import { BlackOverlay, useBlackScreen } from "./src/ui/BlackScreen";
 import { FullscreenPreview, Preview, previewAspect } from "./src/ui/Preview";
 import { Button, Card, Chip, ParamControl, Row, Stat } from "./src/ui/components";
 import { t, useLang } from "./src/ui/i18n";
@@ -21,6 +22,7 @@ export default function App() {
   };
   const [profileName, setProfileName] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
+  const black = useBlackScreen();
   const { width: winW, height: winH } = useWindowDimensions();
   const landscape = winW > winH;
   // Fixed 3:4 (portrait) / 4:3 (landscape) preview box; other formats get black bars inside it.
@@ -38,8 +40,9 @@ export default function App() {
 
   return (
     <SafeAreaView style={S.container}>
-      <StatusBar style="light" />
-      <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }}>
+      <StatusBar style="light" hidden={black.dimmed} />
+      <BlackOverlay visible={black.dimmed} onTap={black.touch} />
+      <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }} onTouchStart={black.touch}>
       <View style={[S.pinned, landscape ? { width: previewW + 32 } : null]}>
         <View style={S.header}>
           <View>
@@ -59,7 +62,7 @@ export default function App() {
           </View>
         </View>
 
-        {(showPreview || status?.sessionRunning) && !fullscreen ? (
+        {(showPreview || status?.sessionRunning) && !fullscreen && !black.dimmed ? (
           <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)} />
         ) : null}
       </View>
@@ -93,7 +96,9 @@ export default function App() {
             {status?.recording ? (
               <Button title={t("stop.recording")} kind="danger" onPress={() => MuninnCore.stopRecording()} />
             ) : null}
+            <Button title={black.enabled ? t("dim.off") : t("dim.on")} kind="ghost" onPress={black.toggle} />
           </View>
+          {black.enabled ? <Text style={S.muted}>{t("dim.hint")}</Text> : null}
         </Card>
 
         {/* Server */}

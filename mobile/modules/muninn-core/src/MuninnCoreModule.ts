@@ -26,6 +26,8 @@ declare class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   listRecordings(): { name: string; bytes: number }[];
   getPreference(key: string): string | null;
   setPreference(key: string, value: string): void;
+  getScreenBrightness(): number;
+  setScreenBrightness(value: number): void;
   /** BCP-47 tag of the system's first preferred language, e.g. "zh-Hans-CN". */
   systemLanguage(): string;
   /** Format ids ("WxH@fps") the given lens offers in camera mode. */

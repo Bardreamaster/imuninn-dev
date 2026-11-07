@@ -98,6 +98,11 @@ public class MuninnCoreModule: Module {
     Function("setPreference") { (key: String, value: String) in
       UserDefaults.standard.set(value, forKey: "imuninn.\(key)")
     }
+    // Screen brightness (0..1) for the black-screen mode; the idle timer stays disabled.
+    Function("getScreenBrightness") { () -> Double in Double(UIScreen.main.brightness) }
+    Function("setScreenBrightness") { (value: Double) in
+      DispatchQueue.main.async { UIScreen.main.brightness = CGFloat(max(0, min(1, value))) }
+    }
     Function("systemLanguage") { () -> String in
       Locale.preferredLanguages.first ?? "en"
     }

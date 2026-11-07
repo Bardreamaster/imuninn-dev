@@ -44,6 +44,10 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   setPreference(key: string, value: string) {
     try { localStorage.setItem("imuninn." + key, value); } catch { /* ignore */ }
   }
+  getScreenBrightness() {
+    return 1;
+  }
+  setScreenBrightness(_value: number) {}
   systemLanguage() {
     return navigator.language;
   }
