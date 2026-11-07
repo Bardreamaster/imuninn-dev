@@ -4,7 +4,7 @@ const config: ExpoConfig = {
   name: "iMuninn",
   slug: "imuninn",
   version: "0.0.1",
-  orientation: "portrait",
+  orientation: "default",   // follows the system rotation lock; layout adapts in App.tsx
   icon: "./assets/icon.png",
   userInterfaceStyle: "dark",
   ios: {

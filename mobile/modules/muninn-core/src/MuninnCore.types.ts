@@ -50,6 +50,9 @@ export interface StatusEvent {
   depthHz: number;
   videoKbps: number;
   encoderDropped: number;
+  /** Current video format in sensor orientation (width > height). 0 when unknown. */
+  frameWidth: number;
+  frameHeight: number;
   recording: boolean;
   recordingFile: string;
   recordingBytes: number;

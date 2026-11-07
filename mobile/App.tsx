@@ -1,8 +1,9 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, SafeAreaView, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
 
-import { MuninnCore, MuninnPreviewView } from "./modules/muninn-core/src";
+import { MuninnCore } from "./modules/muninn-core/src";
+import { FullscreenPreview, Preview, previewAspect } from "./src/ui/Preview";
 import { Button, Card, Chip, ParamControl, Row, Stat } from "./src/ui/components";
 import { C, S } from "./src/ui/theme";
 import { useMuninn } from "./src/ui/useMuninn";
@@ -17,6 +18,13 @@ export default function App() {
     MuninnCore.setPreview(next);
   };
   const [profileName, setProfileName] = useState("");
+  const [fullscreen, setFullscreen] = useState(false);
+  const { width: winW, height: winH } = useWindowDimensions();
+  const landscape = winW > winH;
+  // Sensor-aspect preview: 3:4 in portrait (full width), 4:3 in landscape (left column).
+  const aspect = previewAspect(landscape);
+  const previewW = landscape ? Math.min(winW * 0.5, (winH - 60) * aspect) : winW - 32;
+  const previewH = previewW / aspect;
 
   const listening = status?.server === "listening";
   const serverColor = listening ? C.ok : status?.server === "failed" ? C.err : C.muted;
@@ -29,11 +37,12 @@ export default function App() {
   return (
     <SafeAreaView style={S.container}>
       <StatusBar style="light" />
-      <View style={S.pinned}>
+      <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }}>
+      <View style={[S.pinned, landscape ? { width: previewW + 32 } : null]}>
         <View style={S.header}>
           <View>
             <Text style={S.title}>iMuninn</Text>
-            <Text style={S.subtitle}>{info.marketingName} · {info.platform === "android" ? "Android" : "iOS"} {info.osVersion} · proto v{info.protocolVersion}</Text>
+            <Text style={S.subtitle}>{info.marketingName} · iOS {info.osVersion} · proto v{info.protocolVersion}</Text>
           </View>
           <View style={{ alignItems: "flex-end", gap: 6 }}>
             <View style={S.pill}>
@@ -48,20 +57,14 @@ export default function App() {
           </View>
         </View>
 
-        {showPreview || status?.sessionRunning ? (
-          <View style={S.preview}>
-            <MuninnPreviewView style={{ flex: 1 }} />
-            <View style={S.overlay}>
-              <Text style={S.overlayText}>{camera ? "相机模式" : `追踪 ${status?.tracking ?? "none"}`}</Text>
-              {!camera ? <Text style={S.overlayText}>位姿 {status?.poseHz.toFixed(0) ?? 0} Hz</Text> : null}
-              <Text style={S.overlayText}>视频 {status?.videoHz.toFixed(0) ?? 0} fps</Text>
-              {status?.recording ? <Text style={[S.overlayText, { color: C.err }]}>● REC</Text> : null}
-            </View>
-          </View>
+        {(showPreview || status?.sessionRunning) && !fullscreen ? (
+          <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)} />
         ) : null}
       </View>
 
-      <ScrollView contentContainerStyle={S.scroll}>
+      <FullscreenPreview status={status} visible={fullscreen} onClose={() => setFullscreen(false)} />
+
+      <ScrollView style={{ flex: 1 }} contentContainerStyle={S.scroll}>
         {/* Session */}
         <Card title="采集" right={
           <Button small title={showPreview ? "关闭预览" : "开启预览"} kind="ghost" onPress={togglePreview} />
@@ -167,6 +170,7 @@ export default function App() {
           <Text style={S.muted}>点一下应用，长按删除。PC 端 imuninn profile 也能推送 YAML 预设。</Text>
         </Card>
       </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }

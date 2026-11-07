@@ -25,7 +25,7 @@ export const S = StyleSheet.create({
   dot: { width: 8, height: 8, borderRadius: 4 },
   badge: { color: C.bg, backgroundColor: C.warn, fontWeight: "700", fontSize: 12,
     paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6, overflow: "hidden" },
-  preview: { height: 250, borderRadius: 12, overflow: "hidden", backgroundColor: "#000" },
+  preview: { borderRadius: 12, overflow: "hidden", backgroundColor: "#000", alignSelf: "center" },
   overlay: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 12,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: "rgba(0,0,0,0.45)" },
   overlayText: { color: C.text, fontSize: 12, fontVariant: ["tabular-nums"] },

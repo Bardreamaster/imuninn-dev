@@ -40,6 +40,8 @@ public struct Status {
   public var configVersion: UInt32 = 0
   public var remoteControlled = false
   public var writer: String = ""            // lease holder (client name), "" = free
+  public var frameWidth: Int = 0                  // current video format (sensor orientation)
+  public var frameHeight: Int = 0
   public var recording = false
   public var recordingFile: String = ""
   public var recordingBytes: UInt64 = 0
@@ -563,6 +565,9 @@ public final class SessionManager {
     s.configVersion = config.snapshot().configVersion
     s.remoteControlled = remoteControlled
     s.writer = writerName
+    let fid = isCameraMode ? camera.formatId : ar.videoFormatId
+    if let wh = fid.split(separator: "@").first?.split(separator: "x"), wh.count == 2,
+       let w = Int(wh[0]), let h = Int(wh[1]) { s.frameWidth = w; s.frameHeight = h }
     s.recording = file.isRecording
     s.recordingFile = file.url?.lastPathComponent ?? ""
     s.recordingBytes = file.bytes
