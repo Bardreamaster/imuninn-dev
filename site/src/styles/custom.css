@@ -1,10 +1,12 @@
+/* Starlight accent from docs/design/tokens.json (accent dark / light); the full token set is in tokens.css. */
+@import "./tokens.css";
 :root {
-  --sl-color-accent-low: #10243a;
-  --sl-color-accent: #2f81f7;
-  --sl-color-accent-high: #a8c8ff;
+  --sl-color-accent-low: oklch(30% 0.09 258);
+  --sl-color-accent: oklch(62.0% 0.190 258);
+  --sl-color-accent-high: oklch(85% 0.09 258);
 }
 :root[data-theme="light"] {
-  --sl-color-accent-low: #dbe8ff;
-  --sl-color-accent: #1f6feb;
-  --sl-color-accent-high: #0b3d91;
+  --sl-color-accent-low: oklch(93% 0.05 258);
+  --sl-color-accent: oklch(57.0% 0.200 260);
+  --sl-color-accent-high: oklch(40% 0.17 260);
 }

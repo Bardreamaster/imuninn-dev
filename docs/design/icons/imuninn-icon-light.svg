@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- iMuninn App 图标（light）：小写 i + 等高大写 M，i 点为录制环。i 宽 120，M 笔画 108，环外径 144，红心直径 76（1024 画布）-->
+  <rect width="1024" height="1024" fill="#FFFFFF"/>
+  <rect x="166" y="412" width="120" height="364" rx="60" fill="#1F2328"/>
+  <path d="M404 722 V 302 L 596 566 L 788 302 V 722" fill="none" stroke="#1F2328" stroke-width="108" stroke-linejoin="round" stroke-linecap="round"/>
+  <circle cx="226" cy="320" r="66" fill="none" stroke="#CE2930" stroke-width="12"/>
+  <circle cx="226" cy="320" r="38" fill="#CE2930"/>
+</svg>

@@ -51,7 +51,7 @@ export function FullscreenPreview({ status, visible, onClose }: { status: Status
   if (h > height) { h = height; w = height * aspect; }
   return (
     <Modal visible={visible} animationType="fade" supportedOrientations={["portrait", "landscape"]} onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: "#000", alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: C.previewBg, alignItems: "center", justifyContent: "center" }}>
         {visible ? <Preview status={status} landscape={landscape} width={w} height={h} onFullscreen={onClose} fullscreen /> : null}
       </View>
     </Modal>

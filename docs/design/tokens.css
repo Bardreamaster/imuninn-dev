@@ -1,0 +1,63 @@
+/* iMuninn 颜色 token（由 docs/design/tokens.json 生成）。深色为默认。 */
+:root {
+  --im-bg: oklch(17.0% 0.012 255);
+  --im-card: oklch(22.0% 0.016 257);
+  --im-card-alt: oklch(25.5% 0.026 265);
+  --im-text: oklch(94.0% 0.011 245);
+  --im-muted: oklch(66.5% 0.018 251);
+  --im-border: oklch(33.0% 0.015 252);
+  --im-accent: oklch(62.0% 0.190 258);
+  --im-accent-fill: oklch(57.0% 0.200 260);
+  --im-on-accent: oklch(100.0% 0.000 0);
+  --im-ok: oklch(70.0% 0.180 146);
+  --im-warn: oklch(85.7% 0.133 90);
+  --im-warn-surface: oklch(29.6% 0.023 96.6);
+  --im-on-warn: oklch(85.7% 0.133 90);
+  --im-warn-text: oklch(85.7% 0.133 90);
+  --im-err: oklch(66.5% 0.205 27);
+  --im-danger-fill: oklch(58.5% 0.200 27);
+  --im-preview-bg: #000;
+  --im-scrim: rgb(0 0 0 / 0.45);
+  --im-on-scrim: #E5ECF2;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --im-bg: oklch(98.0% 0.003 248);
+    --im-card: oklch(100.0% 0.000 0);
+    --im-card-alt: oklch(95.8% 0.006 255);
+    --im-text: oklch(25.5% 0.011 254);
+    --im-muted: oklch(49.5% 0.022 251);
+    --im-border: oklch(88.0% 0.013 244);
+    --im-accent: oklch(57.0% 0.200 260);
+    --im-accent-fill: oklch(57.0% 0.200 260);
+    --im-on-accent: oklch(100.0% 0.000 0);
+    --im-ok: oklch(51.5% 0.140 148);
+    --im-warn: oklch(84.0% 0.165 92);
+    --im-warn-surface: oklch(84.0% 0.165 92);
+    --im-on-warn: oklch(25.5% 0.011 254);
+    --im-warn-text: oklch(53.5% 0.110 80);
+    --im-err: oklch(55.5% 0.200 25);
+    --im-danger-fill: oklch(55.5% 0.200 25);
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --im-bg: oklch(98.0% 0.003 248);
+  --im-card: oklch(100.0% 0.000 0);
+  --im-card-alt: oklch(95.8% 0.006 255);
+  --im-text: oklch(25.5% 0.011 254);
+  --im-muted: oklch(49.5% 0.022 251);
+  --im-border: oklch(88.0% 0.013 244);
+  --im-accent: oklch(57.0% 0.200 260);
+  --im-accent-fill: oklch(57.0% 0.200 260);
+  --im-on-accent: oklch(100.0% 0.000 0);
+  --im-ok: oklch(51.5% 0.140 148);
+  --im-warn: oklch(84.0% 0.165 92);
+  --im-warn-surface: oklch(84.0% 0.165 92);
+  --im-on-warn: oklch(25.5% 0.011 254);
+  --im-warn-text: oklch(53.5% 0.110 80);
+  --im-err: oklch(55.5% 0.200 25);
+  --im-danger-fill: oklch(55.5% 0.200 25);
+  color-scheme: light;
+}

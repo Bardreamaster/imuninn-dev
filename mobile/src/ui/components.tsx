@@ -17,7 +17,7 @@ export function Row({ k, v, color }: { k: string; v: string | number | boolean; 
 export function Button({ title, onPress, kind = "primary", disabled, small }: {
   title: string; onPress: () => void; kind?: "primary" | "ghost" | "danger"; disabled?: boolean; small?: boolean;
 }) {
-  const bg = kind === "primary" ? C.accent : kind === "danger" ? C.err : "transparent";
+  const bg = kind === "primary" ? C.accentFill : kind === "danger" ? C.dangerFill : "transparent";
   return (
     <Pressable
       onPress={onPress}
@@ -25,7 +25,7 @@ export function Button({ title, onPress, kind = "primary", disabled, small }: {
       style={({ pressed }) => [small ? S.btnSmall : S.btn, { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
         kind === "ghost" ? { borderWidth: 1, borderColor: C.border } : null]}
     >
-      <Text style={S.btnText}>{title}</Text>
+      <Text style={kind === "ghost" ? S.btnTextGhost : S.btnText}>{title}</Text>
     </Pressable>
   );
 }
