@@ -11,6 +11,12 @@
 | **M4** ✅ 2026-11-03 | 配置预设 Profile、租约控制权、纯相机模式（换镜头）；C++ 接收库；bench 工具 | 标定 profile 一键锁定对焦曝光；C++ 实时控制程序直接链接 |
 | **M5** 🚧 进行中 | Android 移植（ARCore、MediaCodec、SensorManager）；ROS 2 桥接（可选） | 非 AR 部分在模拟器上验证（2026-11-03 开始）；ARCore 位姿/深度等真机 |
 
+## Web 查看器（2026-11-03）
+
+- [x] `host/web/`：浏览器查看器（WebCodecs 视频、LZ4 深度、位姿轨迹、IMU、health），MCAP 拖入回放
+- [x] `imuninn web`：PC 中继（手机 TCP/UDP → 浏览器 WebSocket）+ 静态托管；`--mcap` 回放模式
+- [ ] 手机直出 WebSocket 数据帧（`TRANSPORT_WEBSOCKET`），省掉中继
+
 ## M0 状态（2026-11-03）
 
 - [x] monorepo 结构、`.gitignore`、`LICENSE-MIT` / `LICENSE-APACHE`
