@@ -357,6 +357,8 @@ public final class SessionManager {
     if sessionRunning, config.isEnabled("imu"), imu.available {
       imu.start(rateHz: max(10, config.int("imu", "rate_hz")), raw: config.bool("imu", "raw"))
     }
+    // Preview views re-layout for the (possibly new) format.
+    NotificationCenter.default.post(name: .muninnModeChanged, object: nil)
   }
 
   /// Local UI edits go through the same path as remote ones (§6.8).
