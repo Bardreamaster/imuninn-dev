@@ -1,11 +1,14 @@
+import type { SFSymbol } from "expo-symbols";
 import { useEffect, useState, type ReactNode } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import type { ParamSpec, ParamValue } from "../../modules/muninn-core/src";
+import { Icon } from "./Icon";
 import { paramLabel } from "./i18n";
-import { C, S } from "./theme";
+import { useTheme } from "./theme";
 
 export function Row({ k, v, color }: { k: string; v: string | number | boolean; color?: string }) {
+  const { S } = useTheme();
   return (
     <View style={S.row}>
       <Text style={S.key}>{k}</Text>
@@ -14,9 +17,10 @@ export function Row({ k, v, color }: { k: string; v: string | number | boolean; 
   );
 }
 
-export function Button({ title, onPress, kind = "primary", disabled, small }: {
-  title: string; onPress: () => void; kind?: "primary" | "ghost" | "danger"; disabled?: boolean; small?: boolean;
+export function Button({ title, icon, onPress, kind = "primary", disabled, small }: {
+  title: string; icon?: SFSymbol; onPress: () => void; kind?: "primary" | "ghost" | "danger"; disabled?: boolean; small?: boolean;
 }) {
+  const { C, S } = useTheme();
   const bg = kind === "primary" ? C.accentFill : kind === "danger" ? C.dangerFill : "transparent";
   return (
     <Pressable
@@ -25,7 +29,10 @@ export function Button({ title, onPress, kind = "primary", disabled, small }: {
       style={({ pressed }) => [small ? S.btnSmall : S.btn, { backgroundColor: bg, opacity: disabled ? 0.4 : pressed ? 0.7 : 1 },
         kind === "ghost" ? { borderWidth: 1, borderColor: C.border } : null]}
     >
-      <Text style={kind === "ghost" ? S.btnTextGhost : S.btnText}>{title}</Text>
+      <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+        {icon ? <Icon name={icon} size={small ? 13 : 15} color={kind === "ghost" ? C.text : C.onAccent} /> : null}
+        <Text style={kind === "ghost" ? S.btnTextGhost : S.btnText}>{title}</Text>
+      </View>
     </Pressable>
   );
 }
@@ -33,6 +40,7 @@ export function Button({ title, onPress, kind = "primary", disabled, small }: {
 export function Chip({ label, on, onPress, onLongPress }: {
   label: string; on?: boolean; onPress: () => void; onLongPress?: () => void;
 }) {
+  const { S } = useTheme();
   return (
     <Pressable onPress={onPress} onLongPress={onLongPress} style={[S.chip, on ? S.chipOn : null]}>
       <Text style={[S.chipText, on ? S.chipTextOn : null]}>{label}</Text>
@@ -44,10 +52,14 @@ export function Card({ title, right, children, collapsible, initiallyOpen = true
   title: string; right?: ReactNode; children: ReactNode; collapsible?: boolean; initiallyOpen?: boolean;
 }) {
   const [open, setOpen] = useState(initiallyOpen);
+  const { C, S } = useTheme();
   return (
     <View style={S.card}>
       <Pressable onPress={collapsible ? () => setOpen((o) => !o) : undefined} style={S.cardHead}>
-        <Text style={S.cardTitle}>{collapsible ? `${open ? "▾" : "▸"} ${title}` : title}</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+          {collapsible ? <Icon name={open ? "chevron.down" : "chevron.right"} size={13} color={C.muted} /> : null}
+          <Text style={S.cardTitle}>{title}</Text>
+        </View>
         {right}
       </Pressable>
       {open ? children : null}
@@ -56,6 +68,7 @@ export function Card({ title, right, children, collapsible, initiallyOpen = true
 }
 
 export function Stat({ label, value, unit, color }: { label: string; value: string | number; unit?: string; color?: string }) {
+  const { S } = useTheme();
   return (
     <View style={S.stat}>
       <Text style={S.statLabel}>{label}</Text>
@@ -75,6 +88,7 @@ function clampStep(n: number, spec: ParamSpec): number {
 /** Number field: type directly (numeric keypad), commit on blur / return, clamped to the
  *  parameter's range; − / + still step by `step`. */
 function NumberField({ spec, value, onChange }: { spec: ParamSpec; value: number; onChange: (v: number) => void }) {
+  const { S } = useTheme();
   const [text, setText] = useState(String(value));
   const [editing, setEditing] = useState(false);
   useEffect(() => {
@@ -116,12 +130,20 @@ function NumberField({ spec, value, onChange }: { spec: ParamSpec; value: number
 export function ParamControl({ spec, value, onChange, streamId = "" }: {
   spec: ParamSpec; value: ParamValue; onChange: (v: ParamValue) => void; streamId?: string;
 }) {
+  const { C, S } = useTheme();
   const base = paramLabel(streamId, spec.key, spec.label);
-  const label = `${base}${spec.unit ? ` (${spec.unit})` : ""}${spec.apply === "restart" ? " ↻" : ""}`;
+  const text = `${base}${spec.unit ? ` (${spec.unit})` : ""}`;
+  // Restart-on-apply parameters carry the arrow.clockwise mark (see restart.note).
+  const label = (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 4, flexShrink: 1 }}>
+      <Text style={S.key}>{text}</Text>
+      {spec.apply === "restart" ? <Icon name="arrow.clockwise" size={12} color={C.muted} /> : null}
+    </View>
+  );
   if (spec.kind === "bool") {
     return (
       <View style={S.row}>
-        <Text style={S.key}>{label}</Text>
+        {label}
         <Switch value={Boolean(value)} onValueChange={onChange} disabled={spec.readOnly} />
       </View>
     );
@@ -129,7 +151,7 @@ export function ParamControl({ spec, value, onChange, streamId = "" }: {
   if (spec.kind === "enum") {
     return (
       <View style={{ gap: 6 }}>
-        <Text style={S.key}>{label}</Text>
+        {label}
         <View style={S.chips}>
           {spec.choices.map((c) => (
             <Chip key={c} label={c} on={value === c} onPress={() => !spec.readOnly && onChange(c)} />
@@ -142,10 +164,10 @@ export function ParamControl({ spec, value, onChange, streamId = "" }: {
     const n = typeof value === "number" ? value : 0;
     return (
       <View style={S.row}>
-        <Text style={S.key}>{label}</Text>
+        {label}
         <NumberField spec={spec} value={n} onChange={onChange} />
       </View>
     );
   }
-  return <Row k={label} v={String(value)} />;
+  return <Row k={text} v={String(value)} />;
 }

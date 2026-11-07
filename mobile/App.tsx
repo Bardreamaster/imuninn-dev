@@ -6,13 +6,15 @@ import { MuninnCore } from "./modules/muninn-core/src";
 import { BlackOverlay, useBlackScreen } from "./src/ui/BlackScreen";
 import { FullscreenPreview, Preview, previewAspect } from "./src/ui/Preview";
 import { Button, Card, Chip, ParamControl, Row, Stat } from "./src/ui/components";
+import { Icon } from "./src/ui/Icon";
 import { t, useLang } from "./src/ui/i18n";
-import { C, S } from "./src/ui/theme";
+import { useTheme } from "./src/ui/theme";
 import { useMuninn } from "./src/ui/useMuninn";
 
 export default function App() {
   const { info, status, caps, config, profiles, lastResult, applyPatch, applyProfile, saveProfile, deleteProfile } = useMuninn();
   const [lang, langOverride, setLang] = useLang();
+  const { scheme, C, S } = useTheme();
   const [showPreview, setShowPreview] = useState(true);
   useEffect(() => { MuninnCore.setPreview(true); }, []);
   const togglePreview = () => {
@@ -53,7 +55,7 @@ export default function App() {
 
   return (
     <View style={[S.container, { paddingTop: sa.top, paddingBottom: sa.bottom, paddingLeft: padLeft, paddingRight: padRight }]}>
-      <StatusBar style="light" hidden={black.dimmed} />
+      <StatusBar style={scheme === "dark" ? "light" : "dark"} hidden={black.dimmed} />
       <BlackOverlay visible={black.dimmed} onTap={black.touch} />
       <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }} onTouchStart={black.touch}>
       <View style={[S.pinned, landscape ? { width: previewW + 32 } : null]}>
@@ -86,7 +88,7 @@ export default function App() {
       <ScrollView style={{ flex: 1 }} contentContainerStyle={S.scroll} keyboardShouldPersistTaps="handled">
         {/* Session */}
         <Card title={t("capture")} right={
-          <Button small title={showPreview ? t("preview.off") : t("preview.on")} kind="ghost" onPress={togglePreview} />
+          <Button small icon={showPreview ? "eye.slash" : "eye"} title={showPreview ? t("preview.off") : t("preview.on")} kind="ghost" onPress={togglePreview} />
         }>
           <View style={S.grid}>
             {!camera ? <Stat label={t("tracking")} value={status?.tracking ?? "none"} color={trackColor} /> : null}
@@ -101,16 +103,16 @@ export default function App() {
           ) : null}
           <View style={{ flexDirection: "row", gap: 10, flexWrap: "wrap" }}>
             {status?.sessionRunning ? (
-              <Button title={t("stop")} kind="danger" onPress={() => MuninnCore.stopSession()} />
+              <Button icon="stop.fill" title={t("stop")} kind="danger" onPress={() => MuninnCore.stopSession()} />
             ) : (
-              <Button title={t("start")} onPress={() => MuninnCore.startSession()} />
+              <Button icon="play.fill" title={t("start")} onPress={() => MuninnCore.startSession()} />
             )}
             {/* Phone-side recording stays available via the protocol (PC: dev.start_recording());
                 the button is hidden until a recordings manager + PC pull/delete exist (ROADMAP TODO). */}
             {status?.recording ? (
               <Button title={t("stop.recording")} kind="danger" onPress={() => MuninnCore.stopRecording()} />
             ) : null}
-            <Button title={black.enabled ? t("dim.off") : t("dim.on")} kind="ghost" onPress={black.toggle} />
+            <Button icon={black.enabled ? "sun.max" : "moon.fill"} title={black.enabled ? t("dim.off") : t("dim.on")} kind="ghost" onPress={black.toggle} />
           </View>
           {black.enabled ? <Text style={S.muted}>{t("dim.hint")}</Text> : null}
         </Card>
@@ -169,7 +171,10 @@ export default function App() {
               );
             })}
             {lastResult ? <Text style={S.err}>{lastResult}</Text> : null}
-            <Text style={S.muted}>{t("restart.note")}</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
+              <Icon name="arrow.clockwise" size={12} color={C.muted} />
+              <Text style={[S.muted, { flexShrink: 1 }]}>{t("restart.note")}</Text>
+            </View>
           </Card>
         ) : null}
 

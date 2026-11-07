@@ -3,7 +3,6 @@ import { Pressable, Text, View } from "react-native";
 
 import { MuninnCore } from "../../modules/muninn-core/src";
 import { t } from "./i18n";
-import { S } from "./theme";
 
 const IDLE_MS = 5000;
 
@@ -69,7 +68,7 @@ export function BlackOverlay({ visible, onTap }: { visible: boolean; onTap: () =
   return (
     <Pressable onPress={onTap} style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: "#000", zIndex: 1000 }}>
       <View style={{ flex: 1, alignItems: "center", justifyContent: "flex-end", paddingBottom: 40 }}>
-        <Text style={[S.muted, { color: "#222" }]}>{t("dim.tap")}</Text>
+        <Text style={{ color: "#222", fontSize: 12 }}>{t("dim.tap")}</Text>
       </View>
     </Pressable>
   );

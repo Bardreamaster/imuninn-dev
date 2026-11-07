@@ -6,7 +6,7 @@ const config: ExpoConfig = {
   version: "0.0.1",
   orientation: "default",   // follows the system rotation lock; layout adapts in App.tsx
   icon: "./assets/icon.png",
-  userInterfaceStyle: "dark",
+  userInterfaceStyle: "automatic", // theme.ts follows the system appearance (useColorScheme)
   ios: {
     bundleIdentifier: "com.weijinqi.projects.imuninn",
     appleTeamId: "NHCF5WN8GK",

@@ -1,29 +1,13 @@
-import { StyleSheet } from "react-native";
+import { useMemo } from "react";
+import { StyleSheet, useColorScheme } from "react-native";
 
-// Colour tokens: docs/design/tokens.json is the single source (OKLCH there; React Native
-// needs hex, so the hex values are copied here with the OKLCH in the comment). Dark theme.
-export const C = {
-  bg: "#0C1015",           // oklch(17.0% 0.012 255)
-  card: "#161B22",         // oklch(22.0% 0.016 257)
-  cardAlt: "#1D2330",      // oklch(25.5% 0.026 265)
-  text: "#E5ECF2",         // oklch(94.0% 0.011 245)
-  muted: "#8C959F",        // oklch(66.5% 0.018 251)
-  border: "#30363D",       // oklch(33.0% 0.015 252)
-  accent: "#3082F6",       // oklch(62.0% 0.190 258)
-  accentFill: "#236FEA",   // oklch(57.0% 0.200 260)
-  onAccent: "#FFFFFF",     // oklch(100.0% 0.000 0)
-  ok: "#40BB53",           // oklch(70.0% 0.180 146)
-  warn: "#F2CC60",         // oklch(85.7% 0.133 90)
-  warnSurface: "#302D20",  // oklch(29.6% 0.023 96.6)
-  onWarn: "#F2CC60",       // oklch(85.7% 0.133 90)
-  warnText: "#F2CC60",     // oklch(85.7% 0.133 90)
-  err: "#F85149",          // oklch(66.5% 0.205 27)
-  dangerFill: "#D93632",   // oklch(58.5% 0.200 27)
-  previewBg: "#000000",      // preview box, both themes
-  scrim: "rgba(0,0,0,0.45)", // preview overlay; text on it is always dark-theme `text`
-};
+import { dark, light, type Colors } from "./tokens";
 
-export const S = StyleSheet.create({
+export type Scheme = "dark" | "light";
+
+/** Styles for one colour set. Tokens come from docs/design/tokens.json (tokens.ts is generated). */
+export function makeStyles(C: Colors) {
+  return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   pinned: { paddingHorizontal: 16, paddingTop: 6, gap: 8 },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -38,7 +22,7 @@ export const S = StyleSheet.create({
   preview: { borderRadius: 12, overflow: "hidden", backgroundColor: C.previewBg, alignSelf: "center" },
   overlay: { position: "absolute", left: 0, right: 0, bottom: 0, flexDirection: "row", gap: 12,
     paddingHorizontal: 12, paddingVertical: 8, backgroundColor: C.scrim },
-  overlayText: { color: C.text, fontSize: 12, fontVariant: ["tabular-nums"] },
+  overlayText: { color: dark.text, fontSize: 12, fontVariant: ["tabular-nums"] },
   scroll: { padding: 16, paddingTop: 10, gap: 12 },
   card: { backgroundColor: C.card, borderRadius: 12, padding: 14, gap: 10 },
   cardHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -66,4 +50,18 @@ export const S = StyleSheet.create({
   statLabel: { color: C.muted, fontSize: 11 },
   statValue: { color: C.text, fontSize: 18, fontWeight: "600", fontVariant: ["tabular-nums"] },
   statUnit: { color: C.muted, fontSize: 11 },
-});
+  });
+}
+
+export type Styles = ReturnType<typeof makeStyles>;
+
+const themes: Record<Scheme, { C: Colors; S: Styles }> = {
+  dark: { C: dark, S: makeStyles(dark) },
+  light: { C: light, S: makeStyles(light) },
+};
+
+/** Current theme: follows the system appearance (dark is the default). */
+export function useTheme(): { scheme: Scheme; C: Colors; S: Styles } {
+  const scheme: Scheme = useColorScheme() === "light" ? "light" : "dark";
+  return useMemo(() => ({ scheme, ...themes[scheme] }), [scheme]);
+}
