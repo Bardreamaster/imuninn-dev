@@ -4,11 +4,14 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>iMuninn Web Viewer</title>
+    <link rel="icon" type="image/svg+xml" href="./imuninn-icon-dark.svg" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="./imuninn-icon-light.svg" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="./imuninn-icon-dark.svg" />
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
     <header id="topbar">
-      <span class="brand">iMuninn</span>
+      <span class="brand"><img src="./imuninn-icon-dark.svg" alt="" />iMuninn</span>
       <div id="source-live" class="source">
         <input id="ws-url" type="text" placeholder="手机 IP（直连）或 ws://host:7430/ws（中继）" spellcheck="false" />
         <button id="btn-connect">连接</button>

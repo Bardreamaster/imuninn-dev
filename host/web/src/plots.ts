@@ -1,4 +1,8 @@
 // Tiny canvas plots: rolling multi-line chart (IMU) and a top-down trajectory (pose).
+// Colours are read from the design tokens (docs/design/tokens.css) so light / dark match the page.
+
+const cssVar = (name: string, fallback: string): string =>
+  getComputedStyle(document.documentElement).getPropertyValue(name).trim() || fallback;
 
 export class RollingPlot {
   private series: Float32Array[];
@@ -26,7 +30,7 @@ export class RollingPlot {
     if (hi - lo < 1e-6) { hi += 1; lo -= 1; }
     const pad = (hi - lo) * 0.1; lo -= pad; hi += pad;
     const y = (v: number) => h - ((v - lo) / (hi - lo)) * h;
-    ctx.strokeStyle = "#333"; ctx.lineWidth = 1;
+    ctx.strokeStyle = cssVar("--im-border", "#333"); ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(0, y(0)); ctx.lineTo(w, y(0)); ctx.stroke();
     for (let s = 0; s < this.n; s++) {
       ctx.strokeStyle = this.colors[s]; ctx.beginPath();
@@ -38,7 +42,7 @@ export class RollingPlot {
       }
       ctx.stroke();
     }
-    ctx.fillStyle = "#aaa"; ctx.font = "11px system-ui";
+    ctx.fillStyle = cssVar("--im-muted", "#aaa"); ctx.font = "11px system-ui";
     ctx.fillText(`${this.title}  [${lo.toFixed(2)}, ${hi.toFixed(2)}] ${this.unit}`, 6, 13);
   }
 }
@@ -74,20 +78,21 @@ export class TrajectoryPlot {
     const sx = (x: number) => w / 2 + (x - cx) * scale;
     const sy = (z: number) => h / 2 + (z - cz) * scale; // +Z down on screen (ARKit camera looks -Z = "forward" = up)
     // grid every 1 m
-    ctx.strokeStyle = "#2a2a2a"; ctx.lineWidth = 1;
+    ctx.strokeStyle = cssVar("--im-border", "#2a2a2a"); ctx.lineWidth = 1;
     for (let gx = Math.floor(cx - span); gx <= cx + span; gx++) { ctx.beginPath(); ctx.moveTo(sx(gx), 0); ctx.lineTo(sx(gx), h); ctx.stroke(); }
     for (let gz = Math.floor(cz - span); gz <= cz + span; gz++) { ctx.beginPath(); ctx.moveTo(0, sy(gz)); ctx.lineTo(w, sy(gz)); ctx.stroke(); }
-    ctx.strokeStyle = "#4fc3f7"; ctx.lineWidth = 1.5; ctx.beginPath();
+    ctx.strokeStyle = cssVar("--im-accent", "#4fc3f7"); ctx.lineWidth = 1.5; ctx.beginPath();
     for (let i = 0; i < this.pts.length; i += 2) { const X = sx(this.pts[i]), Y = sy(this.pts[i + 1]); if (i === 0) ctx.moveTo(X, Y); else ctx.lineTo(X, Y); }
     ctx.stroke();
     if (this.last) {
       const X = sx(this.last.x), Y = sy(this.last.z);
-      ctx.fillStyle = "#ffb300"; ctx.beginPath(); ctx.arc(X, Y, 4, 0, Math.PI * 2); ctx.fill();
+      const head = cssVar("--im-warn", "#ffb300");
+      ctx.fillStyle = head; ctx.beginPath(); ctx.arc(X, Y, 4, 0, Math.PI * 2); ctx.fill();
       // heading: camera looks -Z in ARKit, rotate by yaw around Y
-      ctx.strokeStyle = "#ffb300"; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, Y);
+      ctx.strokeStyle = head; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X, Y);
       ctx.lineTo(X - Math.sin(this.last.yaw) * 18, Y - Math.cos(this.last.yaw) * 18); ctx.stroke();
     }
-    ctx.fillStyle = "#aaa"; ctx.font = "11px system-ui";
+    ctx.fillStyle = cssVar("--im-muted", "#aaa"); ctx.font = "11px system-ui";
     ctx.fillText(`grid 1 m · ${(this.pts.length / 2).toLocaleString()} pts`, 6, 13);
   }
 }

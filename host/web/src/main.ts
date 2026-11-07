@@ -1,3 +1,4 @@
+import "../../../docs/design/tokens.css";
 import { decodeDepth, depthRangeMm, depthToImage } from "./depth";
 import { LiveSource, type Welcome } from "./live";
 import { PhoneSource, type PhoneWelcome } from "./phone";
