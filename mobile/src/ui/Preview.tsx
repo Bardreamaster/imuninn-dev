@@ -3,15 +3,10 @@ import { Modal, Pressable, Text, View, useWindowDimensions } from "react-native"
 import { MuninnPreviewView, type StatusEvent } from "../../modules/muninn-core/src";
 import { C, S } from "./theme";
 
-/** Aspect (width / height) of the preview box: the current video format's aspect,
- *  rotated for portrait. Falls back to the 4:3 sensor when the format is unknown.
- *  The camera pipeline crops inside the ISP, so the frame we get *is* the full image
- *  for that format; there is nothing outside it to show. */
-export function previewAspect(landscape: boolean, status: StatusEvent | null): number {
-  const fw = status?.frameWidth ?? 0;
-  const fh = status?.frameHeight ?? 0;
-  const sensor = fw && fh ? fw / fh : 4 / 3; // landscape terms
-  return landscape ? sensor : 1 / sensor;
+/** Fixed preview box: the 4:3 sensor aspect, rotated for portrait (3:4). Formats with
+ *  another aspect (16:9) sit inside it with black bars, so the layout never moves. */
+export function previewAspect(landscape: boolean, _status: StatusEvent | null = null): number {
+  return landscape ? 4 / 3 : 3 / 4;
 }
 
 export function Preview({ status, landscape, width, height, onFullscreen, fullscreen }: {

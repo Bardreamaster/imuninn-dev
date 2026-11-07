@@ -21,11 +21,10 @@ export default function App() {
   const [fullscreen, setFullscreen] = useState(false);
   const { width: winW, height: winH } = useWindowDimensions();
   const landscape = winW > winH;
-  // Preview box follows the current format's aspect (3:4 / 9:16 in portrait, 4:3 / 16:9 in landscape).
-  const aspect = previewAspect(landscape, status);
-  let previewW = landscape ? Math.min(winW * 0.5, (winH - 60) * aspect) : winW - 32;
-  let previewH = previewW / aspect;
-  if (!landscape && previewH > winH * 0.6) { previewH = winH * 0.6; previewW = previewH * aspect; }  // 9:16 would be too tall
+  // Fixed 3:4 (portrait) / 4:3 (landscape) preview box; other formats get black bars inside it.
+  const aspect = previewAspect(landscape);
+  const previewW = landscape ? Math.min(winW * 0.5, (winH - 60) * aspect) : winW - 32;
+  const previewH = previewW / aspect;
 
   const listening = status?.server === "listening";
   const serverColor = listening ? C.ok : status?.server === "failed" ? C.err : C.muted;
