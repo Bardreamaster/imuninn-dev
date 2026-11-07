@@ -91,6 +91,16 @@ public class MuninnCoreModule: Module {
     Function("listRecordings") { () -> [[String: Any]] in
       FileSink.recordings().map { ["name": $0.name, "bytes": Int($0.bytes)] }
     }
+    // Small persistent preferences (UserDefaults): UI language etc.
+    Function("getPreference") { (key: String) -> String? in
+      UserDefaults.standard.string(forKey: "imuninn.\(key)")
+    }
+    Function("setPreference") { (key: String, value: String) in
+      UserDefaults.standard.set(value, forKey: "imuninn.\(key)")
+    }
+    Function("systemLanguage") { () -> String in
+      Locale.preferredLanguages.first ?? "en"
+    }
     Function("cameraFormats") { (lens: String) -> [String] in
       self.manager.config.cameraFormats(for: lens)
     }

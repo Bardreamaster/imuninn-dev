@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { MuninnPreviewView, type StatusEvent } from "../../modules/muninn-core/src";
+import { t } from "./i18n";
 import { C, S } from "./theme";
 
 /** Fixed preview box: the 4:3 sensor aspect, rotated for portrait (3:4). Formats with
@@ -9,8 +10,8 @@ export function previewAspect(landscape: boolean, _status: StatusEvent | null = 
   return landscape ? 4 / 3 : 3 / 4;
 }
 
-export function Preview({ status, landscape, width, height, onFullscreen, fullscreen }: {
-  status: StatusEvent | null; landscape: boolean; width: number; height: number;
+export function Preview({ status, width, height, onFullscreen, fullscreen }: {
+  status: StatusEvent | null; landscape?: boolean; width: number; height: number;
   onFullscreen?: () => void; fullscreen?: boolean;
 }) {
   const camera = status?.mode === "camera";
@@ -18,14 +19,14 @@ export function Preview({ status, landscape, width, height, onFullscreen, fullsc
     <View style={[S.preview, { width, height }]}>
       <MuninnPreviewView style={{ flex: 1 }} />
       <View style={S.overlay}>
-        <Text style={S.overlayText}>{camera ? "相机模式" : `追踪 ${status?.tracking ?? "none"}`}</Text>
-        {!camera ? <Text style={S.overlayText}>位姿 {status?.poseHz.toFixed(0) ?? 0} Hz</Text> : null}
-        <Text style={S.overlayText}>视频 {status?.videoHz.toFixed(0) ?? 0} fps</Text>
+        <Text style={S.overlayText}>{camera ? t("camera.mode") : `${t("tracking")} ${status?.tracking ?? "none"}`}</Text>
+        {!camera ? <Text style={S.overlayText}>{t("pose")} {status?.poseHz.toFixed(0) ?? 0} Hz</Text> : null}
+        <Text style={S.overlayText}>{t("video")} {status?.videoHz.toFixed(0) ?? 0} fps</Text>
         {status?.recording ? <Text style={[S.overlayText, { color: C.err }]}>● REC</Text> : null}
         <View style={{ flex: 1 }} />
         {onFullscreen ? (
           <Pressable onPress={onFullscreen} hitSlop={10}>
-            <Text style={[S.overlayText, { fontWeight: "700" }]}>{fullscreen ? "✕ 退出全屏" : "⤢ 全屏"}</Text>
+            <Text style={[S.overlayText, { fontWeight: "700" }]}>{fullscreen ? t("exit.fullscreen") : t("fullscreen")}</Text>
           </Pressable>
         ) : null}
       </View>
@@ -39,7 +40,6 @@ export function FullscreenPreview({ status, visible, onClose }: { status: Status
   const { width, height } = useWindowDimensions();
   const landscape = width > height;
   const aspect = previewAspect(landscape, status);
-  // aspect-fit the frame into the screen
   let w = width, h = width / aspect;
   if (h > height) { h = height; w = height * aspect; }
   return (

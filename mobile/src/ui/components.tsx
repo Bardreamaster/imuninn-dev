@@ -1,7 +1,8 @@
-import { useState, type ReactNode } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { Pressable, Switch, Text, TextInput, View } from "react-native";
 
 import type { ParamSpec, ParamValue } from "../../modules/muninn-core/src";
+import { paramLabel } from "./i18n";
 import { C, S } from "./theme";
 
 export function Row({ k, v, color }: { k: string; v: string | number | boolean; color?: string }) {
@@ -65,11 +66,58 @@ export function Stat({ label, value, unit, color }: { label: string; value: stri
   );
 }
 
+function clampStep(n: number, spec: ParamSpec): number {
+  let v = Math.min(spec.max, Math.max(spec.min, n));
+  if (spec.kind === "int") v = Math.round(v);
+  return v;
+}
+
+/** Number field: type directly (numeric keypad), commit on blur / return, clamped to the
+ *  parameter's range; − / + still step by `step`. */
+function NumberField({ spec, value, onChange }: { spec: ParamSpec; value: number; onChange: (v: number) => void }) {
+  const [text, setText] = useState(String(value));
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setText(String(value));
+  }, [value, editing]);
+  const step = spec.step || 1;
+  const commit = () => {
+    setEditing(false);
+    const n = Number(text.replace(",", "."));
+    if (Number.isFinite(n)) {
+      const v = clampStep(n, spec);
+      setText(String(v));
+      if (v !== value) onChange(v);
+    } else {
+      setText(String(value));
+    }
+  };
+  return (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+      <Button title="−" kind="ghost" small onPress={() => onChange(clampStep(value - step, spec))} />
+      <TextInput
+        style={[S.input, { flex: 0, minWidth: 72, textAlign: "center", paddingVertical: 4 }]}
+        value={text}
+        onChangeText={setText}
+        onFocus={() => setEditing(true)}
+        onBlur={commit}
+        onSubmitEditing={commit}
+        keyboardType={spec.kind === "int" ? "number-pad" : "decimal-pad"}
+        returnKeyType="done"
+        selectTextOnFocus
+        editable={!spec.readOnly}
+      />
+      <Button title="+" kind="ghost" small onPress={() => onChange(clampStep(value + step, spec))} />
+    </View>
+  );
+}
+
 /** One control per ParamSpec; the UI never hardcodes parameter names (§6.8). */
-export function ParamControl({ spec, value, onChange }: {
-  spec: ParamSpec; value: ParamValue; onChange: (v: ParamValue) => void;
+export function ParamControl({ spec, value, onChange, streamId = "" }: {
+  spec: ParamSpec; value: ParamValue; onChange: (v: ParamValue) => void; streamId?: string;
 }) {
-  const label = `${spec.label}${spec.unit ? ` (${spec.unit})` : ""}${spec.apply === "restart" ? " ↻" : ""}`;
+  const base = paramLabel(streamId, spec.key, spec.label);
+  const label = `${base}${spec.unit ? ` (${spec.unit})` : ""}${spec.apply === "restart" ? " ↻" : ""}`;
   if (spec.kind === "bool") {
     return (
       <View style={S.row}>
@@ -92,15 +140,10 @@ export function ParamControl({ spec, value, onChange }: {
   }
   if (spec.kind === "int" || spec.kind === "float") {
     const n = typeof value === "number" ? value : 0;
-    const step = spec.step || 1;
     return (
       <View style={S.row}>
         <Text style={S.key}>{label}</Text>
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <Button title="−" kind="ghost" small onPress={() => onChange(Math.max(spec.min, n - step))} />
-          <Text style={[S.val, { minWidth: 52, textAlign: "center" }]}>{n}</Text>
-          <Button title="+" kind="ghost" small onPress={() => onChange(Math.min(spec.max, n + step))} />
-        </View>
+        <NumberField spec={spec} value={n} onChange={onChange} />
       </View>
     );
   }

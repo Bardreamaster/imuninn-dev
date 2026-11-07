@@ -38,6 +38,15 @@ class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {
   listRecordings() {
     return [];
   }
+  getPreference(key: string) {
+    try { return localStorage.getItem("imuninn." + key); } catch { return null; }
+  }
+  setPreference(key: string, value: string) {
+    try { localStorage.setItem("imuninn." + key, value); } catch { /* ignore */ }
+  }
+  systemLanguage() {
+    return navigator.language;
+  }
   cameraFormats(_lens: string) {
     return [];
   }
