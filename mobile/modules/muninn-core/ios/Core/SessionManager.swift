@@ -507,7 +507,7 @@ public final class SessionManager {
     v.intrinsics.width = v.width; v.intrinsics.height = v.height
     v.intrinsics.fx = Double(k.columns.0.x); v.intrinsics.fy = Double(k.columns.1.y)
     v.intrinsics.cx = Double(k.columns.2.x); v.intrinsics.cy = Double(k.columns.2.y)
-    v.rotationDeg = (isCameraMode && camera.lens == .front) ? 270 : 90
+    v.rotationDeg = 90   // verified on iPhone 17 Pro: front and back buffers share the same sensor orientation
     var d = MnDataMessage()
     d.video = v
     for c in clientList where c.subscribed.contains("rgb") {

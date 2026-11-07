@@ -373,8 +373,9 @@ enum PixelFormat {
 // do not rotate with the device (§5.4). `rotation_deg` says how to rotate to
 // make the image upright for display; data is always sent as captured.
 // `rotation_deg`: rotate the image clockwise by this much to view it upright when
-// the phone is held in portrait. Back cameras deliver landscape-right sensor frames
-// (90), the front camera landscape-left (270). Intrinsics are in sensor frame.
+// the phone is held in portrait. On iPhone, every camera (back lenses and the front
+// camera) delivers landscape sensor frames that need 90; the field exists so other
+// devices can say otherwise. Intrinsics are in the sensor frame.
 message VideoFrame {
   Header header = 1;
   PixelFormat format = 2;
