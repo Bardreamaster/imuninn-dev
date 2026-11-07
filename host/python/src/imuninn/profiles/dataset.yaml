@@ -1,6 +1,8 @@
 # 数据集采集：全部流打开，高码率，深度平滑
 name: dataset
 mode: ar
+# 长时间采集时让手机熄屏省电（点屏幕临时唤醒）；要用就取消注释
+# session: {black_screen: true}
 streams:
   imu:
     enabled: true

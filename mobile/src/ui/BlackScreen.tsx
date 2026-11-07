@@ -10,9 +10,12 @@ const IDLE_MS = 5000;
 /** Black-screen mode: after `IDLE_MS` without touches the whole UI is covered by a
  *  pure-black layer and the backlight goes to minimum (near zero power on OLED).
  *  Capture and streaming keep running; the idle timer stays disabled so iOS never
- *  locks. A tap wakes the screen for another IDLE_MS. */
-export function useBlackScreen() {
-  const [enabled, setEnabled] = useState(false);
+ *  locks. A tap wakes the screen for another IDLE_MS.
+ *
+ *  `enabled` is the session parameter `session.black_screen` from the config store, so
+ *  the phone button and a remote `dev.set("session.black_screen", True)` are one switch;
+ *  `setEnabled` writes it back through the normal config patch path. */
+export function useBlackScreen(enabled: boolean, setEnabled: (v: boolean) => void) {
   const [dimmed, setDimmed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const savedBrightness = useRef<number | null>(null);
@@ -48,16 +51,13 @@ export function useBlackScreen() {
     arm();
   }, [enabled, dimmed, wake, arm]);
 
-  const toggle = useCallback(() => {
-    if (enabled) {
-      clear();
-      wake();
-      setEnabled(false);
-    } else {
-      setEnabled(true);
-      arm();
-    }
-  }, [enabled, wake, arm]);
+  const toggle = useCallback(() => setEnabled(!enabled), [enabled, setEnabled]);
+
+  // Follow the switch wherever it was flipped (button, remote client, profile).
+  useEffect(() => {
+    if (enabled) arm();
+    else { clear(); wake(); }
+  }, [enabled, arm, wake]);
 
   useEffect(() => () => { clear(); if (savedBrightness.current !== null) MuninnCore.setScreenBrightness(savedBrightness.current); }, []);
 

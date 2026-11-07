@@ -54,7 +54,7 @@ class Client {
   void stop_recording();
   void subscribe(const std::vector<std::string>& streams, bool unsubscribe = false);
 
-  // Partial update: "session.mode", "<stream>.enabled", "<stream>.<param>".
+  // Partial update: "session.mode", "session.<param>" (e.g. session.black_screen), "<stream>.enabled", "<stream>.<param>".
   pb::ConfigResult set(const std::string& key, bool v);
   pb::ConfigResult set(const std::string& key, int64_t v);
   pb::ConfigResult set(const std::string& key, double v);

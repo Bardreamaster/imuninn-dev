@@ -7,7 +7,7 @@ try:
 except PackageNotFoundError:  # editable / source checkout
     __version__ = "0.0.0"
 
-PROTOCOL_VERSION = 3
+PROTOCOL_VERSION = 4
 SERVICE_TYPE = "_imuninn._tcp.local."
 DEFAULT_CONTROL_PORT = 7420
 

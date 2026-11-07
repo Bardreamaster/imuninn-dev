@@ -69,6 +69,11 @@ public final class ConfigStore {
 
     sessionSpecs["mode"] = Self.spec("mode", "Session mode", .enum, .restartSession,
                                      choices: ["ar", "camera"], current: Self.s(env.arAvailable ? "ar" : "camera"))
+    // Session-level switches other than mode live in DeviceConfig.session_params (v4).
+    // black_screen: the app covers the UI in pure black and drops the backlight to minimum
+    // after a few seconds idle; capture keeps running. Same switch as the phone's button.
+    sessionSpecs["black_screen"] = Self.spec("black_screen", "Black screen while capturing", .bool, .immediate, current: Self.b(false))
+    for (key, spec) in sessionSpecs where key != "mode" { config.sessionParams[key] = spec.current }
 
     addStream("imu", .imu, .udp, enabled: env.imuAvailable, params: [
       Self.spec("rate_hz", "IMU rate", .int, .immediate, unit: "Hz", min: 10, max: 200, step: 10, current: Self.i(100)),
@@ -138,6 +143,7 @@ public final class ConfigStore {
     c.sessionParams = sessionSpecs.values.map { spec in
       var s = spec
       if spec.key == "mode" { s.current.s = config.mode == .camera ? "camera" : "ar" }
+      else if let cur = config.sessionParams[spec.key] { s.current = cur }
       return s
     }
     c.config = config
@@ -173,6 +179,13 @@ public final class ConfigStore {
   }
   public func string(_ stream: String, _ key: String) -> String { param(stream, key)?.s ?? "" }
 
+  /// Session-level parameter (DeviceConfig.session_params), e.g. "black_screen".
+  public func sessionParam(_ key: String) -> MnValue? {
+    lock.lock(); defer { lock.unlock() }
+    return config.sessionParams[key]
+  }
+  public func sessionBool(_ key: String) -> Bool { sessionParam(key)?.b ?? false }
+
   // MARK: updates (§6.8 steps 3-5)
 
   public func apply(_ req: MnSetConfig) -> ConfigUpdate {
@@ -203,6 +216,20 @@ public final class ConfigStore {
       result.fields.append(fr)
     }
 
+    for (key, value) in patch.sessionParams {
+      var fr = MnConfigResult.FieldResult()
+      fr.key = "session.\(key)"
+      guard key != "mode", let spec = sessionSpecs[key] else {
+        fr.status = .rejected; fr.reason = key == "mode" ? "set DeviceConfig.mode instead" : "unknown parameter"
+        result.fields.append(fr); continue
+      }
+      guard let effective = Self.validate(spec, value, choices: spec.choices, into: &fr) else { result.fields.append(fr); continue }
+      config.sessionParams[key] = effective
+      fr.effective = effective
+      result.fields.append(fr)
+      changes.append(AppliedChange(stream: "", key: key, value: effective, apply: spec.apply))
+    }
+
     for ps in patch.streams {
       guard let idx = config.streams.firstIndex(where: { $0.streamID == ps.streamID }) else {
         var fr = MnConfigResult.FieldResult()
@@ -230,44 +257,8 @@ public final class ConfigStore {
           result.fields.append(fr)
           continue
         }
-        var effective = MnValue()
-        switch spec.kind {
-        case .bool:
-          guard case .b(let b)? = value.v else { fr.status = .rejected; fr.reason = "expected bool"; result.fields.append(fr); continue }
-          effective.b = b; fr.status = .applied
-        case .int:
-          var requested: Int64
-          switch value.v {
-          case .i(let i)?: requested = i
-          case .f(let f)?: requested = Int64(f.rounded())
-          default: fr.status = .rejected; fr.reason = "expected int"; result.fields.append(fr); continue
-          }
-          var v = min(max(requested, Int64(spec.min)), Int64(spec.max))
-          if spec.step > 0 { v = Int64((Double(v) / spec.step).rounded() * spec.step) }
-          fr.status = v == requested ? .applied : .clamped
-          effective.i = v
-        case .float:
-          var v: Double
-          switch value.v {
-          case .f(let f)?: v = f
-          case .i(let i)?: v = Double(i)
-          default: fr.status = .rejected; fr.reason = "expected float"; result.fields.append(fr); continue
-          }
-          let clamped = min(max(v, spec.min), spec.max)
-          fr.status = clamped == v ? .applied : .clamped
-          effective.f = clamped
-        case .enum, .string:
-          guard case .s(let s)? = value.v else { fr.status = .rejected; fr.reason = "expected string"; result.fields.append(fr); continue }
-          let choices = dynamicChoices(ps.streamID, key) ?? spec.choices
-          if spec.kind == .enum, !choices.contains(s) {
-            fr.status = .rejected; fr.reason = "not one of \(choices)"
-            result.fields.append(fr); continue
-          }
-          effective.s = s; fr.status = .applied
-        default:
-          fr.status = .rejected; fr.reason = "unsupported kind"
-          result.fields.append(fr); continue
-        }
+        let choices = dynamicChoices(ps.streamID, key) ?? spec.choices
+        guard let effective = Self.validate(spec, value, choices: choices, into: &fr) else { result.fields.append(fr); continue }
         config.streams[idx].params[key] = effective
         fr.effective = effective
         result.fields.append(fr)
@@ -279,6 +270,45 @@ public final class ConfigStore {
     result.configVersion = config.configVersion
     result.sessionRestarted = changes.contains { $0.apply == .restartSession }
     return ConfigUpdate(result: result, changes: changes)
+  }
+
+  /// Type-check, clamp and snap one value against its spec. Fills `fr.status`/`fr.reason`;
+  /// returns the effective value, or nil when rejected.
+  private static func validate(_ spec: MnParamSpec, _ value: MnValue, choices: [String], into fr: inout MnConfigResult.FieldResult) -> MnValue? {
+    var effective = MnValue()
+    switch spec.kind {
+    case .bool:
+      guard case .b(let b)? = value.v else { fr.status = .rejected; fr.reason = "expected bool"; return nil }
+      effective.b = b; fr.status = .applied
+    case .int:
+      var requested: Int64
+      switch value.v {
+      case .i(let i)?: requested = i
+      case .f(let f)?: requested = Int64(f.rounded())
+      default: fr.status = .rejected; fr.reason = "expected int"; return nil
+      }
+      var v = min(max(requested, Int64(spec.min)), Int64(spec.max))
+      if spec.step > 0 { v = Int64((Double(v) / spec.step).rounded() * spec.step) }
+      fr.status = v == requested ? .applied : .clamped
+      effective.i = v
+    case .float:
+      var v: Double
+      switch value.v {
+      case .f(let f)?: v = f
+      case .i(let i)?: v = Double(i)
+      default: fr.status = .rejected; fr.reason = "expected float"; return nil
+      }
+      let clamped = min(max(v, spec.min), spec.max)
+      fr.status = clamped == v ? .applied : .clamped
+      effective.f = clamped
+    case .enum, .string:
+      guard case .s(let s)? = value.v else { fr.status = .rejected; fr.reason = "expected string"; return nil }
+      if spec.kind == .enum, !choices.contains(s) { fr.status = .rejected; fr.reason = "not one of \(choices)"; return nil }
+      effective.s = s; fr.status = .applied
+    default:
+      fr.status = .rejected; fr.reason = "unsupported kind"; return nil
+    }
+    return effective
   }
 
   /// Camera formats depend on the chosen lens; accept any format that lens offers.

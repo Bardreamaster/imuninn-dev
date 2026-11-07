@@ -144,6 +144,10 @@ message DeviceConfig {
   SessionMode mode = 2;
   repeated StreamConfig streams = 3;
   NetworkConfig network = 4;
+  // Session-level parameters other than mode, keyed by ParamSpec.key from
+  // Capabilities.session_params (e.g. "black_screen"). In a SetConfig patch only the
+  // listed keys change. v4.
+  map<string, Value> session_params = 5;
 }
 
 message StreamConfig {

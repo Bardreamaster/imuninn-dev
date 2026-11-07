@@ -9,7 +9,7 @@ import type {
   MuninnCoreEvents,
 } from "./MuninnCore.types";
 
-const emptyConfig: DeviceConfig = { configVersion: 0, mode: "ar", streams: {} };
+const emptyConfig: DeviceConfig = { configVersion: 0, mode: "ar", session: {}, streams: {} };
 
 // Web has no sensor pipeline; exists only so `expo start --web` renders the UI.
 class MuninnCoreModule extends NativeModule<MuninnCoreEvents> {

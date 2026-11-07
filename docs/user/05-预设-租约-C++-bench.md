@@ -76,7 +76,7 @@ client.set("imu.rate_hz", int64_t(100));
 client.start();
 ```
 
-回调在接收线程上执行，要快。没有 Bonjour 发现，地址从 `imuninn list` 或手机屏幕上拿。
+回调在接收线程上执行，要快。`client.set("session.black_screen", true)` 等会话级开关和 Python 用同样的 key。没有 Bonjour 发现，地址从 `imuninn list` 或手机屏幕上拿。
 
 ## 性能测试（`tools/bench/latency.py`）
 

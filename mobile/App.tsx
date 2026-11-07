@@ -22,7 +22,8 @@ export default function App() {
   };
   const [profileName, setProfileName] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
-  const black = useBlackScreen();
+  const black = useBlackScreen(config?.session?.black_screen === true,
+    (v) => applyPatch({ session: { black_screen: v } }));
   const { width: winW, height: winH } = useWindowDimensions();
   const landscape = winW > winH;
   // Fixed 3:4 (portrait) / 4:3 (landscape) preview box; other formats get black bars inside it.
@@ -125,8 +126,9 @@ export default function App() {
           <Card title={`${t("config")}  v${config.configVersion}`} collapsible>
             {caps.sessionParams.map((spec) => (
               <ParamControl key={`session.${spec.key}`} spec={spec} streamId="session"
-                value={spec.key === "mode" ? config.mode : spec.current}
-                onChange={(v) => spec.key === "mode" && applyPatch({ mode: v as "ar" | "camera" })} />
+                value={spec.key === "mode" ? config.mode : config.session[spec.key] ?? spec.current}
+                onChange={(v) => spec.key === "mode" ? applyPatch({ mode: v as "ar" | "camera" })
+                  : applyPatch({ session: { [spec.key]: v } })} />
             ))}
             {caps.streams.map((st) => {
               const sc = config.streams[st.streamId];

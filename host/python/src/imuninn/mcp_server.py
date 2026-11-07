@@ -56,6 +56,7 @@ def _config_dict(c: pb.DeviceConfig) -> dict:
     return {
         "config_version": c.config_version,
         "mode": "camera" if c.mode == pb.SESSION_MODE_CAMERA else "ar",
+        "session": {k: _value(v) for k, v in c.session_params.items()},
         "streams": {s.stream_id: {"enabled": s.enabled, **{k: _value(v) for k, v in s.params.items()}} for s in c.streams},
     }
 
@@ -107,7 +108,8 @@ def connect(target: str = "") -> dict:
                           for p in s.params}
             for s in caps.streams
         },
-        "session_params": {p.key: {"choices": list(p.choices), "current": _value(p.current)} for p in caps.session_params},
+        "session_params": {p.key: {"kind": pb.ParamSpec.Kind.Name(p.kind).removeprefix("KIND_").lower(),
+                                   "choices": list(p.choices), "current": _value(p.current)} for p in caps.session_params},
         "config": _config_dict(_dev.config),
     }
 
@@ -151,7 +153,8 @@ def stop_session() -> str:
 
 @server.tool()
 def set_param(key: str, value: str | int | float | bool) -> dict:
-    """Set one parameter. key: "session.mode", "<stream>.enabled", or "<stream>.<param>"
+    """Set one parameter. key: "session.mode", "session.<param>" (e.g. "session.black_screen":
+    phone screen goes dark while capturing), "<stream>.enabled", or "<stream>.<param>"
     (e.g. "imu.rate_hz", "rgb.lens", "rgb.exposure_mode", "rgb.white_balance_mode", "depth.enabled")."""
     dev = _need()
     if isinstance(value, str):

@@ -25,7 +25,7 @@ claude mcp add imuninn -- /Users/<you>/jinqi/code_ws/imuninn/host/python/.venv/b
 | `disconnect()` | 断开 |
 | `status()` | 连接状态、租约持有者、每个流的计数 / 丢包 / 速率、当前配置 |
 | `start_session()` / `stop_session()` | 开始 / 停止采集 |
-| `set_param(key, value)` | 改一个参数：`session.mode`、`<流>.enabled`、`<流>.<参数>` |
+| `set_param(key, value)` | 改一个参数：`session.mode`、`session.<参数>`（如 `session.black_screen`：长时间采集时让手机熄屏省电）、`<流>.enabled`、`<流>.<参数>` |
 | `list_profiles()` / `apply_profile(name_or_path)` | 内置或 YAML 预设 |
 | `pose()` / `imu()` | 最新一条位姿 / IMU |
 | `snapshot(stream="rgb"|"depth")` | 最新一帧图像（JPEG）；depth 为伪彩色 |

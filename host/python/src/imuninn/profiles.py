@@ -2,6 +2,7 @@
 
     name: calibration
     mode: ar                      # ar | camera (optional)
+    session: {black_screen: true} # other session-level switches (optional)
     streams:
       imu:     {enabled: true, rate_hz: 100, raw: false}
       ar_pose: {enabled: true}
@@ -50,6 +51,8 @@ def to_patch(profile: dict) -> pb.DeviceConfig:
     mode = profile.get("mode")
     if mode:
         patch.mode = {"ar": pb.SESSION_MODE_AR, "camera": pb.SESSION_MODE_CAMERA}[str(mode)]
+    for key, value in (profile.get("session") or {}).items():
+        _fill(patch.session_params[str(key)], value)
     for stream_id, params in (profile.get("streams") or {}).items():
         sc = patch.streams.add()
         sc.stream_id = str(stream_id)
@@ -57,21 +60,26 @@ def to_patch(profile: dict) -> pb.DeviceConfig:
             if key == "enabled":
                 sc.enabled = bool(value)
                 continue
-            v = sc.params[str(key)]
-            if isinstance(value, bool):
-                v.b = value
-            elif isinstance(value, int):
-                v.i = value
-            elif isinstance(value, float):
-                v.f = value
-            else:
-                v.s = str(value)
+            _fill(sc.params[str(key)], value)
     return patch
+
+
+def _fill(v: pb.Value, value) -> None:
+    if isinstance(value, bool):
+        v.b = value
+    elif isinstance(value, int):
+        v.i = value
+    elif isinstance(value, float):
+        v.f = value
+    else:
+        v.s = str(value)
 
 
 def from_config(config: pb.DeviceConfig, name: str = "snapshot") -> dict:
     """Current DeviceConfig -> profile dict (for saving what is in effect now)."""
     out: dict = {"name": name, "mode": "camera" if config.mode == pb.SESSION_MODE_CAMERA else "ar", "streams": {}}
+    if config.session_params:
+        out["session"] = {k: (getattr(v, v.WhichOneof("v")) if v.WhichOneof("v") else None) for k, v in config.session_params.items()}
     for sc in config.streams:
         d: dict = {"enabled": sc.enabled}
         for k, v in sc.params.items():

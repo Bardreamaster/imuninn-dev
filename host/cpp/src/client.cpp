@@ -194,7 +194,7 @@ void Client::connect() {
   hello.mutable_hello()->mutable_client()->set_name(client_name_);
   hello.mutable_hello()->mutable_client()->set_version("cpp-0.1");
   hello.mutable_hello()->set_udp_port(uint32_t(udp_port));
-  hello.mutable_hello()->set_protocol_version(3);
+  hello.mutable_hello()->set_protocol_version(4);
   pb::ControlMessage welcome = request(std::move(hello));
   if (!welcome.has_welcome()) throw std::runtime_error("expected Welcome");
   device_ = welcome.welcome().device();
@@ -370,6 +370,8 @@ pb::ConfigResult Client::set_value(const std::string& key, pb::Value value) {
   std::string head = key.substr(0, dot), rest = dot == std::string::npos ? "" : key.substr(dot + 1);
   if (head == "session" && rest == "mode") {
     patch.set_mode(value.s() == "camera" ? pb::SESSION_MODE_CAMERA : pb::SESSION_MODE_AR);
+  } else if (head == "session") {
+    (*patch.mutable_session_params())[rest] = std::move(value);
   } else {
     auto* sc = patch.add_streams();
     sc->set_stream_id(head);

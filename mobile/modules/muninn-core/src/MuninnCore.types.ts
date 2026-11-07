@@ -58,6 +58,8 @@ export interface StatusEvent {
   recordingBytes: number;
   configVersion: number;
   remoteControlled: boolean;
+  /** session.black_screen in effect (set from the phone button or remotely). */
+  blackScreen: boolean;
   /** Config lease holder (PC client name); empty when free. */
   writer: string;
   lastError: string;
@@ -96,6 +98,8 @@ export interface StreamConfig {
 export interface DeviceConfig {
   configVersion: number;
   mode: "ar" | "camera";
+  /** Session-level parameters other than mode (e.g. black_screen). */
+  session: Record<string, ParamValue>;
   streams: Record<string, StreamConfig>;
 }
 
@@ -107,6 +111,7 @@ export interface Capabilities {
 
 export interface ConfigPatch {
   mode?: "ar" | "camera";
+  session?: Record<string, ParamValue>;
   streams?: Record<string, { enabled?: boolean; params?: Record<string, ParamValue> }>;
 }
 

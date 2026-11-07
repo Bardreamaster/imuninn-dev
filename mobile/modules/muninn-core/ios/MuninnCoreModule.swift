@@ -47,6 +47,7 @@ public class MuninnCoreModule: Module {
           "recordingBytes": Int(s.recordingBytes),
           "configVersion": Int(s.configVersion),
           "remoteControlled": s.remoteControlled,
+          "blackScreen": s.blackScreen,
           "writer": s.writer,
           "lastError": s.lastError,
         ])
@@ -205,9 +206,12 @@ enum ConfigJSON {
       for (k, v) in s.params { params[k] = value(v) }
       streams[s.streamID] = ["enabled": s.enabled, "params": params]
     }
+    var session: [String: Any] = [:]
+    for (k, v) in c.sessionParams { session[k] = value(v) }
     return [
       "configVersion": Int(c.configVersion),
       "mode": c.mode == .camera ? "camera" : "ar",
+      "session": session,
       "streams": streams,
     ]
   }
@@ -215,6 +219,9 @@ enum ConfigJSON {
   static func patch(from json: [String: Any]) -> MnDeviceConfig {
     var p = MnDeviceConfig()
     if let mode = json["mode"] as? String { p.mode = mode == "camera" ? .camera : .ar }
+    if let session = json["session"] as? [String: Any] {
+      for (k, v) in session { p.sessionParams[k] = value(from: v) }
+    }
     if let streams = json["streams"] as? [String: Any] {
       for (id, raw) in streams {
         guard let obj = raw as? [String: Any] else { continue }

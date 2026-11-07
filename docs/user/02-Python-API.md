@@ -33,14 +33,15 @@ with imuninn.connect("iPhone") as dev: # 名字 / host / host:port / "" = 第一
     print(dev.stats)                   # 每个流的计数、丢包、速率
 ```
 
-参数 key 的规则：`session.mode`、`<流>.enabled`、`<流>.<参数>`。可用参数看 `dev.capabilities`（每个带类型、范围、生效方式），当前有：
+参数 key 的规则：`session.mode`、`session.<参数>`、`<流>.enabled`、`<流>.<参数>`。可用参数看 `dev.capabilities`（每个带类型、范围、生效方式），当前有：
 
 | key | 类型 | 生效 |
 | --- | --- | --- |
 | `imu.rate_hz` | int 10–200，步长 10 | 即时 |
 | `ar_pose.video_format` | enum，如 `1920x1440@60` | 重启会话 |
 | `rgb.exposure_mode` 等相机控制 | 见 03 | 即时 |
-| `session.mode` | `ar` / `camera` | camera 模式 M4 才实现，现在会被拒绝 |
+| `session.mode` | `ar` / `camera` | 重启会话 |
+| `session.black_screen` | bool | 即时。手机 5 秒无操作后熄屏（纯黑 + 最低亮度），采集照常；点屏幕临时唤醒。和手机上的「黑屏模式」按钮是同一个开关，长时间推流省电、少发热 |
 
 超出范围的值会被钳位（status = clamped），非法值被拒绝（rejected + reason）。
 

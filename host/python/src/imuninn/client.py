@@ -67,6 +67,17 @@ class LeaseError(RuntimeError):
     """Another client holds the config lease (§6.8 控制权)."""
 
 
+def _fill_value(v: pb.Value, value: bool | int | float | str) -> None:
+    if isinstance(value, bool):
+        v.b = value
+    elif isinstance(value, int):
+        v.i = value
+    elif isinstance(value, float):
+        v.f = value
+    else:
+        v.s = str(value)
+
+
 class PhoneClient:
     """One connection to one phone. Create, `await connect()`, use, `await close()`."""
 
@@ -298,6 +309,7 @@ class PhoneClient:
         """Set one parameter by dotted key.
 
         "session.mode" -> DeviceConfig.mode ("ar" | "camera")
+        "session.<param>" -> DeviceConfig.session_params[param] (e.g. "session.black_screen")
         "<stream>.enabled" -> StreamConfig.enabled
         "<stream>.<param>" -> StreamConfig.params[param]
         """
@@ -305,21 +317,15 @@ class PhoneClient:
         head, _, rest = key.partition(".")
         if head == "session" and rest == "mode":
             patch.mode = {"ar": pb.SESSION_MODE_AR, "camera": pb.SESSION_MODE_CAMERA}[str(value)]
+        elif head == "session":
+            _fill_value(patch.session_params[rest], value)
         else:
             sc = patch.streams.add()
             sc.stream_id = head
             if rest == "enabled":
                 sc.enabled = bool(value)
             else:
-                v = sc.params[rest]
-                if isinstance(value, bool):
-                    v.b = value
-                elif isinstance(value, int):
-                    v.i = value
-                elif isinstance(value, float):
-                    v.f = value
-                else:
-                    v.s = str(value)
+                _fill_value(sc.params[rest], value)
         return await self.set_config(patch)
 
     async def acquire_lease(self) -> bool:

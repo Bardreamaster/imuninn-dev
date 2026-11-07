@@ -39,6 +39,7 @@ public struct Status {
   public var encoderDropped: UInt64 = 0
   public var configVersion: UInt32 = 0
   public var remoteControlled = false
+  public var blackScreen = false            // session.black_screen (phone button or remote)
   public var writer: String = ""            // lease holder (client name), "" = free
   public var frameWidth: Int = 0                  // current video format (sensor orientation)
   public var frameHeight: Int = 0
@@ -547,6 +548,7 @@ public final class SessionManager {
                    tcpDropped: $0.tcp?.dropped ?? 0, writer: $0.isWriter)
     }
     s.mode = isCameraMode ? "camera" : "ar"
+    s.blackScreen = config.sessionBool("black_screen")
     s.sessionRunning = sessionRunning
     s.previewing = previewEnabled || sessionRunning
     if isCameraMode {
