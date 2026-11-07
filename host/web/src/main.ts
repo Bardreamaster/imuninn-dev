@@ -1,5 +1,6 @@
 import { decodeDepth, depthRangeMm, depthToImage } from "./depth";
 import { LiveSource, type Welcome } from "./live";
+import { PhoneSource, type PhoneWelcome } from "./phone";
 import { McapSource } from "./mcap";
 import { RollingPlot, TrajectoryPlot } from "./plots";
 import { BATTERY, THERMAL, TRACKING, type Body, type Header } from "./proto";
@@ -150,38 +151,76 @@ function resetViews(): void {
   depthCtx.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
 }
 
-// ---------------------------------------------------------------- live source
+// ---------------------------------------------------------------- live sources
+// Two ways in: straight to the phone (protocol v5, "host[:port]") or through the
+// `imuninn web` relay ("ws://host:7430/ws", also used for MCAP replay without a phone).
 const live = new LiveSource();
+const phone = new PhoneSource();
+let configVersion = 0;
 const wsUrl = $<HTMLInputElement>("ws-url");
-const defaultWs = location.protocol.startsWith("http") && location.hostname ? `ws://${location.host}/ws` : "ws://localhost:7430/ws";
+const defaultWs = location.protocol.startsWith("http") && location.hostname ? `ws://${location.host}/ws` : "";
 wsUrl.value = localStorage.getItem("imuninn.ws") || defaultWs;
-if (location.protocol === "https:") log("页面是 https，浏览器会拒绝连接局域网 ws://；请用中继的 http 地址打开本页，或拖入 MCAP 文件回放");
+if (location.protocol === "https:") log("页面是 https，浏览器会拒绝连接局域网 ws://；请用 http 打开本页，或拖入 MCAP 文件回放");
+
+const isRelayUrl = (v: string) => /^wss?:\/\//.test(v);
+const activeOpen = () => live.open || phone.open;
+function onLiveClosed(): void {
+  $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true;
+  $<HTMLInputElement>("depth-enable").disabled = true; $("btn-connect").textContent = "连接";
+}
+function onLiveReady(name: string, streams: string[], subscribed: Set<string>, isLive: boolean, hasLidar: boolean, depthOn: boolean,
+                     subscribe: (id: string, on: boolean) => void): void {
+  $("device-name").textContent = name;
+  $<HTMLButtonElement>("btn-start").disabled = !isLive; $<HTMLButtonElement>("btn-stop").disabled = !isLive;
+  $<HTMLInputElement>("depth-enable").disabled = !isLive || !hasLidar;
+  $<HTMLInputElement>("depth-enable").checked = depthOn;
+  $("btn-connect").textContent = "断开";
+  renderStreamToggles(streams, subscribed, subscribe);
+}
 
 live.onStatus = (s) => { setStatus(s); log(s); };
 live.onBody = handle;
-live.onClose = () => { $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true; $<HTMLInputElement>("depth-enable").disabled = true; $("btn-connect").textContent = "连接"; };
+live.onClose = onLiveClosed;
 live.onWelcome = (w: Welcome) => {
   const d = w.device;
-  $("device-name").textContent = `${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""}${w.mode === "replay" ? " · 回放" : ""}`;
-  const isLive = w.mode === "live";
-  $<HTMLButtonElement>("btn-start").disabled = !isLive; $<HTMLButtonElement>("btn-stop").disabled = !isLive;
-  $<HTMLInputElement>("depth-enable").disabled = !isLive || !d.has_lidar;
-  $<HTMLInputElement>("depth-enable").checked = !!w.depth_enabled;
-  $("btn-connect").textContent = "断开";
-  renderStreamToggles(w.streams.map((s) => s.stream_id), new Set(w.subscribed), (id, on) => live.subscribe([id], !on));
+  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""}${w.mode === "replay" ? " · 回放" : " · 经中继"}`,
+    w.streams.map((s) => s.stream_id), new Set(w.subscribed), w.mode === "live", !!d.has_lidar, !!w.depth_enabled,
+    (id, on) => live.subscribe([id], !on));
   log(`welcome: ${JSON.stringify(d)}`);
 };
 
+phone.onStatus = (s) => { setStatus(s); log(s); };
+phone.onBody = handle;
+phone.onClose = onLiveClosed;
+phone.onConfig = (cfg) => { configVersion = cfg?.config_version ?? configVersion; log(`config v${configVersion}`); };
+phone.onWelcome = (w: PhoneWelcome) => {
+  const d: any = w.device;
+  configVersion = w.config?.config_version ?? 0;
+  const depthOn = !!(w.config?.streams ?? []).find((s: any) => s.stream_id === "depth" && s.enabled);
+  const ids = w.streams.map((s) => s.stream_id);
+  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""} · 直连`, ids, new Set(ids), true, !!d.has_lidar, depthOn,
+    (id, on) => phone.subscribe([id], !on));
+  log(`welcome: ${JSON.stringify(d)} client_id=${w.client_id}`);
+};
+
 $("btn-connect").onclick = () => {
-  if (live.open) { live.close(); live.onClose?.(); return; }
+  if (activeOpen()) { live.close(); phone.close(); onLiveClosed(); return; }
   stopReplay();
   resetViews();
-  localStorage.setItem("imuninn.ws", wsUrl.value);
-  live.connect(wsUrl.value);
+  const target = wsUrl.value.trim();
+  if (!target) { log("请填手机地址（如 10.0.0.5 或 10.0.0.5:7420），或中继地址 ws://host:7430/ws"); return; }
+  localStorage.setItem("imuninn.ws", target);
+  if (isRelayUrl(target)) live.connect(target); else phone.connect(target);
 };
-$("btn-start").onclick = () => live.start();
-$("btn-stop").onclick = () => live.stop();
-$<HTMLInputElement>("depth-enable").onchange = (e) => live.set("depth.enabled", (e.target as HTMLInputElement).checked);
+$("btn-start").onclick = () => { if (phone.open) phone.start(); else live.start(); };
+$("btn-stop").onclick = () => { if (phone.open) phone.stop(); else live.stop(); };
+$<HTMLInputElement>("depth-enable").onchange = async (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  if (phone.open) {
+    try { const r = await phone.set("depth.enabled", on, configVersion); configVersion = r?.config_version ?? configVersion; }
+    catch (err) { log(`set depth.enabled failed: ${err}`); }
+  } else live.set("depth.enabled", on);
+};
 
 function renderStreamToggles(ids: string[], on: Set<string>, cb: (id: string, on: boolean) => void): void {
   const box = $("streams");
@@ -258,7 +297,7 @@ seek.onchange = () => { if (mcap) { resetViews(); void runReplay(positionNs); } 
 $<HTMLInputElement>("file-input").onchange = async (e) => {
   const f = (e.target as HTMLInputElement).files?.[0];
   if (!f) return;
-  live.close(); live.onClose?.();
+  live.close(); phone.close(); onLiveClosed();
   stopReplay(); resetViews();
   try {
     mcap = await McapSource.open(f);

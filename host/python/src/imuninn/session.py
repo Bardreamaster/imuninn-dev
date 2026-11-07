@@ -28,8 +28,8 @@ from .proto import imuninn_pb2 as pb
 
 
 class Device:
-    def __init__(self, host: str, port: int, name: str | None = None):
-        self._client = PhoneClient(host, port, name)
+    def __init__(self, host: str, port: int, name: str | None = None, data_transport: str = "tcp"):
+        self._client = PhoneClient(host, port, name, data_transport=data_transport)
         self._loop = asyncio.new_event_loop()
         self._thread = threading.Thread(target=self._run, name="imuninn-client", daemon=True)
         self._callbacks: dict[str, list[Callable]] = {}
@@ -213,9 +213,11 @@ class Device:
             self._queues.remove((stream, q))
 
 
-def connect(target: str = "", name: str | None = None, timeout: float = 10.0) -> Device:
+def connect(target: str = "", name: str | None = None, timeout: float = 10.0, data_transport: str = "tcp") -> Device:
     """Connect to a phone by Bonjour name, host, host:port, or '' for the first one found.
 
+    `data_transport="websocket"` takes every stream over one WebSocket (protocol v5, the
+    browser path): one port, no UDP, slightly more latency for pose / IMU under congestion.
     Returns an opened Device; use as a context manager or call close()."""
     host, port = resolve(target)
-    return Device(host, port, name).open(timeout)
+    return Device(host, port, name, data_transport=data_transport).open(timeout)

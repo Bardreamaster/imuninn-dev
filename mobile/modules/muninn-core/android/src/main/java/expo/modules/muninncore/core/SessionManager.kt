@@ -129,6 +129,7 @@ class SessionManager private constructor(private val ctx: Context) {
     control.onDisconnect = { c -> queue.execute { clientDisconnected(c) } }
     control.onMessage = { c, m -> queue.execute { handle(c, m) } }
     data.onAttach = { id, sink -> attachData(id, sink) }
+    control.onAttachWs = { id, sink -> attachWs(id, sink) }
     imu.onSample = { s -> publishImu(s) }
     encoder.onFrame = { f -> publishVideo(f) }
     camera.onError = { e -> lastError = e }
@@ -216,6 +217,21 @@ class SessionManager private constructor(private val ctx: Context) {
         c.tcp = sink
         sink.onDroppedVideo = { encoder.requestKeyframe() }
         sink.onClosed = { if (c.tcp === sink) c.tcp = null }
+        encoder.requestKeyframe()
+        true
+      }.get(5, TimeUnit.SECONDS)
+    } catch (e: Exception) { false }
+  }
+
+  /** Protocol v5: a browser's second WebSocket carries every stream for this client. */
+  private fun attachWs(id: Int, sink: WsSink): Boolean {
+    return try {
+      queue.submit<Boolean> {
+        val c = control.client(id) ?: return@submit false
+        c.ws?.disconnect()
+        c.ws = sink
+        sink.onDroppedVideo = { encoder.requestKeyframe() }
+        sink.onClosed = { if (c.ws === sink) c.ws = null }
         encoder.requestKeyframe()
         true
       }.get(5, TimeUnit.SECONDS)
@@ -425,7 +441,7 @@ class SessionManager private constructor(private val ctx: Context) {
   private fun publishImu(s: io.imuninn.proto.ImuSample) {
     imuCounter.tick()
     val msg = DataMessage.newBuilder().setImu(s.toBuilder().setHeader(stamp(s.header.toBuilder()))).build()
-    for (c in clientList) if (c.subscribed.contains(ImuSource.STREAM_ID)) c.udp.send(msg)
+    for (c in clientList) if (c.subscribed.contains(ImuSource.STREAM_ID)) c.sendSample(msg)
     if (file.isRecording) file.write(msg)
   }
 
@@ -445,7 +461,7 @@ class SessionManager private constructor(private val ctx: Context) {
         .setFx(k.fx).setFy(k.fy).setCx(k.cx).setCy(k.cy).build()
     }
     val msg = DataMessage.newBuilder().setVideo(v).build()
-    for (c in clientList) if (c.subscribed.contains("rgb")) c.tcp?.send(msg, droppable = true, keyframe = f.keyframe)
+    for (c in clientList) if (c.subscribed.contains("rgb")) c.sendFrame(msg, droppable = true, keyframe = f.keyframe)
     if (file.isRecording) file.write(msg)
   }
 
@@ -466,7 +482,7 @@ class SessionManager private constructor(private val ctx: Context) {
     s.tcpPort = data.port
     s.clients = clientList.map {
       ClientStatus(it.id, it.label, it.remoteHost?.hostAddress ?: "", it.subscribed.sorted(),
-        it.udp.dropped, it.tcp?.dropped ?: 0, it.isWriter)
+        it.udp.dropped, it.frameDropped, it.isWriter)
     }
     s.mode = if (isCameraMode) "camera" else "ar"
     s.sessionRunning = sessionRunning
@@ -518,7 +534,7 @@ class SessionManager private constructor(private val ctx: Context) {
     h.encoderDropped = encoder.dropped
     h.uptimeS = (deviceTimeNs() - startNs) / 1e9
     val msg = DataMessage.newBuilder().setHealth(h).build()
-    for (c in clientList) if (c.subscribed.contains("health")) c.udp.send(msg)
+    for (c in clientList) if (c.subscribed.contains("health")) c.sendSample(msg)
     if (file.isRecording) file.write(msg)
   }
 

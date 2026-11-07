@@ -25,6 +25,9 @@ log = logging.getLogger("imuninn.client")
 DataListener = Callable[[pb.DataMessage], None]
 
 
+WS_DATA_MAGIC = b"IMDATA01"   # first frame on a v5 WebSocket data connection, then uint32 LE client_id
+
+
 def pc_time_ns() -> int:
     """PC-side timestamp used for clock alignment: wall clock, nanoseconds."""
     return time.time_ns()
@@ -81,11 +84,17 @@ def _fill_value(v: pb.Value, value: bool | int | float | str) -> None:
 class PhoneClient:
     """One connection to one phone. Create, `await connect()`, use, `await close()`."""
 
-    def __init__(self, host: str, port: int = DEFAULT_CONTROL_PORT, name: str | None = None):
+    def __init__(self, host: str, port: int = DEFAULT_CONTROL_PORT, name: str | None = None,
+                 data_transport: str = "tcp"):
+        """`data_transport`: "tcp" (video / depth on TCP, pose / IMU / health on UDP) or
+        "websocket" (protocol v5: everything on a second WebSocket to the control port, the
+        path browsers use; single port, no UDP)."""
         self.host = host
         self.port = port
+        self.data_transport = data_transport
         self.client_name = name or socket.gethostname().split(".")[0]
         self.ws: ClientConnection | None = None
+        self._data_ws: ClientConnection | None = None
         self.info: pb.DeviceInfo | None = None
         self.capabilities: pb.Capabilities | None = None
         self.config: pb.DeviceConfig | None = None
@@ -135,10 +144,14 @@ class PhoneClient:
 
     async def connect(self, subscribe_all: bool = True, time_sync: bool = True) -> "PhoneClient":
         loop = asyncio.get_running_loop()
-        self._udp_transport, _ = await loop.create_datagram_endpoint(
-            lambda: _UdpProtocol(self), local_addr=("0.0.0.0", 0)
-        )
-        udp_port = self._udp_transport.get_extra_info("sockname")[1]
+        ws_data = self.data_transport == "websocket"
+        if ws_data:
+            udp_port = 0
+        else:
+            self._udp_transport, _ = await loop.create_datagram_endpoint(
+                lambda: _UdpProtocol(self), local_addr=("0.0.0.0", 0)
+            )
+            udp_port = self._udp_transport.get_extra_info("sockname")[1]
 
         host_part = f"[{self.host}]" if ":" in self.host and not self.host.startswith("[") else self.host
         self.ws = await connect(f"ws://{host_part}:{self.port}/", max_size=16 * 1024 * 1024)
@@ -147,6 +160,8 @@ class PhoneClient:
         hello.hello.client.version = __version__
         hello.hello.udp_port = udp_port
         hello.hello.protocol_version = PROTOCOL_VERSION
+        if ws_data:
+            hello.hello.data_transport = pb.TRANSPORT_WEBSOCKET
         fut: asyncio.Future = loop.create_future()
         self._pending[hello.request_id] = fut
         self._tasks.append(asyncio.create_task(self._control_loop()))
@@ -164,7 +179,11 @@ class PhoneClient:
             log.warning("protocol mismatch: phone v%d, client v%d", w.protocol_version, PROTOCOL_VERSION)
         log.info("connected to %r (lidar=%s, tcp port %d)", self, w.device.has_lidar, w.tcp_port)
 
-        if self.tcp_port:
+        if ws_data:
+            self._data_ws = await connect(f"ws://{host_part}:{self.port}/", max_size=16 * 1024 * 1024)
+            await self._data_ws.send(WS_DATA_MAGIC + self.client_id.to_bytes(4, "little"))
+            self._tasks.append(asyncio.create_task(self._ws_data_loop()))
+        elif self.tcp_port:
             reader, writer = await asyncio.open_connection(self.host, self.tcp_port, limit=64 * 1024 * 1024)
             writer.write(self.client_id.to_bytes(4, "little"))
             await writer.drain()
@@ -186,6 +205,8 @@ class PhoneClient:
             self._tcp_writer.close()
         if self._udp_transport is not None:
             self._udp_transport.close()
+        if self._data_ws is not None:
+            await self._data_ws.close()
         if self.ws is not None:
             await self.ws.close()
         self.closed.set()
@@ -247,6 +268,15 @@ class PhoneClient:
             self._emit("disconnected")
 
     # -- data channels ------------------------------------------------------
+
+    async def _ws_data_loop(self) -> None:
+        assert self._data_ws is not None
+        try:
+            async for raw in self._data_ws:
+                if isinstance(raw, bytes):
+                    self._on_data(raw)
+        except Exception as e:
+            log.info("websocket data channel closed: %s", e)
 
     async def _tcp_loop(self, reader: asyncio.StreamReader) -> None:
         try:

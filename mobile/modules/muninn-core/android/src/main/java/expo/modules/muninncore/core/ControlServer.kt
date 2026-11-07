@@ -1,5 +1,7 @@
 // Control server: the phone advertises `_imuninn._tcp` over NSD (Bonjour) and accepts
 // WebSocket connections carrying ControlMessage (§6.2, §6.7). One `Client` per PC.
+// A second WebSocket whose first frame is WsSink.MAGIC + client_id is a data connection
+// (protocol v5, browsers): it becomes that client's WsSink instead of a Client.
 package expo.modules.muninncore.core
 
 import android.content.Context
@@ -7,6 +9,7 @@ import android.net.nsd.NsdManager
 import android.net.nsd.NsdServiceInfo
 import android.util.Log
 import io.imuninn.proto.ControlMessage
+import io.imuninn.proto.DataMessage
 import org.java_websocket.WebSocket
 import org.java_websocket.handshake.ClientHandshake
 import org.java_websocket.server.WebSocketServer
@@ -21,9 +24,25 @@ class Client(val id: Int, val connection: WebSocket) {
   val subscribed: MutableSet<String> = ConcurrentHashMap.newKeySet()
   val udp = UdpSink()
   @Volatile var tcp: TcpSink? = null
+  @Volatile var ws: WsSink? = null
   @Volatile var isWriter = false
 
   val label: String get() = if (name.isEmpty()) "client-$id" else name
+
+  /** Where video / depth go: the WebSocket data channel if the client opened one, else TCP. */
+  val hasFrameSink: Boolean get() = ws != null || tcp != null
+  val frameDropped: Long get() = (tcp?.dropped ?: 0) + (ws?.dropped ?: 0)
+
+  fun sendFrame(msg: DataMessage, droppable: Boolean, keyframe: Boolean) {
+    val w = ws
+    if (w != null) w.send(msg, droppable, keyframe) else tcp?.send(msg, droppable, keyframe)
+  }
+
+  /** Pose / IMU / health: WebSocket data channel if present, else UDP. */
+  fun sendSample(msg: DataMessage) {
+    val w = ws
+    if (w != null) w.sendSample(msg) else udp.send(msg)
+  }
 }
 
 class ControlServer(private val ctx: Context) {
@@ -32,6 +51,8 @@ class ControlServer(private val ctx: Context) {
   private var server: Server? = null
   private val clientMap = ConcurrentHashMap<Int, Client>()
   private val byConnection = ConcurrentHashMap<WebSocket, Client>()
+  private val pending = ConcurrentHashMap.newKeySet<WebSocket>()   // open, first frame not seen yet
+  private val dataSinks = ConcurrentHashMap<WebSocket, WsSink>()
   private var nextId = 1
   @Volatile var port = 0
     private set
@@ -45,6 +66,8 @@ class ControlServer(private val ctx: Context) {
   var onMessage: ((Client, ControlMessage) -> Unit)? = null
   var onConnect: ((Client) -> Unit)? = null
   var onDisconnect: ((Client) -> Unit)? = null
+  /** A data WebSocket announced itself for `client_id`; return false to reject. */
+  var onAttachWs: ((Int, WsSink) -> Boolean)? = null
 
   private inner class Server(port: Int) : WebSocketServer(InetSocketAddress(port)) {
     override fun onStart() {
@@ -54,24 +77,38 @@ class ControlServer(private val ctx: Context) {
     }
 
     override fun onOpen(conn: WebSocket, handshake: ClientHandshake) {
-      val client = synchronized(this@ControlServer) { Client(nextId++, conn) }
-      clientMap[client.id] = client
-      byConnection[conn] = client
-      onConnect?.invoke(client)
+      // The first frame decides what this connection is (control Hello or data magic).
+      pending.add(conn)
     }
 
     override fun onClose(conn: WebSocket, code: Int, reason: String, remote: Boolean) {
+      pending.remove(conn)
+      dataSinks.remove(conn)?.markClosed()
       val client = byConnection.remove(conn) ?: return
       clientMap.remove(client.id)
       client.udp.disconnect()
       client.tcp?.disconnect()
+      client.ws?.disconnect()
       onDisconnect?.invoke(client)
     }
 
     override fun onMessage(conn: WebSocket, message: String) { /* binary only */ }
 
     override fun onMessage(conn: WebSocket, message: ByteBuffer) {
-      val client = byConnection[conn] ?: return
+      var client = byConnection[conn]
+      if (client == null) {
+        if (!pending.remove(conn)) return   // a data connection: nothing expected after its hello
+        val dataId = WsSink.parseHello(message)
+        if (dataId != null) {
+          val sink = WsSink(conn)
+          if (onAttachWs?.invoke(dataId, sink) == true) dataSinks[conn] = sink else conn.close()
+          return
+        }
+        client = synchronized(this@ControlServer) { Client(nextId++, conn) }
+        clientMap[client.id] = client
+        byConnection[conn] = client
+        onConnect?.invoke(client)
+      }
       val msg = try { ControlMessage.parseFrom(message) } catch (e: Exception) {
         Log.w(TAG, "bad control message: $e"); return
       }
@@ -104,9 +141,12 @@ class ControlServer(private val ctx: Context) {
     val s = server ?: return
     server = null
     try { s.stop(500) } catch (_: Exception) {}
-    for (c in clientMap.values) { c.udp.disconnect(); c.tcp?.disconnect() }
+    for (c in clientMap.values) { c.udp.disconnect(); c.tcp?.disconnect(); c.ws?.disconnect() }
+    for (s in dataSinks.values) s.disconnect()
     clientMap.clear()
     byConnection.clear()
+    pending.clear()
+    dataSinks.clear()
     state = "stopped"
     port = 0
   }

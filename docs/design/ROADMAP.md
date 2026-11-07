@@ -15,7 +15,7 @@
 
 - [x] `host/web/`：浏览器查看器（WebCodecs 视频、LZ4 深度、位姿轨迹、IMU、health），MCAP 拖入回放
 - [x] `imuninn web`：PC 中继（手机 TCP/UDP → 浏览器 WebSocket）+ 静态托管；`--mcap` 回放模式
-- [ ] 手机直出 WebSocket 数据帧（`TRANSPORT_WEBSOCKET`），省掉中继
+- [x] 手机直出 WebSocket 数据帧（协议 v5 `Hello.data_transport`，iOS + Android），浏览器直连手机，中继只用于回放 / 老包
 
 ## M0 状态（2026-11-03）
 

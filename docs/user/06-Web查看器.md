@@ -1,22 +1,28 @@
 # 06 · Web 查看器
 
-浏览器里看手机数据：视频、深度、位姿轨迹、IMU 曲线、设备热状态 / 电量，不用装 Rerun。也能直接拖入 MCAP 文件回放，完全离线。
+浏览器里看手机数据：视频、深度、位姿轨迹、IMU 曲线、设备热状态 / 电量，不用装 Rerun。页面是纯静态文件（`host/web/dist/`），**直接填手机 IP 就能连**（协议 v5），也能拖入 MCAP 文件离线回放。
 
-## 为什么要一个中继
+## 直连手机（推荐）
 
-浏览器开不了裸 TCP / UDP，也不能浏览 Bonjour；而手机的视频 / 深度走 TCP、位姿 / IMU 走 UDP。所以 PC 上跑一个很小的中继 `imuninn web`：它用现成的 `PhoneClient` 连手机，把 `DataMessage` 原样转发到本机的 WebSocket，并顺带托管查看器页面。页面本身是纯静态文件（`host/web/dist/`）。
-
-页面必须以 **http** 打开（中继给的地址）。放到 https 站点上的页面会被浏览器拒绝连接局域网 `ws://`（混合内容），那种情况只能用 MCAP 回放。
-
-## 用法
+浏览器开不了裸 TCP / UDP，所以协议 v5 给了手机一条专给浏览器的路：页面先像 Python 客户端一样连手机的控制 WebSocket（7420）握手，`Hello.data_transport = WEBSOCKET`；再对同一端口开第二条 WebSocket，首帧发 `"IMDATA01"` + 4 字节 `client_id`，之后视频 / 深度 / 位姿 / IMU / health 全部作为二进制 `DataMessage` 帧从这条连接收。数据协议和 Python / C++ 完全相同（页面在运行时用 protobufjs 解析同一个 `imuninn.proto`），只是传输层换成了浏览器能用的 WebSocket；Python / C++ 走的 TCP / UDP 不受影响。
 
 ```bash
 cd host/web && npm install && npm run build      # 一次，生成 host/web/dist
+cd host/web && npm run preview                   # 或任何 http 静态服务器，或 imuninn web --mcap 顺带托管
+```
+
+打开页面，地址栏填 `10.0.0.5`（或 `10.0.0.5:7420`），点"连接"。页面必须以 **http** 打开：https 页面会被浏览器拒绝连接局域网 `ws://`（混合内容）。
+
+## 经 PC 中继（旧包 / 回放）
+
+`imuninn web` 是一个很小的中继：用 `PhoneClient` 连手机，把 `DataMessage` 原样转发到本机 WebSocket，并托管页面。老于 v5 的手机包、或者想让一群浏览器共享一条到手机的连接时用它；`--mcap` 模式不连手机，循环回放录制。
+
+```bash
 imuninn web                                      # 自动发现手机；或 imuninn web <名字或IP> --start
 imuninn web --mcap run1.mcap                     # 不连手机，循环回放一个录制给浏览器
 ```
 
-然后打开 <http://localhost:7430/>，点"连接"。同一局域网的其它电脑 / 平板用 `http://<这台电脑的IP>:7430/` 也能看（多个浏览器可同时连，各自订阅）。
+然后打开 <http://localhost:7430/>，地址栏填 `ws://localhost:7430/ws`，点"连接"。同一局域网的其它电脑 / 平板用 `http://<这台电脑的IP>:7430/` 也能看。
 
 - 顶栏的流开关控制这个浏览器收哪些流（不影响手机端）；"开始采集 / 停止"和"深度"开关（`depth.enabled`，会重启 AR 会话）直接发给手机。
 - 深度色标按每帧的 98 分位自动定量程（右上角显示当前上限），近景不会一片蓝。
@@ -43,6 +49,7 @@ imuninn web --mcap run1.mcap                     # 不连手机，循环回放�
 
 慢的浏览器只影响自己：每个连接一个有界队列，满了就丢。
 
-## 后续：手机直出 WebSocket
+## 后续
 
-协议里已有 `TRANSPORT_WEBSOCKET`，下一步可以让手机在 `Hello` 里看到标志后把数据帧直接发到控制 WebSocket 上，这样浏览器不需要中继（页面仍需 http 托管，可由手机自己提供）。
+- 手机自己托管这几个静态文件（再开一个极小的 HTTP 端口），就不需要 PC 上任何东西。
+- 显示端按重力方向自动把图像转正（数据不变）。
