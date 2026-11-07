@@ -86,11 +86,11 @@ export default function App() {
             ) : (
               <Button title="开始采集" onPress={() => MuninnCore.startSession()} />
             )}
+            {/* Phone-side recording stays available via the protocol (PC: dev.start_recording());
+                the button is hidden until a recordings manager + PC pull/delete exist (ROADMAP TODO). */}
             {status?.recording ? (
               <Button title="停止录制" kind="danger" onPress={() => MuninnCore.stopRecording()} />
-            ) : (
-              <Button title="录制到手机" kind="ghost" disabled={!status?.sessionRunning} onPress={() => MuninnCore.startRecording()} />
-            )}
+            ) : null}
           </View>
         </Card>
 

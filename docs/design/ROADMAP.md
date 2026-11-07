@@ -86,3 +86,20 @@
 - [x] 2026-11-05：`rgb.*` 相机控制参数（曝光/白平衡/对焦/变焦/手电/HDR/低光/防抖）移植到 Camera2，与 iOS 同一参数集；模拟器验证参数通路，HAL 不支持的走回退
 - [ ] ARCore 位姿 + 深度（需真机）
 - [ ] ROS 2 桥接（可选）
+## Rerun 可视化补齐（2026-11-03）
+
+对照设计文档 §7.2 把 `imuninn rerun` 做完整（`host/python/src/imuninn/rerun_bridge.py`）：
+
+- [x] 位姿轨迹（`world/<dev>/trajectory`，按 50 ms / 1 cm 抽稀，上限 2 万点）
+- [x] 视频默认客户端 PyAV 解码（`--video decode`）；`--video stream` 把 H.264 NAL 原样喂给 Viewer（`VideoStream`），但原生 Viewer 靠外部 ffmpeg 解码，1920×1440@60 实测每秒重启一次 ffmpeg、画面卡顿，所以不做默认
+- [x] `--port` 起独立 Viewer，不往 9876 上已有的 Viewer 里灌数据
+- [x] 深度：DepthImage（turbo 色图）+ 置信度图；`--points` 在 PC 端反投影成 Points3D，`--video decode` 时按 RGB 着色
+- [x] 多设备：`imuninn rerun 手机A 手机B`，每台一棵 `world/<dev>` 子树，共享 `pc` 时间轴，各自 `device:<dev>` 时间轴
+- [x] 默认布局（blueprint）：3D + RGB + 深度 + IMU/健康/跟踪曲线（带图例）+ 事件日志；`--no-blueprint` 关闭
+- [x] 事件日志：跟踪状态、热状态、低电量模式、电池状态变化，Gap，配置变更
+- [x] 时间轴：`pc`（实时用时钟同步偏移，回放用 MCAP log_time）、`device`；去掉跨流无序的 `seq`
+- [x] 离线测试：合成 MCAP（含 PyAV 编的 H.264）→ `.rrd`，三种视频模式（`tests/test_rerun_bridge.py`）
+
+## TODO（2026-11-07）
+
+- 手机本机录制：按钮暂时隐藏（协议和 `dev.start_recording()` 仍可用）。待做：手机上的录制管理页（列表 / 大小 / 删除）、PC 端拉取与删除录制文件的协议接口（`ListRecordings` / `FetchRecording` / `DeleteRecording`，走 TCP 数据通道），`imuninn recordings pull` 命令。
