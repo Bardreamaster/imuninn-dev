@@ -1,0 +1,50 @@
+name: web-viewer-pages
+
+# Build host/web and publish it to GitHub Pages at imuninn-webviewer.projects.weijinqi.com.
+# The page must be reachable over plain http (browsers block ws:// to the phone from https),
+# so in the repository's Pages settings leave "Enforce HTTPS" unchecked and keep the DNS
+# record DNS-only (grey cloud) in Cloudflare.
+on:
+  push:
+    branches: [main]
+    paths: ["host/web/**", "docs/design/tokens.css", ".github/workflows/web-viewer-pages.yml"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: host/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: host/web/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: echo "imuninn-webviewer.projects.weijinqi.com" > dist/CNAME
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: host/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
