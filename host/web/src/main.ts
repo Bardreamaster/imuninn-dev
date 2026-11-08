@@ -204,8 +204,9 @@ const live = new LiveSource();
 const phone = new PhoneSource();
 let configVersion = 0;
 const wsUrl = $<HTMLInputElement>("ws-url");
-const defaultWs = location.protocol.startsWith("http") && location.hostname ? `ws://${location.host}/ws` : "";
-wsUrl.value = localStorage.getItem("imuninn.ws") || defaultWs;
+// A ws:// URL still selects the relay-style JSON source (kept for replay tooling), but the
+// default and all user-facing text are the phone's address.
+wsUrl.value = localStorage.getItem("imuninn.ws") || "";
 const isRelayUrl = (v: string) => /^wss?:\/\//.test(v);
 const activeOpen = () => live.open || phone.open;
 let liveHasLidar = false;
