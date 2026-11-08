@@ -12,7 +12,7 @@ export default defineConfig({
     starlight({
       title: "iMuninn",
       logo: { light: "./src/assets/wordmark-light.svg", dark: "./src/assets/wordmark-dark.svg", replacesTitle: true, alt: "iMuninn" },
-      components: { SocialIcons: "./src/components/SocialIcons.astro" },
+      components: { Header: "./src/components/Header.astro" },
       description: "iPhone 作为机器人传感器：相机、IMU、ARKit 位姿、LiDAR 深度",
       defaultLocale: "root",
       locales: {

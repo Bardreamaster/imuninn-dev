@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="120 200 2600 630" role="img" aria-label="iMuninn">
-  <!-- iMuninn 字标：与 App 图标同一几何（i + 录制环、M），加同笔画的 uninn（平顶弧，不是半圆）。tokens: text / err -->
+  <!-- iMuninn 字标：与 App 图标同一几何（i + 录制环、M），加同笔画的 uninn。tokens: text / err -->
   <rect x="166" y="412" width="120" height="364" rx="60" fill="#1F2328"/>
   <g fill="none" stroke="#1F2328" stroke-width="108" stroke-linecap="round" stroke-linejoin="round">
   <path d="M404 722V302L596 566L788 302V722"/>
-  <path d="M960 466V640C960 712 1196 712 1196 640V466M1196 466V722"/>
-  <path d="M1368 722V466M1368 548C1368 476 1604 476 1604 548V722"/>
+  <path d="M960 466V622C960 690 1196 690 1196 622V466"/>
+  <path d="M1368 722V466M1368 566C1368 498 1604 498 1604 566V722"/>
   <path d="M1776 466V722"/>
-  <path d="M1948 722V466M1948 548C1948 476 2184 476 2184 548V722"/>
-  <path d="M2356 722V466M2356 548C2356 476 2592 476 2592 548V722"/>
+  <path d="M1948 722V466M1948 566C1948 498 2184 498 2184 566V722"/>
+  <path d="M2356 722V466M2356 566C2356 498 2592 498 2592 566V722"/>
   </g>
   <circle cx="226" cy="320" r="66" fill="none" stroke="#CE2930" stroke-width="12"/>
   <circle cx="226" cy="320" r="38" fill="#CE2930"/>

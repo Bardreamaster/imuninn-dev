@@ -1,0 +1,40 @@
+---
+// Header: wordmark, section links (Docs, Web viewer ↗), then search and the controls on the right.
+import { Icon } from "@astrojs/starlight/components";
+import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
+import Search from "@astrojs/starlight/components/Search.astro";
+import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
+import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
+import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
+const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
+const en = lang.startsWith("en");
+const docs = { label: en ? "Docs" : "文档", href: en ? "/en/start/overview/" : "/start/overview/" };
+const viewer = { label: en ? "Web viewer" : "Web 查看器", href: "http://imuninn-webviewer.projects.weijinqi.com" };
+---
+<div class="header sl-flex">
+  <div class="title-wrapper sl-flex">
+    <SiteTitle />
+  </div>
+  <nav class="top-links sl-flex" aria-label={en ? "Sections" : "栏目"}>
+    <a href={docs.href}>{docs.label}</a>
+    <a href={viewer.href} target="_blank" rel="noopener">{viewer.label}<Icon name="external" size="0.9em" /></a>
+  </nav>
+  <div class="sl-flex right-group">
+    <div class="sl-flex search-slot"><Search /></div>
+    <div class="sl-hidden md:sl-flex social-icons"><SocialIcons /></div>
+    <ThemeSelect />
+    <LanguageSelect />
+  </div>
+</div>
+
+<style>
+  .header { gap: var(--sl-nav-gap); justify-content: space-between; align-items: center; height: 100%; }
+  .title-wrapper { overflow: clip; padding: 0.25rem; margin: -0.25rem; min-width: 0; }
+  .top-links { gap: 1.25rem; align-items: center; margin-inline-start: 0.5rem; flex: 1; }
+  .top-links a { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--sl-color-gray-2); text-decoration: none; font-size: var(--sl-text-sm); font-weight: 500; white-space: nowrap; }
+  .top-links a:hover { color: var(--sl-color-white); }
+  .right-group { gap: 1rem; align-items: center; }
+  .search-slot { max-width: 22rem; margin-inline-end: 0.5rem; }
+  .social-icons::after { content: ""; height: 2rem; border-inline-end: 1px solid var(--sl-color-gray-5); }
+  @media (max-width: 50rem) { .top-links { display: none; } }
+</style>
