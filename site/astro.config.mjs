@@ -1,10 +1,13 @@
 // @ts-check
 import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
+import { existsSync, readdirSync } from "node:fs";
 
 // Content is generated from ../docs by scripts/sync-docs.mjs (npm run sync).
 // Chinese is the root locale; English pages live under docs/en and fall back to Chinese.
-const group = (label, en, directory) => ({ label, translations: { en }, items: [{ autogenerate: { directory } }] });
+// A section exists when ../docs/<dir> has at least one page; the public mirror omits some sections.
+const hasPages = (dir) => existsSync(`../docs/${dir}`) && readdirSync(`../docs/${dir}`).some((f) => f.endsWith(".md") && f !== "README.md");
+const group = (label, en, directory) => hasPages(directory) ? { label, translations: { en }, items: [{ autogenerate: { directory } }] } : null;
 
 export default defineConfig({
   site: "https://imuninn.projects.weijinqi.com",
@@ -38,7 +41,7 @@ export default defineConfig({
         group("开发者", "Developers", "dev"),
         group("Agent", "Agents", "agents"),
         group("设计", "Design", "design"),
-      ],
+      ].filter(Boolean),
       customCss: ["./src/styles/custom.css"],
     }),
   ],

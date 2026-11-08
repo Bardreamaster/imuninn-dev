@@ -22,8 +22,11 @@ EXCLUDE=(
   --exclude .expo --exclude 'mobile/ios' --exclude 'mobile/android/build' --exclude 'host/cpp/gen'
   --exclude 'mobile/modules/muninn-core/ios/Generated' --exclude 'mobile/modules/muninn-core/android/src/main/java/generated'
   --exclude '*.mcap' --exclude '*.rrd' --exclude '*.csv' --exclude '.DS_Store'
-  --exclude 'docs/design/longrun-*/*.json' --exclude 'docs/design/longrun-*/*.csv' --exclude 'docs/design/longrun-*/*.png'
   --exclude 'site/src/content/docs' --exclude 'site/public/images'
+  # Not public yet (user decision 2026-11-08): the developer and design sections, the agent
+  # repo conventions, and the long-run raw data. Design *assets* (tokens, icons) stay: builds need them.
+  --exclude 'docs/dev' --exclude 'docs/design/longrun-*' --include 'docs/design/tokens.json' --exclude 'docs/design/*.md' --exclude 'docs/design/*.png' --exclude 'docs/design/*.jpg' --exclude 'docs/design/*.json'
+  --exclude 'docs/agents/AGENTS.md' --exclude 'docs/AGENTS.md'
 )
 
 [ -d "$DEST/.git" ] || { echo "$DEST is not a git clone (git clone git@github.com:Bardreamaster/imuninn.git $DEST)"; exit 1; }

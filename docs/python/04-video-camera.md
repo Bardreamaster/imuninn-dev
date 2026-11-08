@@ -68,7 +68,7 @@ for frame in dev.iter("rgb"):
 
 ## 本机录制
 
-PC 端 `dev.start_recording()` / `dev.stop_recording()`（手机界面上的按钮暂时隐藏，等录制管理页做好再放出来）。文件在手机 `Documents/recordings/<时间>.imuninn`（Finder → iPhone → 文件 → iMuninn 可以拷出来），格式是 `IMUNINN1` 魔数 + 连续的 `uint32 LE 长度 + DataMessage`，和 TCP 流一样；`imuninn convert x.imuninn` 转成 MCAP。通常直接在 PC 上 `imuninn record` 更方便。
+PC 端 `dev.start_recording()` / `dev.stop_recording()`（手机界面上没有对应按钮）。文件在手机 `Documents/recordings/<时间>.imuninn`（Finder → iPhone → 文件 → iMuninn 可以拷出来），格式是 `IMUNINN1` 魔数 + 连续的 `uint32 LE 长度 + DataMessage`，和 TCP 流一样；`imuninn convert x.imuninn` 转成 MCAP。通常直接在 PC 上 `imuninn record` 更方便。
 
 ## 实测（iPhone 17 Pro ↔ MacBook，Wi‑Fi）
 

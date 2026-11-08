@@ -10,8 +10,7 @@
 | C++ 库 | [`cpp/`](cpp/) | 无依赖的 C++ 客户端与延迟测试 |
 | 协议 | [`../protocol/README.md`](../protocol/README.md)、[`protocol/`](protocol/) | 协议规范、消息参考（生成）、`imuninn.proto` |
 | 手机端 | [`phone/`](phone/) | iOS App 界面与参数、Android 版 |
-| 开发者 | [`dev/`](dev/) | 环境、构建、常见问题、架构、Android、相机坐标系、发版、Python 包开发 |
-| Agent | [`agents/`](agents/) | AGENTS.md 仓库约定、MCP server |
-| 设计 | [`design/`](design/) | 设计文档、设计风格与 token、路线图、长时测试报告 |
+| Agent | [`agents/`](agents/) | MCP server（AGENTS.md 仓库约定暂未公开） |
+| 开发者、设计 | `dev/`、`design/` | 暂未公开；`design/` 里只公开 token 与图标等构建要用的资源 |
 
 生成的页面（`python/07-cli.md`、`python/08-api.md`、`protocol/messages.md`）由 `tools/gen-docs.py` 写出并提交，CI 检查它们和代码一致；不要手改。
