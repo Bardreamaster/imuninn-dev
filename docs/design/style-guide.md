@@ -116,7 +116,7 @@ iMuninn 把手机变成传感器服务器：相机、深度、IMU、AR 位姿通
 | 深色（默认） | `bg` 深色 #0C1015 | `text` 深色 #E5ECF2 | `err` 深色 #F85149 | `docs/design/icons/imuninn-icon-dark.svg` |
 | 浅色 | #FFFFFF | `text` 浅色 #1F2328 | `err` 浅色 #CE2930 | `docs/design/icons/imuninn-icon-light.svg` |
 
-原稿是 1024×1024 方形，iOS 会自己裁圆角。**字标**（`docs/design/icons/imuninn-wordmark-{dark,light}.svg`）用真实字体 Inter Bold（SIL OFL）的轮廓排出 iMuninn，只把第一个 i 的点换成录制环（环顶对齐大写高度，环径等于字体自身的 i 点）；由 `tools/gen-wordmark.py --font Inter-Bold.otf` 生成，字体文件不入库。文档站左上角用它替代文字标题。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
+原稿是 1024×1024 方形，iOS 会自己裁圆角。**字标**（`docs/design/icons/imuninn-wordmark-{dark,light}.svg`）：图标的 i（竖笔 + 录制环）和 M 原样，`uninn` 用同一笔画（108、圆头）画成纯 U 形和 n 形（弧顶落在 x 高度线上，字宽 = M 腿距），第二个 i 用实心点。备选：`tools/gen-wordmark.py --font Inter-Bold.otf` 用真实字体轮廓生成。文档站左上角用它替代文字标题。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
 
 ### 6.2 界面图标
 
