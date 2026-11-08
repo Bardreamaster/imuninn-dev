@@ -40,7 +40,7 @@ function statusFromSource(s: string): void {
 }
 video.onError = (e) => log(`video decode error: ${e}`);
 applyLang();
-$("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); };
+$("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); renderedRunning = null; };
 if (!webCodecsAvailable()) log(t("no_webcodecs"));
 if (location.protocol === "https:") {
   const hint = $("https-hint");
@@ -186,6 +186,7 @@ function frame(): void {
   $("pose-text").textContent = lastPoseText;
   $("health").innerHTML = healthText;
   renderStats();
+  renderCaptureButton();
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
@@ -277,8 +278,27 @@ $("btn-connect").onclick = () => {
   localStorage.setItem("imuninn.ws", target);
   if (isRelayUrl(target)) live.connect(target); else phone.connect(target);
 };
-$("btn-start").onclick = () => { if (phone.open) phone.start(); else live.start(); };
-$("btn-stop").onclick = () => { if (phone.open) phone.stop(); else live.stop(); };
+// One button like the phone app: "start" while nothing flows, "stop" while it does.
+let captureRunning = false;
+let captureOptimisticUntil = 0;
+let renderedRunning: boolean | null = null;
+function dataFlowing(): boolean { return ["rgb", "ar_pose", "imu", "depth"].some((id) => (stats[id]?.hz ?? 0) > 0); }
+function renderCaptureButton(): void {
+  const running = dataFlowing() || performance.now() < captureOptimisticUntil;
+  if (running === renderedRunning) return;
+  renderedRunning = running;
+  captureRunning = running;
+  const b = $<HTMLButtonElement>("btn-start");
+  b.textContent = running ? t("stop") : t("start");
+  b.className = `btn ${running ? "danger" : "primary"}`;
+}
+$("btn-start").onclick = () => {
+  const src = phone.open ? phone : live;
+  if (captureRunning) { src.stop(); captureOptimisticUntil = 0; for (const s of Object.values(stats)) s.reset(); }
+  else { src.start(); captureOptimisticUntil = performance.now() + 2000; }
+  renderedRunning = null;
+  renderCaptureButton();
+};
 $<HTMLSelectElement>("mode").onchange = async (e) => {
   const m = (e.target as HTMLSelectElement).value;
   if (phone.open) {

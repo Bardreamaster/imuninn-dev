@@ -6,6 +6,7 @@
   --r-xs: 6px; --r-sm: 8px; --r-md: 10px; --r-lg: 12px; --r-pill: 14px; --r-chip: 16px;
 }
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.4 system-ui, -apple-system, "PingFang SC", "Segoe UI", Roboto, sans-serif; }
 .num, .stat-value, .pill, .overlay, .caption, #time-label, pre { font-variant-numeric: tabular-nums; }
 
