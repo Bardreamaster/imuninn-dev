@@ -116,7 +116,7 @@ iMuninn 把手机变成传感器服务器：相机、深度、IMU、AR 位姿通
 | 深色（默认） | `bg` 深色 #0C1015 | `text` 深色 #E5ECF2 | `err` 深色 #F85149 | `docs/design/icons/imuninn-icon-dark.svg` |
 | 浅色 | #FFFFFF | `text` 浅色 #1F2328 | `err` 浅色 #CE2930 | `docs/design/icons/imuninn-icon-light.svg` |
 
-原稿是 1024×1024 方形，iOS 会自己裁圆角。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
+原稿是 1024×1024 方形，iOS 会自己裁圆角。**字标**（`docs/design/icons/imuninn-wordmark-{dark,light}.svg`）用同一几何：i + 录制环、M，再加同笔画（108）的 `uninn`，小写 x 高度 = i 竖笔高度，第二个 i 用实心点；文档站左上角用它替代文字标题。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
 
 ### 6.2 界面图标
 

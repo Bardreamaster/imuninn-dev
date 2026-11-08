@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="120 200 2800 630" role="img" aria-label="iMuninn">
+  <!-- iMuninn 字标：与 App 图标同一几何（i + 录制环、M），加同笔画的 uninn。tokens: text / err -->
+  <rect x="166" y="412" width="120" height="364" rx="60" fill="#E5ECF2"/>
+  <g fill="none" stroke="#E5ECF2" stroke-width="108" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M404 722V302L596 566L788 302V722"/>
+  <path d="M968 466V584a138 138 0 0 0 276 0V466M1244 466V722"/>
+  <path d="M1424 722V466M1424 604a138 138 0 0 1 276 0V722"/>
+  <path d="M1880 466V722"/>
+  <path d="M2060 722V466M2060 604a138 138 0 0 1 276 0V722"/>
+  <path d="M2516 722V466M2516 604a138 138 0 0 1 276 0V722"/>
+  </g>
+  <circle cx="226" cy="320" r="66" fill="none" stroke="#F85149" stroke-width="12"/>
+  <circle cx="226" cy="320" r="38" fill="#F85149"/>
+  <circle cx="1880" cy="320" r="54" fill="#E5ECF2"/>
+</svg>

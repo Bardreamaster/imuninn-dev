@@ -10,3 +10,6 @@
   --sl-color-accent: oklch(57.0% 0.200 260);
   --sl-color-accent-high: oklch(40% 0.17 260);
 }
+
+/* Wordmark in the header: a little taller than the default logo slot. */
+.site-title img { height: 1.6rem; width: auto; }
