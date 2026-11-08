@@ -112,6 +112,25 @@ def convert(src: str | Path, dst: str | Path) -> int:
 
 def replay(path: str | Path, realtime: bool = False, topics: list[str] | None = None) -> Iterator[tuple[str, object]]:
     """Yield (stream_id, sample) from an MCAP file. `realtime=True` sleeps to reproduce timing."""
+    for stream, sample, _ in replay_timed(path, realtime=realtime, topics=topics):
+        yield stream, sample
+
+
+def read_device_info(path: str | Path) -> pb.DeviceInfo | None:
+    """The DeviceInfo written at the start of a live recording (None for converted phone files)."""
+    from mcap.reader import make_reader  # type: ignore
+
+    with open(path, "rb") as f:
+        for schema, channel, message in make_reader(f).iter_messages(topics=["/device"]):
+            info = pb.DeviceInfo()
+            info.ParseFromString(message.data)
+            return info
+    return None
+
+
+def replay_timed(path: str | Path, realtime: bool = False, topics: list[str] | None = None) -> Iterator[tuple[str, object, int]]:
+    """Yield (stream_id, sample, log_time_ns): log_time is PC wall clock for live recordings,
+    device time for files converted from phone-side recordings."""
     from mcap_protobuf.decoder import DecoderFactory  # type: ignore
     from mcap.reader import make_reader  # type: ignore
 
@@ -138,7 +157,7 @@ def replay(path: str | Path, realtime: bool = False, topics: list[str] | None = 
             else:
                 sample = decoded
             stream = sample.header.stream_id if hasattr(sample, "header") else channel.topic.strip("/")
-            yield stream, sample
+            yield stream, sample, message.log_time
 
 
 def summary(path: str | Path) -> dict[str, int]:

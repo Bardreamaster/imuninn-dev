@@ -99,6 +99,7 @@
 - [x] 位姿轨迹（`world/<dev>/trajectory`，按 50 ms / 1 cm 抽稀，上限 2 万点）
 - [x] 视频默认客户端 PyAV 解码（`--video decode`）；`--video stream` 把 H.264 NAL 原样喂给 Viewer（`VideoStream`），但原生 Viewer 靠外部 ffmpeg 解码，1920×1440@60 实测每秒重启一次 ffmpeg、画面卡顿，所以不做默认
 - [x] `--port` 起独立 Viewer，不往 9876 上已有的 Viewer 里灌数据
+- [x] `--buffer-ms` 播放缓冲：按设备时间排序、延后释放，抹平 Wi‑Fi 到达抖动（实测 Wi‑Fi ping 110 ms 时帧成簇到达，是 RGB 卡顿的第二个原因）
 - [x] 深度：DepthImage（turbo 色图）+ 置信度图；`--points` 在 PC 端反投影成 Points3D，`--video decode` 时按 RGB 着色
 - [x] 多设备：`imuninn rerun 手机A 手机B`，每台一棵 `world/<dev>` 子树，共享 `pc` 时间轴，各自 `device:<dev>` 时间轴
 - [x] 默认布局（blueprint）：3D + RGB + 深度 + IMU/健康/跟踪曲线（带图例）+ 事件日志；`--no-blueprint` 关闭

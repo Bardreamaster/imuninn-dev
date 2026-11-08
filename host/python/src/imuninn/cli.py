@@ -51,13 +51,6 @@ def main(argv: list[str] | None = None) -> None:
     cv.add_argument("input")
     cv.add_argument("-o", "--output", default=None)
 
-    web = sub.add_parser("web", help="serve the browser viewer and relay phone data to it over WebSocket")
-    add_target(web)
-    web.add_argument("--mcap", default=None, help="replay this MCAP file to the browser instead of connecting to a phone")
-    web.add_argument("--host", default="0.0.0.0", help="bind address (default: all interfaces)")
-    web.add_argument("--port", type=int, default=7430)
-    web.add_argument("--static", default=None, help="viewer build directory (default: host/web/dist)")
-
     info = sub.add_parser("info", help="message counts per topic in an MCAP file")
     info.add_argument("input")
 
@@ -89,13 +82,6 @@ def main(argv: list[str] | None = None) -> None:
         print(f"wrote {n} messages to {out}")
     elif args.cmd == "profile":
         _profile(args)
-    elif args.cmd == "web":
-        from . import web as web_mod
-
-        if args.mcap:
-            web_mod.main_mcap(args.mcap, args.host, args.port, args.static)
-        else:
-            web_mod.main_live(args.target, args.host, args.port, args.start, args.static)
     elif args.cmd == "info":
         from .mcap_io import summary
 
