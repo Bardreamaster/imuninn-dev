@@ -11,8 +11,11 @@ const config: ExpoConfig = {
     bundleIdentifier: "com.weijinqi.projects.imuninn",
     appleTeamId: "NHCF5WN8GK",
     supportsTablet: false,
+    buildNumber: "1",
     // Keep screen on while streaming; background capture is a platform limit (§11).
     infoPlist: {
+      // Only Apple-provided TLS/none: no export-compliance questions on each upload.
+      ITSAppUsesNonExemptEncryption: false,
       UIRequiresFullScreen: true,
       // Lists the app under Settings > iMuninn > Language (iOS per-app language);
       // the in-app picker (src/ui/i18n.ts) overrides it when set.
