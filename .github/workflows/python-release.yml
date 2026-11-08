@@ -21,16 +21,17 @@ jobs:
         working-directory: host/python
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - uses: astral-sh/setup-uv@v5
       - name: Tag matches pyproject version
         if: startsWith(github.ref, 'refs/tags/python-v')
         run: |
           tag="${GITHUB_REF_NAME#python-v}"
           ver=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
           [ "$tag" = "$ver" ] || { echo "tag $tag != pyproject version $ver"; exit 1; }
-      - run: uv pip install --system -e ".[dev,mcap,video]" && python -m pytest -q
+      - run: uv venv .venv && uv pip install -p .venv/bin/python -e ".[dev,mcap,video]" && .venv/bin/python -m pytest -q
       - run: uv build
       - uses: actions/upload-artifact@v4
         with:
