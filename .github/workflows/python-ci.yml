@@ -59,12 +59,13 @@ jobs:
 
   generated-docs:
     # docs/python/07-cli.md, 08-api.md and docs/protocol/messages.md are written by tools/gen-docs.py.
+    # Python 3.13 like the machine that generates them: argparse help formatting differs between minors.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
       - run: uv venv .venv && uv pip install -p .venv/bin/python -e "host/python[dev]"
       - run: .venv/bin/python tools/gen-docs.py && git diff --exit-code -- docs/python/07-cli.md docs/python/08-api.md docs/protocol/messages.md
