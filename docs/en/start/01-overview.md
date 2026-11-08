@@ -7,7 +7,7 @@ iMuninn turns an iPhone into a sensor node on your network: camera (H.264), IMU,
 | Way | Good for | Start here |
 | --- | --- | --- |
 | **Python package** `imuninn` | Scripts, datasets, robot stacks, Rerun visualisation, MCAP recording, an MCP server for agents | [Install](../python/01-install.md) → [Quick start](../python/02-quickstart.md) |
-| **Web viewer** | A quick look at the picture and the plots, nothing to install, tablets too | [Web viewer](../../web/01-web-viewer.md) |
+| **Web viewer** | A quick look at the picture and the plots: Safari opens the online page; Chrome uses `imuninn web` locally | [Web viewer](../../web/01-web-viewer.md) |
 | **C++ library** | Real-time control programs that link it directly | [C++ client](../../cpp/01-cpp-client.md) |
 
 All three receive the same messages (`imuninn.proto`); only the transport differs: Python / C++ use TCP + UDP, browsers use WebSocket.

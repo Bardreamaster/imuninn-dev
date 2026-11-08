@@ -59,7 +59,7 @@ build-backend = "hatchling.build"
 # src/imuninn/proto/ holds the generated protobuf bindings and a copy of imuninn.proto
 # (both written by tools/gen-proto.sh and committed), so installs never need protoc and
 # users / agents can read the message definitions from the installed package.
-artifacts = ["src/imuninn/proto/*_pb2.py", "src/imuninn/proto/*_pb2.pyi"]
+artifacts = ["src/imuninn/proto/*_pb2.py", "src/imuninn/proto/*_pb2.pyi", "src/imuninn/web_static/**"]  # web_static: built by tools/build-web.sh, not in git
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/imuninn"]

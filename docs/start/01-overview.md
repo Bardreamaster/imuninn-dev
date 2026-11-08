@@ -7,7 +7,7 @@ iMuninn 把 iPhone 变成网络上的一个传感器节点：相机（H.264）�
 | 方式 | 适合 | 从哪开始 |
 | --- | --- | --- |
 | **Python 包** `imuninn` | 写脚本、采数据集、接机器人栈、Rerun 可视化、录 MCAP、给 agent 用的 MCP | [安装](../python/01-install.md) → [快速开始](../python/02-quickstart.md) |
-| **Web 查看器** | 随手看一眼画面和曲线，不装任何东西，平板也行 | [Web 查看器](../web/01-web-viewer.md) |
+| **Web 查看器** | 随手看一眼画面和曲线：Safari 直接开在线页面；Chrome 用 `imuninn web` 从本机打开 | [Web 查看器](../web/01-web-viewer.md) |
 | **C++ 库** | 实时控制程序直接链接 | [C++ 客户端](../cpp/01-cpp-client.md) |
 
 三者收到的是同一套消息（`imuninn.proto`），只是传输层不同：Python / C++ 走 TCP + UDP，浏览器走 WebSocket。

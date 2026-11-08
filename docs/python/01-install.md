@@ -17,7 +17,7 @@ Python 3.10 及以上。推荐用 [uv](https://docs.astral.sh/uv/)：`uv pip ins
 | `mcp` | `imuninn-mcp`，让 agent 直接操作手机 | mcp、Pillow |
 | `all` | 以上全部 | |
 
-核心依赖只有 protobuf、websockets、zeroconf、numpy、lz4、pyyaml。
+核心依赖只有 protobuf、websockets、zeroconf、numpy、lz4、pyyaml。浏览器查看器（`imuninn web`）包含在核心里，是一组静态文件，从 localhost 托管后直连手机。
 
 ## 从源码安装
 

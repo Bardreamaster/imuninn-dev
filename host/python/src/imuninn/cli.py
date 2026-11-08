@@ -61,6 +61,12 @@ def build_parser() -> argparse.ArgumentParser:
     cv.add_argument("input")
     cv.add_argument("-o", "--output", default=None)
 
+    web = sub.add_parser("web", help="serve the browser viewer at http://localhost:7430 (it connects straight to the phone)")
+    web.add_argument("--port", type=int, default=7430)
+    web.add_argument("--host", default="127.0.0.1", help="bind address; keep localhost so the browser treats the page as secure")
+    web.add_argument("--no-open", action="store_true", help="do not open the default browser")
+    web.add_argument("--static", default=None, help="serve this directory instead of the packaged viewer")
+
     info = sub.add_parser("info", help="message counts per topic in an MCAP file")
     info.add_argument("input")
 
@@ -98,6 +104,10 @@ def main(argv: list[str] | None = None) -> None:
         print(f"wrote {n} messages to {out}")
     elif args.cmd == "profile":
         _profile(args)
+    elif args.cmd == "web":
+        from .web import serve
+
+        serve(args.host, args.port, open_browser=not args.no_open, directory=args.static)
     elif args.cmd == "info":
         from .mcap_io import summary
 

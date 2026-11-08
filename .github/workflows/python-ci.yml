@@ -3,9 +3,9 @@ name: python-ci
 on:
   push:
     branches: [main]
-    paths: ["host/python/**", "protocol/**", "tools/gen-docs.py", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
+    paths: ["host/python/**", "host/web/**", "protocol/**", "tools/gen-docs.py", "tools/build-web.sh", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
   pull_request:
-    paths: ["host/python/**", "protocol/**", "tools/gen-docs.py", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
+    paths: ["host/python/**", "host/web/**", "protocol/**", "tools/gen-docs.py", "tools/build-web.sh", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
 
 jobs:
   test:
@@ -30,6 +30,11 @@ jobs:
           uv pip install -p .venv/bin/python -e ".[dev,mcap,video]" twine
       - name: Test
         run: python -m pytest -q
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the browser viewer into the package
+        run: ../../tools/build-web.sh && test -f src/imuninn/web_static/index.html
       - name: Build
         run: uv build
       - name: Check metadata

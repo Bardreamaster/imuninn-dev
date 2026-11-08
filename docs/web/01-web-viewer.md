@@ -1,17 +1,33 @@
 # Web 查看器
 
-浏览器里看手机数据：视频、深度、位姿轨迹、IMU 曲线、热状态 / 电量，什么都不用装，平板也行。页面是纯静态文件，直接连手机（协议 v5），也能拖入 MCAP 文件离线回放。
+浏览器里看手机数据：视频、深度、位姿轨迹、IMU 曲线、热状态 / 电量。页面是纯静态文件，直接连手机（协议 v5），也能拖入 MCAP 文件离线回放。
 
-## 打开
+## 在线页面
 
-| 入口 | 用途 |
-| --- | --- |
-| `http://imuninn-webviewer.projects.weijinqi.com` | 公开托管的页面（注意是 **http**，见下） |
-| 自己构建 | `cd host/web && npm install && npm run build`，用任何 http 静态服务器托开 `dist/` |
+**<https://imuninn-webviewer.projects.weijinqi.com>**
 
-地址栏填手机地址（`10.0.0.5` 或 `10.0.0.5:7420`，在手机 App 的「服务」卡片里），点「连接」。
+- **Safari（macOS / iPadOS / iOS）可以直接用**：打开页面，地址栏填手机 App「服务」卡片里显示的地址（如 `10.0.0.5`），点「连接」。
+- **Chrome / Edge 连不上手机**：出于安全策略，公网页面不能访问局域网地址，也拿不到视频解码器。用下面两种方式之一。
+- 离线回放 MCAP 在任何浏览器里都能用。
 
-**页面必须以 http 打开**：浏览器禁止 https 页面连局域网的 `ws://`（混合内容规则），所以公开页面只提供 http；如果浏览器自动跳到了 https，手动改回 http。离线回放 MCAP 不受此限制。
+## Chrome / Edge：本地起一个
+
+```bash
+pip install imuninn
+imuninn web                 # 在 http://localhost:7430 托管同一页面并打开浏览器
+```
+
+从 `localhost` 打开时浏览器把页面当作可信来源：视频能解码，也允许连局域网里的手机。页面本身仍然直连手机，这台电脑只负责提供页面。
+
+:::caution[Chrome / Edge 的另一种办法：改浏览器 flag]
+打开 `chrome://flags/#unsafely-treat-insecure-origin-as-secure`，填入 `http://imuninn-webviewer.projects.weijinqi.com`，重启浏览器，然后用 **http://** 打开在线页面。这会让浏览器把该站点当作安全来源，连接手机时会弹一次「允许访问本地网络」的提示。这是开发者选项，只建议在自己的电脑上用。
+:::
+
+## 为什么会这样
+
+- Chrome / Edge 的 Local Network Access 规则：公网来源的 http 页面禁止访问 `10.x` / `192.168.x` 等局域网地址；https 页面可以申请权限，但又被混合内容规则禁止连 `ws://`。
+- WebCodecs（H.264 解码）只在安全上下文提供：`https://`、`http://localhost`。
+- Safari 目前两条限制都没有；Firefox 能连但没有 WebCodecs，视频面板会空着。
 
 ## 直连手机是怎么工作的
 
@@ -19,21 +35,22 @@
 
 ## 界面
 
-- 顶栏的流开关控制这个浏览器收哪些流（不影响手机端）；「开始采集 / 停止」、「AR 模式 / 相机模式」和「深度」开关直接发给手机。深度只有 AR 模式才有，相机模式下开关置灰。
-- 「画面」：自动（按重力把图像转正，AR 模式用位姿、相机模式用 IMU）/ 竖屏 / 横屏左 / 横屏右 / 倒置。只改显示，发出去和录下来的数据仍是传感器原始方向。
-- 位姿面板是 3D 视图：轨迹、当前相机视锥、1 m 地面网格、世界坐标轴（ARKit 世界系，Y 向上）；拖动旋转，滚轮缩放，双击回到自动视距。
+- 顶栏的流开关控制这个浏览器收哪些流（不影响手机端）；「开始采集 / 停止」和「深度」开关直接发给手机。
 - 深度色标按每帧 98 分位自动定量程（右上角显示上限）。
 - 「打开 MCAP」或把 `.mcap` 拖到页面上：本地回放，支持播放 / 暂停、拖动进度、倍速。
-- 面板右上角显示实测频率、计数和按 `seq` 检测的丢帧数。右上角「中 / EN」切换界面语言，记住选择。
+- 面板右上角显示实测频率、计数和按 `seq` 检测的丢帧数。
 
-真机实测（iPhone 17 Pro，Wi‑Fi，Chromium）：1920×1440@60 H.264 在浏览器里解码显示 60 fps，位姿 60 Hz、IMU 100 Hz、LiDAR 深度 60 Hz 同时显示；直连 WebSocket 20 s 内视频只丢 5 帧（经 TCP 且深度全开时丢得更多，见协议说明）。
+真机实测（iPhone 17 Pro，Wi‑Fi）：1920×1440@60 H.264 在浏览器里解码显示 60 fps，位姿 60 Hz、IMU 100 Hz、LiDAR 深度 60 Hz 同时显示。
 
 ## 浏览器要求
 
-- 视频解码用 WebCodecs（H.264 Annex‑B 直接喂 `VideoDecoder`）：Chrome / Edge 94+、Safari 16.4+；Firefox 目前不完整，视频面板会空着，其它流正常。
+- 视频解码用 WebCodecs（H.264 Annex‑B 直接喂 `VideoDecoder`）：Chrome / Edge 94+（需 localhost 或 https）、Safari 16.4+。
 - 深度是 Apple 分块 LZ4，页面里用一个小的 JS 解码器解；MCAP 的 zstd 分块用 `fzstd`。
-- 3D 位姿视图用 Canvas 2D 自己投影，没有 WebGL 依赖。
+- 位姿只画俯视 X–Z 轨迹和朝向（ARKit 坐标，Y 向上），不做 3D。
 
-## 和 Python 包的关系
+## 自己构建
 
-Web 查看器不在 `imuninn` Python 包里（以前的 `imuninn web` 中继已删除）。要在 PC 上录制、做数据集或接程序，用 [Python 包](../python/02-quickstart.md)。
+```bash
+cd host/web && npm install && npm run build      # 生成 host/web/dist
+imuninn web --static host/web/dist               # 或任何静态服务器，从 localhost 打开
+```

@@ -19,6 +19,8 @@ pip install "imuninn[all]"       # + video decoding, MCAP, Rerun, MCP server
 | `rerun` | `imuninn rerun` live viewer and MCAP playback | rerun-sdk, PyAV |
 | `mcp` | `imuninn-mcp`, an MCP server so agents can drive the phone | mcp, Pillow |
 
+The browser viewer (`imuninn web`) is part of the core package: a static page served from localhost that connects straight to the phone.
+
 Python 3.10+. The phone needs the iMuninn app (iOS; Android camera-only) on the same network, or a USB cable (iPhone shares a link-local network over USB).
 
 ## Quick start
@@ -48,6 +50,7 @@ imuninn rerun --start --depth                # Rerun viewer: pose, trajectory, v
 imuninn record -o run1.mcap                  # record every stream to MCAP
 imuninn rerun --mcap run1.mcap               # play it back
 imuninn profile apply dataset                # built-in YAML preset
+imuninn web                                  # browser viewer at http://localhost:7430 (video, depth, pose, IMU)
 imuninn-mcp                                  # MCP server (stdio) for agents
 ```
 

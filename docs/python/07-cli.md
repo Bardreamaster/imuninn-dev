@@ -6,7 +6,7 @@ Every command that talks to a phone takes an optional `target`: a Bonjour name, 
 
 ```
 usage: imuninn [-h] [--version]
-               {list,watch,rerun,record,convert,info,profile} ...
+               {list,watch,rerun,record,convert,web,info,profile} ...
 ```
 
 ## imuninn list
@@ -121,6 +121,23 @@ positional arguments:
 options:
   -h, --help           show this help message and exit
   -o, --output OUTPUT
+```
+
+## imuninn web
+
+serve the browser viewer at http://localhost:7430 (it connects straight to the phone)
+
+```
+usage: imuninn web [-h] [--port PORT] [--host HOST] [--no-open]
+                   [--static STATIC]
+
+options:
+  -h, --help       show this help message and exit
+  --port PORT
+  --host HOST      bind address; keep localhost so the browser treats the page
+                   as secure
+  --no-open        do not open the default browser
+  --static STATIC  serve this directory instead of the packaged viewer
 ```
 
 ## imuninn info

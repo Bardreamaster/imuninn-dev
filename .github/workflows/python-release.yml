@@ -31,6 +31,13 @@ jobs:
           tag="${GITHUB_REF_NAME#python-v}"
           ver=$(sed -n 's/^version = "\(.*\)"/\1/p' pyproject.toml)
           [ "$tag" = "$ver" ] || { echo "tag $tag != pyproject version $ver"; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: host/web/package-lock.json
+      - name: Build the browser viewer into the package
+        run: ../../tools/build-web.sh && test -f src/imuninn/web_static/index.html
       - run: uv venv .venv && uv pip install -p .venv/bin/python -e ".[dev,mcap,video]" && .venv/bin/python -m pytest -q
       - run: uv build
       - uses: actions/upload-artifact@v4

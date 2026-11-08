@@ -30,6 +30,10 @@ host/cpp/gen/
 mobile/modules/muninn-core/ios/Generated/
 mobile/modules/muninn-core/android/src/main/java/generated/
 
+# Browser viewer build copied into the Python package by tools/build-web.sh
+host/python/src/imuninn/web_static/
+host/web/dist/
+
 # Recordings
 *.mcap
 *.rrd

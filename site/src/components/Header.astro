@@ -1,6 +1,5 @@
 ---
-// Header: wordmark, section links (Docs, Web viewer ↗), then search and the controls on the right.
-import { Icon } from "@astrojs/starlight/components";
+// Header: wordmark and the Docs link on the left, search and the controls on the right.
 import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
 import Search from "@astrojs/starlight/components/Search.astro";
 import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
@@ -9,7 +8,6 @@ import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
 const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
 const en = lang.startsWith("en");
 const docs = { label: en ? "Docs" : "文档", href: en ? "/en/start/overview/" : "/start/overview/" };
-const viewer = { label: en ? "Web viewer" : "Web 查看器", href: "http://imuninn-webviewer.projects.weijinqi.com" };
 ---
 <div class="header">
   <div class="left-group">
@@ -18,7 +16,6 @@ const viewer = { label: en ? "Web viewer" : "Web 查看器", href: "http://imuni
     </div>
     <nav class="top-links sl-flex" aria-label={en ? "Sections" : "栏目"}>
       <a href={docs.href}>{docs.label}</a>
-      <a href={viewer.href} target="_blank" rel="noopener">{viewer.label}<Icon name="external" size="0.9em" /></a>
     </nav>
   </div>
   <div class="search-slot"><Search /></div>

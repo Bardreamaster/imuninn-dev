@@ -32,6 +32,10 @@ dev = imuninn.connect(data_transport="websocket")
 
 所有流改走第二条到控制端口的 WebSocket（协议 v5，浏览器用的路径）：只需一个端口、不用 UDP，代价是拥塞时位姿 / IMU 多一点延迟。穿越只放行一个端口的网络时有用。
 
+## 浏览器查看器
+
+`imuninn web` 在 `http://localhost:7430` 托管浏览器查看器（页面直连手机，不经过 Python 中继）。为什么必须从 localhost 打开见 [Web 查看器](../web/01-web-viewer.md)。
+
 ## 让 agent 操作手机（MCP）
 
 `pip install "imuninn[mcp]"` 后 `imuninn-mcp` 是一个 stdio MCP server，把客户端 API 包成工具（发现、连接、改参数、拿一帧图、录 MCAP）。接入 Claude Code 等见 [Agent · MCP](../agents/MCP.md)。

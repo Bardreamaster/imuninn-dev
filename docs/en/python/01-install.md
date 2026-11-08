@@ -17,7 +17,7 @@ Python 3.10 or newer. With [uv](https://docs.astral.sh/uv/): `uv pip install "im
 | `mcp` | `imuninn-mcp`, an MCP server so agents can drive the phone | mcp, Pillow |
 | `all` | everything above | |
 
-The core depends only on protobuf, websockets, zeroconf, numpy, lz4 and pyyaml.
+The core depends only on protobuf, websockets, zeroconf, numpy, lz4 and pyyaml. The browser viewer (`imuninn web`) is part of the core: static files served from localhost that connect straight to the phone.
 
 ## From source
 
