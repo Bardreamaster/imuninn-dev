@@ -7,7 +7,6 @@
 | 入口 | 用途 |
 | --- | --- |
 | `http://imuninn-webviewer.projects.weijinqi.com` | 公开托管的页面（注意是 **http**，见下） |
-| 手机 App 自带（规划中） | 手机再开一个 http 端口托管同一页面，任何设备打开 `http://<手机IP>:7421/` |
 | 自己构建 | `cd host/web && npm install && npm run build`，用任何 http 静态服务器托开 `dist/` |
 
 地址栏填手机地址（`10.0.0.5` 或 `10.0.0.5:7420`，在手机 App 的「服务」卡片里），点「连接」。

@@ -40,15 +40,20 @@ function linkFor(rel, target, hash, locale) {
   return `/${locale}${slug}/${hash}`;
 }
 
+const emitted = new Set();   // site paths that exist in this build (filled in the first pass)
+
 function convert(rel, text, locale) {
   const m = text.match(/^#\s+(.+)$/m);
   let title = m ? m[1].trim() : basename(rel, ".md");
   title = title.replace(/^\d+\s*·\s*/, "");
   if (m) text = text.replace(m[0], "").trimStart();
   text = text.replace(/^<!--.*?-->\s*/s, "");
-  text = text.replace(/\]\(([^)\s]+?\.md)(#[^)]*)?\)/g, (all, p, hash = "") => {
+  text = text.replace(/\[([^\]]*)\]\(([^)\s]+?\.md)(#[^)]*)?\)/g, (all, label, p, hash = "") => {
     if (/^https?:/.test(p)) return all;
-    return `](${linkFor(rel, p, hash, locale)})`;
+    const href = linkFor(rel, p, hash, locale);
+    const key = href.split("#")[0].replace(/^\/en\//, "/");
+    if (emitted.size && !emitted.has(key)) return label;   // target not published in this build: keep the words, drop the link
+    return `[${label}](${href})`;
   });
   text = text.replace(/\]\(([^)\s]+\.(png|jpg|jpeg|svg))\)/g, (all, p) => `](/images/${basename(p)})`);
   const order = (basename(rel).match(/^(\d+)-/) || [])[1];
@@ -73,6 +78,12 @@ mkdirSync(out, { recursive: true });
 mkdirSync(images, { recursive: true });
 
 let n = 0;
+function sitePath(rel) { return `/${slugOf(rel.replace(/^en\//, ""))}/`; }
+// first pass: what exists in this build
+for (const section of SECTIONS) for (const src of walk(join(docs, section))) {
+  if (src.endsWith(".md") && !SKIP.has(basename(src))) emitted.add(sitePath(relative(docs, src)));
+}
+emitted.add("/protocol/"); emitted.add("/protocol/proto/"); emitted.add("/");
 function emit(rel, src, locale) {
   const slug = slugOf(rel.replace(/^en\//, ""));
   const dest = join(out, locale, `${slug}.md`);
