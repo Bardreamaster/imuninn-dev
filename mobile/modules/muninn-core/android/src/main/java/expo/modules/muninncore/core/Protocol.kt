@@ -6,7 +6,7 @@ import android.os.SystemClock
 const val TAG = "imuninn"
 
 /** Keep in sync with protocol/VERSION. */
-const val PROTOCOL_VERSION = 3
+const val PROTOCOL_VERSION = 5
 
 /**
  * Device monotonic clock in nanoseconds (§6.5). Android sensors and (on most devices)

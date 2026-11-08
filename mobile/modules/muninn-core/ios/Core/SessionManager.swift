@@ -109,6 +109,7 @@ public final class SessionManager {
     control.onDisconnect = { [weak self] c in self?.queue.async { self?.clientDisconnected(c) } }
     control.onMessage = { [weak self] c, msg in self?.queue.async { self?.handle(c, msg) } }
     data.onAttach = { [weak self] id, sink in self?.attachData(id: id, sink: sink) ?? false }
+    control.onAttachWs = { [weak self] id, sink in self?.attachWs(id: id, sink: sink) ?? false }
     ar.onPose = { [weak self] p in self?.publishPose(p) }
     ar.onImage = { [weak self] pb, t, k in self?.handleImage(pb, t, k) }
     ar.onDepth = { [weak self] d, c, t, k, res in self?.publishDepth(d, c, t, k, res) }
@@ -236,6 +237,21 @@ public final class SessionManager {
       c.tcp = sink
       sink.onDroppedVideo = { [weak self] in self?.encoder.requestKeyframe() }
       sink.onClosed = { [weak c] in c?.tcp = nil }
+      encoder.requestKeyframe()
+      ok = true
+    }
+    return ok
+  }
+
+  /// Protocol v5: a browser's second WebSocket carries every stream for this client.
+  private func attachWs(id: UInt32, sink: WsSink) -> Bool {
+    var ok = false
+    queue.sync {
+      guard let c = control.client(byId: id) else { return }
+      c.ws?.disconnect()
+      c.ws = sink
+      sink.onDroppedVideo = { [weak self] in self?.encoder.requestKeyframe() }
+      sink.onClosed = { [weak c, weak sink] in if c?.ws === sink { c?.ws = nil } }
       encoder.requestKeyframe()
       ok = true
     }
@@ -437,7 +453,7 @@ public final class SessionManager {
     stamp(&p.header)
     var d = MnDataMessage()
     d.pose = p
-    for c in clientList where c.subscribed.contains(ArSource.poseStreamId) { c.udp.send(d) }
+    for c in clientList where c.subscribed.contains(ArSource.poseStreamId) { c.sendSample(d) }
     if file.isRecording { file.write(d) }
   }
 
@@ -447,13 +463,13 @@ public final class SessionManager {
     stamp(&s.header)
     var d = MnDataMessage()
     d.imu = s
-    for c in clientList where c.subscribed.contains(ImuSource.streamId) { c.udp.send(d) }
+    for c in clientList where c.subscribed.contains(ImuSource.streamId) { c.sendSample(d) }
     if file.isRecording { file.write(d) }
   }
 
   private func handleImage(_ pb: CVPixelBuffer, _ t: Double, _ k: simd_float3x3?) {
     guard sessionRunning, config.isEnabled("rgb") else { return }
-    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("rgb") && $0.tcp != nil }
+    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("rgb") && $0.hasFrameSink }
     guard wanted else { return }
     if let k { lastIntrinsics = k }
     encoder.encode(pb, timeSeconds: t)
@@ -464,7 +480,7 @@ public final class SessionManager {
     depthFrameIndex &+= 1
     let divisor = max(1, config.int("depth", "rate_divisor"))
     guard depthFrameIndex % UInt64(divisor) == 0 else { return }
-    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("depth") && $0.tcp != nil }
+    let wanted = file.isRecording || clientList.contains { $0.subscribed.contains("depth") && $0.hasFrameSink }
     guard wanted else { return }
     let compress = config.string("depth", "compression") != "none"
     guard let packed = DepthPacker.pack(depth: depth, confidence: conf, compress: compress) else { return }
@@ -488,7 +504,7 @@ public final class SessionManager {
     var m = MnDataMessage()
     m.depth = d
     for c in clientList where c.subscribed.contains("depth") {
-      c.tcp?.send(m, droppable: true, keyframe: true)   // independent frames: never block, never skip for resync
+      c.sendFrame(m, droppable: true, keyframe: true)   // independent frames: never block, never skip for resync
     }
     if file.isRecording { file.write(m) }
   }
@@ -514,7 +530,7 @@ public final class SessionManager {
     var d = MnDataMessage()
     d.video = v
     for c in clientList where c.subscribed.contains("rgb") {
-      c.tcp?.send(d, droppable: true, keyframe: f.keyframe)
+      c.sendFrame(d, droppable: true, keyframe: f.keyframe)
     }
     if file.isRecording { file.write(d) }
   }
@@ -545,7 +561,7 @@ public final class SessionManager {
     s.clients = clientList.map {
       ClientStatus(id: $0.id, name: $0.label, host: $0.remoteHost.map { "\($0)" } ?? "",
                    subscribed: Array($0.subscribed).sorted(), udpDropped: $0.udp.dropped,
-                   tcpDropped: $0.tcp?.dropped ?? 0, writer: $0.isWriter)
+                   tcpDropped: $0.frameDropped, writer: $0.isWriter)
     }
     s.mode = isCameraMode ? "camera" : "ar"
     s.blackScreen = config.sessionBool("black_screen")
@@ -611,7 +627,7 @@ public final class SessionManager {
     h.uptimeS = CACurrentMediaTime() - startTime
     var d = MnDataMessage()
     d.health = h
-    for c in clientList where c.subscribed.contains("health") { c.udp.send(d) }
+    for c in clientList where c.subscribed.contains("health") { c.sendSample(d) }
     if file.isRecording { file.write(d) }
   }
 

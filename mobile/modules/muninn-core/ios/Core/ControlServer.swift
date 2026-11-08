@@ -1,5 +1,7 @@
 // Control server: the phone advertises `_imuninn._tcp` over Bonjour and accepts
 // WebSocket connections carrying MnControlMessage (§6.2, §6.7). One `Client` per PC.
+// A second WebSocket whose first frame is WsSink.magic + client_id is a data connection
+// (protocol v5, browsers): it becomes that client's WsSink instead of a Client.
 import Foundation
 import Network
 
@@ -11,6 +13,7 @@ public final class Client {
   public var subscribed: Set<String> = []
   public let udp = UdpSink()
   public var tcp: TcpSink?
+  public var ws: WsSink?
   public var isWriter = false
 
   init(id: UInt32, connection: NWConnection) {
@@ -24,6 +27,19 @@ public final class Client {
   }
 
   public var label: String { name.isEmpty ? "client-\(id)" : name }
+
+  /// Where video / depth go: the WebSocket data channel if the client opened one, else TCP.
+  public var hasFrameSink: Bool { ws != nil || tcp != nil }
+  public var frameDropped: UInt64 { (tcp?.dropped ?? 0) &+ (ws?.dropped ?? 0) }
+
+  public func sendFrame(_ msg: MnDataMessage, droppable: Bool, keyframe: Bool) {
+    if let ws { ws.send(msg, droppable: droppable, keyframe: keyframe) } else { tcp?.send(msg, droppable: droppable, keyframe: keyframe) }
+  }
+
+  /// Pose / IMU / health: WebSocket data channel if present, else UDP.
+  public func sendSample(_ msg: MnDataMessage) {
+    if let ws { ws.sendSample(msg) } else { udp.send(msg) }
+  }
 }
 
 public final class ControlServer {
@@ -32,6 +48,7 @@ public final class ControlServer {
   private var listener: NWListener?
   private let queue = DispatchQueue(label: "imuninn.control")
   public private(set) var clients: [UInt32: Client] = [:]
+  private var dataSinks: [UInt32: WsSink] = [:]   // keyed by connection number, for close detection
   private var nextId: UInt32 = 1
   public private(set) var port: UInt16 = 0
   public private(set) var state: String = "stopped"     // starting | listening | failed | stopped
@@ -43,6 +60,8 @@ public final class ControlServer {
   public var onMessage: ((Client, MnControlMessage) -> Void)?
   public var onConnect: ((Client) -> Void)?
   public var onDisconnect: ((Client) -> Void)?
+  /// A data WebSocket announced itself for `client_id`; return false to reject.
+  public var onAttachWs: ((UInt32, WsSink) -> Bool)?
 
   public init() {}
 
@@ -94,7 +113,9 @@ public final class ControlServer {
     listener?.cancel()
     listener = nil
     for c in clients.values { c.connection.cancel() }
+    for s in dataSinks.values { s.disconnect() }
     clients = [:]
+    dataSinks = [:]
     state = "stopped"
   }
 
@@ -129,20 +150,61 @@ public final class ControlServer {
       guard let self, let conn else { return }
       switch st {
       case .ready:
-        let client = Client(id: id, connection: conn)
-        self.clients[id] = client
-        self.onConnect?(client)
-        self.receiveLoop(client)
+        self.receiveFirst(conn, number: id)
       case .failed, .cancelled:
         if let client = self.clients.removeValue(forKey: id) {
           client.udp.disconnect()
           client.tcp?.disconnect()
+          client.ws?.disconnect()
           self.onDisconnect?(client)
         }
+        if let sink = self.dataSinks.removeValue(forKey: id) { sink.markClosed() }
       default: break
       }
     }
     conn.start(queue: queue)
+  }
+
+  /// The first frame decides what a connection is: a data channel (magic + client_id, v5)
+  /// or a control connection (its Hello).
+  private func receiveFirst(_ conn: NWConnection, number: UInt32) {
+    conn.receiveMessage { [weak self, weak conn] data, ctx, _, error in
+      guard let self, let conn else { return }
+      if error != nil || Self.isClose(ctx) { conn.cancel(); return }
+      if let data, data.count == WsSink.magic.count + 4, data.prefix(WsSink.magic.count) == WsSink.magic {
+        let clientId = data.suffix(4).withUnsafeBytes { $0.loadUnaligned(as: UInt32.self) }.littleEndian
+        let sink = WsSink(connection: conn, queue: self.queue)
+        if self.onAttachWs?(clientId, sink) == true {
+          self.dataSinks[number] = sink
+          self.drain(conn)   // keep reading so a peer close is noticed
+        } else {
+          conn.cancel()
+        }
+        return
+      }
+      let client = Client(id: number, connection: conn)
+      self.clients[number] = client
+      self.onConnect?(client)
+      if let data, let msg = try? MnControlMessage(serializedBytes: data) {
+        self.onMessage?(client, msg)
+      }
+      self.receiveLoop(client)
+    }
+  }
+
+  private static func isClose(_ ctx: NWConnection.ContentContext?) -> Bool {
+    if let meta = ctx?.protocolMetadata(definition: NWProtocolWebSocket.definition) as? NWProtocolWebSocket.Metadata,
+       meta.opcode == .close { return true }
+    return false
+  }
+
+  /// Data connections carry nothing after the first frame; read anyway to see the close.
+  private func drain(_ conn: NWConnection) {
+    conn.receiveMessage { [weak self, weak conn] _, ctx, _, error in
+      guard let self, let conn else { return }
+      if error != nil || Self.isClose(ctx) { conn.cancel(); return }
+      self.drain(conn)
+    }
   }
 
   private func receiveLoop(_ client: Client) {

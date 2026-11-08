@@ -23,11 +23,20 @@ def main(argv: list[str] | None = None) -> None:
     w.add_argument("--stream", default=None, help="only this stream id (default: all)")
     w.add_argument("--every", type=int, default=30, help="print one sample out of N")
 
-    r = sub.add_parser("rerun", help="visualise pose / IMU / video live in the Rerun viewer")
-    add_target(r)
+    r = sub.add_parser("rerun", help="visualise pose / trajectory / video / depth / IMU / health live in the Rerun viewer")
+    r.add_argument("targets", nargs="*", default=[], metavar="target",
+                   help="phone name, host, or host:port; several for a multi-device view (default: first phone found)")
+    r.add_argument("--start", action="store_true", help="send SessionControl START after connect")
+    r.add_argument("--depth", action="store_true", help="enable the depth stream on the phone(s) first")
     r.add_argument("--no-spawn", action="store_true", help="connect to an already running viewer")
-    r.add_argument("--every", type=int, default=1, help="decode one video frame out of N")
-
+    r.add_argument("--video", choices=("stream", "decode", "off"), default="stream",
+                   help="stream: feed H.264 to the viewer (needs ffmpeg on PATH); decode: PyAV on the PC; off")
+    r.add_argument("--every", type=int, default=1, help="with --video decode: show one frame out of N")
+    r.add_argument("--points", action="store_true",
+                   help="back-project depth into a Points3D cloud on the PC (RGB-coloured with --video decode)")
+    r.add_argument("--point-stride", type=int, default=2, help="subsample the depth map for --points")
+    r.add_argument("--no-trajectory", action="store_true", help="do not draw the camera path")
+    r.add_argument("--no-blueprint", action="store_true", help="keep the viewer's own layout")
     r.add_argument("--mcap", default=None, help="replay this MCAP file instead of connecting to a phone")
     r.add_argument("--save", default=None, help="write a .rrd file instead of opening the viewer")
     r.add_argument("--seconds", type=float, default=None, help="stop after this long (live mode)")
@@ -41,6 +50,13 @@ def main(argv: list[str] | None = None) -> None:
     cv = sub.add_parser("convert", help="convert a phone-side .imuninn recording to MCAP")
     cv.add_argument("input")
     cv.add_argument("-o", "--output", default=None)
+
+    web = sub.add_parser("web", help="serve the browser viewer and relay phone data to it over WebSocket")
+    add_target(web)
+    web.add_argument("--mcap", default=None, help="replay this MCAP file to the browser instead of connecting to a phone")
+    web.add_argument("--host", default="0.0.0.0", help="bind address (default: all interfaces)")
+    web.add_argument("--port", type=int, default=7430)
+    web.add_argument("--static", default=None, help="viewer build directory (default: host/web/dist)")
 
     info = sub.add_parser("info", help="message counts per topic in an MCAP file")
     info.add_argument("input")
@@ -73,6 +89,13 @@ def main(argv: list[str] | None = None) -> None:
         print(f"wrote {n} messages to {out}")
     elif args.cmd == "profile":
         _profile(args)
+    elif args.cmd == "web":
+        from . import web as web_mod
+
+        if args.mcap:
+            web_mod.main_mcap(args.mcap, args.host, args.port, args.static)
+        else:
+            web_mod.main_live(args.target, args.host, args.port, args.start, args.static)
     elif args.cmd == "info":
         from .mcap_io import summary
 
@@ -148,24 +171,34 @@ def _watch(args) -> None:
 
 
 def _rerun(args) -> None:
-    from .rerun_bridge import run, run_mcap
+    from contextlib import ExitStack
+
+    from .rerun_bridge import run_devices, run_mcap
     from .session import connect
 
+    kw = dict(spawn=not args.no_spawn, save=args.save, use_blueprint=not args.no_blueprint,
+              video=args.video, every_nth_video=args.every, points=args.points,
+              point_stride=args.point_stride, trajectory=not args.no_trajectory)
     if args.mcap:
-        run_mcap(args.mcap, spawn=not args.no_spawn, every_nth_video=args.every, save=args.save)
+        counts = run_mcap(args.mcap, **kw)
+        print(f"replayed: {counts}")
         return
-    with connect(args.target) as dev:
-        print(f"connected: {dev!r}")
-        if args.start:
-            dev.start()
+    with ExitStack() as stack:
+        devs = [stack.enter_context(connect(t)) for t in (args.targets or [""])]
+        for dev in devs:
+            print(f"connected: {dev!r}")
+            if args.depth:
+                dev.set("depth.enabled", True)
+            if args.start:
+                dev.start()
         if args.seconds:
             import threading
 
-            threading.Timer(args.seconds, lambda: dev.close()).start()
+            threading.Timer(args.seconds, lambda: [d.close() for d in devs]).start()
         try:
-            run(dev, spawn=not args.no_spawn, every_nth_video=args.every, save=args.save)
-        except Exception as e:  # iterator ends when the device closes
-            if dev.connected:
+            run_devices(devs, **kw)
+        except Exception as e:  # queue ends when every device closes
+            if any(d.connected for d in devs):
                 raise
             print(f"stopped: {e}")
 

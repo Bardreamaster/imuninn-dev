@@ -2,7 +2,7 @@
 // (Swift / Kotlin / Python / C++). See protocol/README.md for channel layout,
 // versioning rules and coordinate conventions. Design doc: docs/iMuninn-设计文档.md §6.
 //
-// v3 (DeviceHealth). Every change to this file must bump PROTOCOL_VERSION in
+// v5 (Hello.data_transport: data over WebSocket for browsers; v4: DeviceConfig.session_params). Every change to this file must bump PROTOCOL_VERSION in
 // protocol/VERSION and be committed together with all consumers.
 
 syntax = "proto3";
@@ -215,8 +215,15 @@ message ClientInfo {
 
 message Hello {               // client -> phone
   ClientInfo client = 1;
-  uint32 udp_port = 2;        // where this client receives DataMessage datagrams
+  uint32 udp_port = 2;        // where this client receives DataMessage datagrams (0 = none)
   uint32 protocol_version = 3;
+  // v5: how this client wants its data streams. TCP (default) = the length-prefixed
+  // stream on Welcome.tcp_port plus UDP for pose / IMU / health when udp_port > 0.
+  // WEBSOCKET = the client opens a second WebSocket to the control port and sends
+  // "IMDATA01" + uint32 LE client_id as its first binary frame; the phone then sends
+  // every subscribed stream (video, depth, pose, IMU, health) on it as binary
+  // DataMessage frames. Browsers use this; nothing else changes.
+  Transport data_transport = 4;
 }
 
 message Welcome {             // phone -> client
