@@ -103,3 +103,5 @@
 ## TODO（2026-11-07）
 
 - 手机本机录制：按钮暂时隐藏（协议和 `dev.start_recording()` 仍可用）。待做：手机上的录制管理页（列表 / 大小 / 删除）、PC 端拉取与删除录制文件的协议接口（`ListRecordings` / `FetchRecording` / `DeleteRecording`，走 TCP 数据通道），`imuninn recordings pull` 命令。
+- 手机托管 Web 查看器（2026-11-08 与用户确认）：文档站是 https，浏览器禁止 https 页面连局域网 `ws://`，所以站上的 `/viewer/` 只能离线回放 MCAP；实时查看要把构建好的 `host/web/dist` 内置进 iOS / Android App，由手机再开一个很小的 http 端口（如 7421）托管，任何设备打开 `http://<手机IP>:7421/` 即可。Python 包不再包含 `imuninn web` 中继和 `[web]` extra。
+- Python 包发布（2026-11-08 与用户确认范围，见 Claude Doc「iMuninn Python 包：范围、构建与文档方案」）：修 wheel、生成代码进 git、元数据与英文 README、tag `python-v*` 触发 PyPI 发布、文档站加 Python 栏目与生成的 API 参考、Starlight i18n（中文默认 + 英文）。
