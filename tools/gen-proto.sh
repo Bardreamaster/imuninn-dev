@@ -14,6 +14,7 @@ command -v protoc >/dev/null || { echo "protoc not found (brew install protobuf)
 PY_OUT="$ROOT/host/python/src/imuninn/proto"
 mkdir -p "$PY_OUT"
 protoc -I "$PROTO_DIR" --python_out="$PY_OUT" --pyi_out="$PY_OUT" "$PROTO"
+cp "$PROTO" "$PY_OUT/imuninn.proto"   # shipped inside the package for reference
 echo "python  -> $PY_OUT"
 
 # C++

@@ -24,9 +24,8 @@ build/
 # C++
 host/cpp/build/
 
-# Generated protobuf code (regenerate with tools/gen-proto.sh)
-host/python/src/imuninn/proto/*_pb2.py
-host/python/src/imuninn/proto/*_pb2.pyi
+# Generated protobuf code (regenerate with tools/gen-proto.sh). The Python bindings
+# are committed so `pip install git+…` and the sdist work without protoc; CI checks them.
 host/cpp/gen/
 mobile/modules/muninn-core/ios/Generated/
 mobile/modules/muninn-core/android/src/main/java/generated/

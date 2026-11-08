@@ -1,10 +1,27 @@
 [project]
 name = "imuninn"
-version = "0.0.1"
-description = "PC gateway and Python API for iMuninn phone sensor streams"
+version = "0.1.0"
+description = "PC-side client for iMuninn: turn an iPhone into a network sensor node (camera, IMU, ARKit pose, LiDAR depth)"
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+authors = [{ name = "Jinqi Wei" }]
+keywords = ["iphone", "sensor", "arkit", "lidar", "imu", "camera", "robotics", "protobuf", "mcap", "rerun"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Scientific/Engineering",
+  "Topic :: Multimedia :: Video :: Capture",
+  "Topic :: System :: Hardware",
+]
 dependencies = [
   "protobuf>=5",
   "websockets>=13",
@@ -15,11 +32,19 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-rerun = ["rerun-sdk>=0.20"]
 video = ["av>=12"]
 mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
-dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+rerun = ["rerun-sdk>=0.20", "av>=12"]
 mcp = ["mcp>=2", "pillow"]
+all = ["av>=12", "mcap>=1.2", "mcap-protobuf-support>=0.5", "rerun-sdk>=0.20", "mcp>=2", "pillow"]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "griffe>=1.0"]
+
+[project.urls]
+Homepage = "https://imuninn.projects.weijinqi.com"
+Documentation = "https://imuninn.projects.weijinqi.com/python/"
+Repository = "https://github.com/Bardreamaster/imuninn"
+Issues = "https://github.com/Bardreamaster/imuninn/issues"
+Changelog = "https://github.com/Bardreamaster/imuninn/releases"
 
 [project.scripts]
 imuninn = "imuninn.cli:main"
@@ -29,11 +54,17 @@ imuninn-mcp = "imuninn.mcp_server:main"
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+# src/imuninn/proto/ holds the generated protobuf bindings and a copy of imuninn.proto
+# (both written by tools/gen-proto.sh and committed), so installs never need protoc and
+# users / agents can read the message definitions from the installed package.
+artifacts = ["src/imuninn/proto/*_pb2.py", "src/imuninn/proto/*_pb2.pyi"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/imuninn"]
 
-[tool.hatch.build.targets.wheel.force-include]
-"src/imuninn/profiles" = "imuninn/profiles"
+[tool.hatch.build.targets.sdist]
+include = ["src/imuninn", "tests", "README.md", "LICENSE-MIT", "LICENSE-APACHE"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
