@@ -1,6 +1,10 @@
 # iMuninn 文档站
 
-Astro Starlight。内容不在这里写：`npm run sync` 从 `../docs/{user,dev,agents,design}` 和 `../protocol/` 生成 `src/content/docs/`（已 gitignore），`build`/`dev` 会先自动 sync。
+Astro Starlight。内容不在这里写：`npm run sync` 从 `../docs/` 和 `../protocol/` 生成 `src/content/docs/`（已 gitignore），`build` / `dev` 会先自动 sync。
+
+- 栏目 = `docs/` 的一级目录（start / python / web / cpp / protocol / phone / dev / agents / design），页面标题取文件的一级标题，`NN-` 前缀决定顺序，slug 去掉前缀。
+- 英文：`docs/en/<同名路径>`；没有英文版的页面回退到中文。
+- 生成页（CLI / API / 协议消息）由 `tools/gen-docs.py` 写入 `docs/`，中英共用。
 
 ```bash
 cd site && npm install

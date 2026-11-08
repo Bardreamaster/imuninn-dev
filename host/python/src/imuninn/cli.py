@@ -6,7 +6,8 @@ import logging
 from . import PROTOCOL_VERSION, __version__
 
 
-def main(argv: list[str] | None = None) -> None:
+def build_parser() -> argparse.ArgumentParser:
+    """The `imuninn` command-line parser (also used to generate the CLI reference)."""
     p = argparse.ArgumentParser(prog="imuninn", description="iMuninn PC client")
     p.add_argument("--version", action="version", version=f"imuninn {__version__} (protocol v{PROTOCOL_VERSION})")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -73,6 +74,12 @@ def main(argv: list[str] | None = None) -> None:
     ps.add_argument("target", nargs="?", default="")
     prs.add_parser("list", help="list built-in profiles")
 
+    return p
+
+
+def main(argv: list[str] | None = None) -> None:
+    """Entry point of the `imuninn` command."""
+    p = build_parser()
     args = p.parse_args(argv)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(levelname)s %(message)s")
     if args.cmd == "list":

@@ -57,7 +57,7 @@ cd mobile && npx expo prebuild --platform ios --clean
 
 ## 手机端（Android）
 
-环境安装和模拟器用法见 [05-Android](05-Android.md)。日常：
+环境安装和模拟器用法见 [Android](05-android.md)。日常：
 
 ```bash
 cd mobile && npx expo run:android          # 改了 Kotlin / 插件后；自动 prebuild + gradle

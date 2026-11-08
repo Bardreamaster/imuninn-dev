@@ -2,7 +2,7 @@
 
 `imuninn.proto` 是手机端、PC 端、所有语言绑定的唯一真相源。改协议时三端在同一个 commit 中同步更新，并 bump `VERSION`。
 
-设计依据：`docs/iMuninn-设计文档.md` §6。
+设计依据：`docs/design/design-doc.md` §6。消息字段参考（生成）：`docs/protocol/messages.md`。
 
 ## 版本
 

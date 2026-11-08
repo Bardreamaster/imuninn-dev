@@ -1,6 +1,6 @@
-# 04 · LiDAR 深度与 MCAP 录制
+# 深度与 MCAP
 
-M3 之后 Pro 机型能发 LiDAR 深度，PC 端能把所有流原样录成 MCAP 并回放。
+Pro 机型发 LiDAR 深度；PC 端把所有流原样录成 MCAP，可回放、可转换。
 
 ## 深度流
 

@@ -1,14 +1,15 @@
 # iMuninn Web Viewer
 
 Static browser viewer for iMuninn phone data: H.264 video (WebCodecs), LiDAR depth, pose
-trajectory, IMU plots and device health — straight from the phone (protocol v5: control
-WebSocket + a second WebSocket carrying DataMessage frames), through the `imuninn web`
-relay, or offline by dropping an MCAP recording onto the page. User docs: `docs/user/06-Web查看器.md`.
+trajectory, IMU plots and device health, straight from the phone (protocol v5: control
+WebSocket + a second WebSocket carrying DataMessage frames), or offline by dropping an MCAP
+recording onto the page. Hosted at http://imuninn-webviewer.projects.weijinqi.com (http only:
+browsers block ws:// from https pages). User docs: `docs/web/01-web-viewer.md`.
 
 ```bash
 npm install
-npm run build        # -> dist/, served by `imuninn web`
-npm run dev          # Vite dev server on :5173 (set the ws:// URL to the relay, e.g. ws://localhost:7430/ws)
+npm run build        # -> dist/, deploy to any http static host (GitHub Pages)
+npm run dev          # Vite dev server on :5173; type the phone's address in the page
 ```
 
 Layout: `src/proto.ts` parses `protocol/imuninn.proto` at runtime (protobufjs), `video.ts`

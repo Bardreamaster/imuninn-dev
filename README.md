@@ -2,16 +2,16 @@
 
 把手机变成便携的多模态传感器节点：相机、IMU、ARKit/ARCore 位姿和 LiDAR 深度实时传到 PC，通过 Python / C++ / Web 接口交给机器人程序、算法与数据采集流程。
 
-文档入口：[`docs/README.md`](docs/README.md)（使用者 / 开发者 / Agent）。设计文档：[`docs/design/iMuninn-设计文档.md`](docs/design/iMuninn-设计文档.md)（原件：[Claude Doc](https://claude.ai/artifact/KZHg3YBu5CtgekPVBK6xBm)）。路线图：[`docs/design/ROADMAP.md`](docs/design/ROADMAP.md)。
+文档站：<https://imuninn.projects.weijinqi.com>（源文件在 [`docs/`](docs/README.md)）。Python 包：`pip install imuninn`（[host/python](host/python/README.md)）。设计文档：[`docs/design/design-doc.md`](docs/design/design-doc.md)（原件：[Claude Doc](https://claude.ai/artifact/KZHg3YBu5CtgekPVBK6xBm)）。路线图：[`docs/design/roadmap.md`](docs/design/roadmap.md)。
 
 ## 仓库结构
 
 ```
 protocol/   .proto 定义 + 协议说明 + VERSION（唯一真相源）
 mobile/     Expo App；原生数据链路在 modules/muninn-core/
-host/       PC 端：python/（客户端 API + CLI）、cpp/、bridges/
-tools/      代码生成、延迟/带宽测试
-docs/
+host/       PC 端：python/（PyPI 包 imuninn：客户端 API + CLI + MCP）、cpp/、web/（浏览器查看器）
+tools/      代码生成、文档生成、延迟/带宽测试
+docs/       文档站内容源；site/ 是 Astro Starlight 站点
 ```
 
 ## 开发环境
@@ -24,7 +24,7 @@ docs/
 
 ```bash
 tools/gen-proto.sh                       # 生成各语言绑定
-cd host/python && uv venv && uv pip install -e ".[dev,video,rerun]" && imuninn list
+cd host/python && uv venv && uv pip install -e ".[all,dev]" && imuninn list
 cd mobile && npm install && npx expo run:ios --device   # development build 到真机
 ```
 

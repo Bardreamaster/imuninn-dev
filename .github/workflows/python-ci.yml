@@ -3,9 +3,9 @@ name: python-ci
 on:
   push:
     branches: [main]
-    paths: ["host/python/**", "protocol/**", ".github/workflows/python-ci.yml"]
+    paths: ["host/python/**", "protocol/**", "tools/gen-docs.py", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
   pull_request:
-    paths: ["host/python/**", "protocol/**", ".github/workflows/python-ci.yml"]
+    paths: ["host/python/**", "protocol/**", "tools/gen-docs.py", "docs/python/0[78]-*.md", "docs/protocol/messages.md", ".github/workflows/python-ci.yml"]
 
 jobs:
   test:
@@ -49,3 +49,14 @@ jobs:
           diff -u protocol/imuninn.proto host/python/src/imuninn/proto/imuninn.proto
           grep -q "^$(cat protocol/VERSION)$" <(sed -n 's/^PROTOCOL_VERSION = //p' host/python/src/imuninn/__init__.py) \
             || { echo "PROTOCOL_VERSION in __init__.py does not match protocol/VERSION"; exit 1; }
+
+  generated-docs:
+    # docs/python/07-cli.md, 08-api.md and docs/protocol/messages.md are written by tools/gen-docs.py.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - run: uv pip install --system -e "host/python[dev]"
+      - run: python tools/gen-docs.py && git diff --exit-code -- docs/python/07-cli.md docs/python/08-api.md docs/protocol/messages.md

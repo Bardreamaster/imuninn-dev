@@ -1,6 +1,6 @@
 # 05 · Android（M5）
 
-Android 端是 iOS 端的移植（`docs/design/iMuninn-设计文档.md` §5.2），代码在
+Android 端是 iOS 端的移植（[设计文档](../design/design-doc.md) §5.2），代码在
 `mobile/modules/muninn-core/android/`，结构与 `ios/Core/` 一一对应。本页记录环境、
 构建、模拟器测试方法，以及当前实现到哪一步。
 
@@ -44,7 +44,7 @@ Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）�
 
 ## 相机控制参数在 Android 上的映射（`CameraControl.kt`）
 
-参数名、取值、范围语义与 iOS 完全一致（`docs/user/03-视频与相机模式.md`），范围从主摄的 `CameraCharacteristics` 探测。能力不足时**不报错**，退而求其次并在日志里提示一次：
+参数名、取值、范围语义与 iOS 完全一致（[Python · 视频与相机参数](../python/04-video-camera.md)），范围从主摄的 `CameraCharacteristics` 探测。能力不足时**不报错**，退而求其次并在日志里提示一次：
 
 | 参数 | Camera2 | 需要的能力 / 回退 |
 | --- | --- | --- |

@@ -5,16 +5,17 @@
 ## 安装到 Claude Code
 
 ```bash
-claude mcp add imuninn -- /Users/<you>/jinqi/code_ws/imuninn/host/python/.venv/bin/imuninn-mcp
+pip install "imuninn[mcp,video,mcap]"        # 或 uv tool install "imuninn[all]"
+claude mcp add imuninn -- imuninn-mcp
 ```
 
 或在 `~/.claude.json` / 项目 `.mcp.json`：
 
 ```json
-{ "mcpServers": { "imuninn": { "command": "/abs/path/imuninn/host/python/.venv/bin/imuninn-mcp" } } }
+{ "mcpServers": { "imuninn": { "command": "imuninn-mcp" } } }
 ```
 
-前提：`uv pip install -e ".[mcp,video,mcap]"`（已含在开发安装里）。
+从源码开发时用 `host/python/.venv/bin/imuninn-mcp` 的绝对路径。
 
 ## 工具
 

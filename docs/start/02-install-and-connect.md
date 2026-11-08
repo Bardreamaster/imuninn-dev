@@ -1,10 +1,10 @@
-# 01 · 安装与连接
+# 安装与连接
 
-iMuninn 把 iPhone 变成一个网络上的传感器：相机、IMU、ARKit 位姿、LiDAR 深度。手机是服务端，PC 去连它。
+手机装 App，PC 装接收端，两者在同一局域网或用 USB 线连起来。
 
 ## 手机端
 
-目前还没有 App Store 版本，需要自己构建装到手机（见 [开发者文档 01](../dev/01-环境搭建.md)、[02](../dev/02-构建与运行.md)）。装好后：
+目前还没有 App Store 版本，需要用 Xcode 自己构建装到手机（见 [开发者文档：环境搭建](../dev/01-setup.md)、[构建与运行](../dev/02-build-run.md)）。Android 版见 [手机端 · Android](../phone/02-android.md)。装好后：
 
 1. 打开 iMuninn，顶部"服务"卡片显示 **listening** 和手机的地址（`en0` 是 Wi‑Fi；插着 USB 线时会多一个 `169.254.x.x` 的 USB 直连地址）。
 2. 第一次会弹"本地网络"权限，允许。
@@ -13,14 +13,12 @@ iMuninn 把 iPhone 变成一个网络上的传感器：相机、IMU、ARKit 位�
 ## PC 端
 
 ```bash
-cd host/python
-uv venv && source .venv/bin/activate
-uv pip install -e ".[video,rerun]"      # video = H.264 解码（PyAV），rerun = 可视化
+pip install "imuninn[all]"              # 或只装 imuninn；extras 见 Python 包 · 安装
 imuninn list                            # 列出局域网 / USB 上的手机
 ```
 
 ```
-iPhone                         10.0.0.23:7420         proto v2  (also 169.254.83.240)
+iPhone                         10.0.0.23:7420         proto v5  (also 169.254.83.240)
 ```
 
 连接方式三选一：
@@ -30,6 +28,8 @@ imuninn watch --start                   # 第一台找到的手机
 imuninn watch iPhone --start            # 按 Bonjour 名字
 imuninn watch 10.0.0.23:7420 --start    # 按地址（企业 Wi‑Fi 屏蔽 mDNS 时用手机屏幕上显示的地址）
 ```
+
+不想装东西就用 [Web 查看器](../web/01-web-viewer.md)：浏览器里填手机地址即可。
 
 ## Wi‑Fi 还是 USB
 

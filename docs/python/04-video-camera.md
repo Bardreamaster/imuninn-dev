@@ -1,6 +1,6 @@
-# 03 · 视频流、相机模式、录制、Rerun
+# 视频与相机参数
 
-M2 之后手机把 H.264 视频实时发到 PC，可以切换"纯相机"模式换镜头，可以在手机本地录制，PC 端能用 Rerun 看。
+H.264 视频实时发到 PC；纯相机模式可以换镜头、调曝光 / 白平衡 / 对焦等全部相机参数。
 
 ## 两种模式
 
@@ -13,7 +13,7 @@ M2 之后手机把 H.264 视频实时发到 PC，可以切换"纯相机"模式�
 
 切模式、换镜头、换分辨率都会重启采集会话（约 1 s 中断）。曝光锁、码率、关键帧间隔即时生效。
 
-## 参数（新增）
+## 视频参数
 
 | key | 类型 | 说明 |
 | --- | --- | --- |
@@ -43,12 +43,12 @@ M2 之后手机把 H.264 视频实时发到 PC，可以切换"纯相机"模式�
 | `low_light_boost` | bool | 低光增强，仅纯相机模式 |
 | `stabilization` | `off` / `standard` / `cinematic` | 仅纯相机模式；**off 才能保证内参准确**（防抖会裁剪 / 变换画面） |
 
-范围来自设备（能力描述里 `min` / `max`），超出会被钳位。 Android 上同一套参数映射到 Camera2（手动曝光 / 白平衡 / 手动对焦分别需要 `MANUAL_SENSOR`、`MANUAL_POST_PROCESSING`、可变焦镜头，缺失时自动退化为锁定 / 预设 / 自动，见 `docs/dev/05-Android.md`）。AR 模式下这些作用在 ARKit 正在用的相机设备上（iOS 16+），AVFoundation 不提供畸变系数，手动模式下的内参依旧由系统给出。
+范围来自设备（能力描述里 `min` / `max`），超出会被钳位。 Android 上同一套参数映射到 Camera2（手动曝光 / 白平衡 / 手动对焦分别需要 `MANUAL_SENSOR`、`MANUAL_POST_PROCESSING`、可变焦镜头，缺失时自动退化为锁定 / 预设 / 自动，见[开发者 · Android](../dev/05-android.md)）。AR 模式下这些作用在 ARKit 正在用的相机设备上（iOS 16+），AVFoundation 不提供畸变系数，手动模式下的内参依旧由系统给出。
 
 ## 视频数据
 
 - `VideoFrame.data` 是 Annex‑B 的 H.264 NAL，关键帧前带 SPS/PPS，可直接喂给任何解码器。
-- `rotation_deg`：图像按传感器原始方向发送。后摄为 90（顺时针转 90° 得到竖屏正向），前摄 270。内参是传感器方向下的。
+- `rotation_deg`：图像按传感器原始方向发送。所有 iPhone 镜头（含前置）都是 90（顺时针转 90° 得到竖屏正向）。内参是传感器方向下的。
 - 每帧都带内参 `intrinsics`（相机模式由 AVCapture 的 intrinsic matrix 给，AR 模式由 ARKit 给）。
 - 传输：TCP，`uint32 LE 长度 + DataMessage`。手机端拥塞时丢非关键帧并请求新的关键帧，PC 端解码器丢到下一个关键帧前的所有 P 帧。
 
@@ -64,16 +64,11 @@ for frame in dev.iter("rgb"):
 
 ## Rerun 可视化
 
-```bash
-imuninn rerun --start            # 连第一台手机，启动 Rerun Viewer，开始采集
-imuninn rerun iPhone --every 3   # 指定手机；视频每 3 帧解一帧，省 CPU
-```
-
-Viewer 里：`world/phone` 是手机位姿，`world/phone/cam` 是针孔相机 + 图像，`plots/accel`、`plots/gyro` 是 IMU 曲线。时间轴 `device` 是手机时钟。
+`imuninn rerun --start` 把视频、位姿、深度、IMU 一起画出来，见 [Rerun](06-rerun.md)。
 
 ## 本机录制
 
-手机上点"录制到手机"，或 PC 端 `dev.start_recording()` / `dev.stop_recording()`。文件在手机 `Documents/recordings/<时间>.imuninn`（Finder → iPhone → 文件 → iMuninn 可以拷出来），格式是 `IMUNINN1` 魔数 + 连续的 `uint32 LE 长度 + DataMessage`，和 TCP 流一样。M3 会把它转成 MCAP。
+PC 端 `dev.start_recording()` / `dev.stop_recording()`（手机界面上的按钮暂时隐藏，等录制管理页做好再放出来）。文件在手机 `Documents/recordings/<时间>.imuninn`（Finder → iPhone → 文件 → iMuninn 可以拷出来），格式是 `IMUNINN1` 魔数 + 连续的 `uint32 LE 长度 + DataMessage`，和 TCP 流一样；`imuninn convert x.imuninn` 转成 MCAP。通常直接在 PC 上 `imuninn record` 更方便。
 
 ## 实测（iPhone 17 Pro ↔ MacBook，Wi‑Fi）
 

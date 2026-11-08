@@ -45,7 +45,7 @@ JS 侧（`src/`）只有类型和 `requireNativeModule`；界面在 `mobile/App.
 
 ## 手机端文件（Android，`mobile/modules/muninn-core/android/src/main/java/expo/modules/muninncore/`）
 
-与 iOS 逐文件对应，职责相同；差异见 [05-Android](05-Android.md)。
+与 iOS 逐文件对应，职责相同；差异见 [Android](05-android.md)。
 
 | 文件 | 对应 iOS | 实现 |
 | --- | --- | --- |
@@ -71,13 +71,12 @@ JS 侧（`src/`）只有类型和 `requireNativeModule`；界面在 `mobile/App.
 | `discovery.py` | Bonjour 浏览、`resolve()`（名字 / host / host:port → 地址） |
 | `video.py` | `H264Decoder`（PyAV） |
 | `rerun_bridge.py` | 把样本 log 进 Rerun |
-| `web.py` | `imuninn web`：把手机数据转发到浏览器的 WebSocket 中继 + 托管 `host/web/dist` |
-| `cli.py` | `imuninn list / watch / rerun / record / web …` |
-| `proto/` | 生成代码，不入库 |
+| `cli.py` | `imuninn list / watch / rerun / record / convert / info / profile` |
+| `proto/` | 生成的 protobuf 绑定 + `imuninn.proto` 副本（提交在仓库里，`tools/gen-proto.sh` 更新） |
 
 ## Web 查看器（`host/web/`）
 
-Vite + TypeScript 静态页面，无框架。`src/proto.ts` 在运行时用 protobufjs 解析 `protocol/imuninn.proto`（不生成代码）；`video.ts` 用 WebCodecs 解 H.264；`lz4.ts` / `depth.ts` 解 Apple 分块 LZ4 深度；`mcap.ts` 用 `@mcap/core` 在浏览器里读 MCAP；`phone.ts` 直连手机（协议 v5 握手 + 第二条数据 WebSocket）；`live.ts` 连中继。`npm run build` 产物 `dist/` 不入库，由 `imuninn web` 托管。
+Vite + TypeScript 静态页面，无框架。`src/proto.ts` 在运行时用 protobufjs 解析 `protocol/imuninn.proto`（不生成代码）；`video.ts` 用 WebCodecs 解 H.264；`lz4.ts` / `depth.ts` 解 Apple 分块 LZ4 深度；`mcap.ts` 用 `@mcap/core` 在浏览器里读 MCAP；`phone.ts` 直连手机（协议 v5 握手 + 第二条数据 WebSocket）。`npm run build` 产物 `dist/` 不入库，部署到 GitHub Pages（仅 http）；以后也内置进手机 App 由手机托管。
 
 ## 关键约定
 

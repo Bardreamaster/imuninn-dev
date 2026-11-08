@@ -2,7 +2,7 @@
 
 ## 项目一句话
 
-iPhone 作为网络传感器（相机 / IMU / ARKit 位姿 / LiDAR 深度），Protobuf 协议，PC 用 Python 接。手机是服务端，PC 是客户端。设计文档：`docs/design/iMuninn-设计文档.md`；里程碑状态：`docs/design/ROADMAP.md`。
+iPhone 作为网络传感器（相机 / IMU / ARKit 位姿 / LiDAR 深度），Protobuf 协议，PC 用 Python 接。手机是服务端，PC 是客户端。设计文档：`docs/design/design-doc.md`；里程碑状态：`docs/design/roadmap.md`。
 
 ## 仓库地图
 
@@ -13,7 +13,7 @@ mobile/modules/muninn-core/ios/Core/   全部原生数据链路（纯 Swift，�
 mobile/modules/muninn-core/ios/MuninnCoreModule.swift   Expo 薄适配层
 mobile/plugins/withMuninn.ts           Info.plist / 权限 / Bonjour 注入（不要手改 mobile/ios/）
 host/python/src/imuninn/   PC 客户端：client.py（asyncio）、session.py（同步 API）、cli.py
-docs/{user,dev,agents,design}/
+docs/{start,python,web,cpp,protocol,phone,dev,agents,design}/  文档站内容源（ASCII 文件名）；en/ 下是英文版
 ```
 
 ## 常用命令
@@ -55,8 +55,8 @@ host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延
 
 ## 文档站
 
-`site/` 是 Astro Starlight，`npm run build` 会先从 `docs/` 同步内容（`site/scripts/sync-docs.mjs`，中文文件名 → slug 映射在里面）。改文档只改 `docs/`，不要改 `site/src/content/`（生成物，已 gitignore）。
+`site/` 是 Astro Starlight，`npm run build` 会先从 `docs/` 同步内容（`site/scripts/sync-docs.mjs`）。改文档只改 `docs/`，不要改 `site/src/content/`（生成物，已 gitignore）。`docs/python/07-cli.md`、`08-api.md`、`docs/protocol/messages.md` 由 `tools/gen-docs.py` 生成并提交，不要手改。
 
 ## 当前状态与下一步
 
-见 `docs/design/ROADMAP.md`。M5（Android）进行中：非 AR 部分已移植，模拟器验证；ARCore 等真机。Android 事项看 `docs/dev/05-Android.md`。
+见 `docs/design/roadmap.md`。M5（Android）进行中：非 AR 部分已移植，模拟器验证；ARCore 等真机。Android 事项看 `docs/dev/05-android.md`。
