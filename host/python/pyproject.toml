@@ -37,7 +37,8 @@ mcap = ["mcap>=1.2", "mcap-protobuf-support>=0.5"]
 rerun = ["rerun-sdk>=0.20", "av>=12"]
 mcp = ["mcp>=2", "pillow"]
 all = ["av>=12", "mcap>=1.2", "mcap-protobuf-support>=0.5", "rerun-sdk>=0.20", "mcp>=2", "pillow"]
-dev = ["pytest>=8", "pytest-asyncio>=0.23", "griffe==2.4.1"]  # griffe pinned: docs/python/08-api.md is diffed in CI
+dev = ["pytest>=8", "pytest-asyncio>=0.23"]
+docs = ["griffe==2.4.1"]  # tools/gen-docs.py only (needs Python 3.11+); pinned because docs/python/08-api.md is diffed in CI
 
 [project.urls]
 Homepage = "https://imuninn.projects.weijinqi.com"

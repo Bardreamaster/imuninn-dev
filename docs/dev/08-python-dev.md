@@ -3,7 +3,7 @@
 ```bash
 cd host/python
 uv venv && source .venv/bin/activate
-uv pip install -e ".[all,dev]"
+uv pip install -e ".[all,dev,docs]"   # docs = griffe，给 tools/gen-docs.py 用（Python 3.11+）
 python -m pytest -q
 ```
 

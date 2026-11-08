@@ -67,5 +67,5 @@ jobs:
         with:
           python-version: "3.13"
       - uses: astral-sh/setup-uv@v5
-      - run: uv venv .venv && uv pip install -p .venv/bin/python -e "host/python[dev]"
+      - run: uv venv .venv && uv pip install -p .venv/bin/python -e "host/python[docs]"
       - run: .venv/bin/python tools/gen-docs.py && git diff --exit-code -- docs/python/07-cli.md docs/python/08-api.md docs/protocol/messages.md
