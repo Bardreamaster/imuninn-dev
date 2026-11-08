@@ -1,0 +1,54 @@
+// Two-language UI (zh / en). Static text: elements with data-i18n / data-i18n-placeholder /
+// data-i18n-title. Dynamic text: t(key). The choice is remembered in localStorage.
+
+const dict = {
+  zh: {
+    title: "iMuninn Web Viewer",
+    addr_placeholder: "手机 IP（直连）或 ws://host:7430/ws（中继）",
+    connect: "连接", disconnect: "断开", start: "开始采集", stop: "停止",
+    depth: "深度", depth_ar_only: "深度只有 AR 模式才有", mode_ar: "AR 模式", mode_camera: "相机模式",
+    orient: "画面", orient_auto: "自动（重力）", orient_portrait: "竖屏", orient_land_l: "横屏（左）", orient_land_r: "横屏（右）", orient_upside: "倒置",
+    open_mcap: "打开 MCAP", replay_done: "回放结束", replay: "回放",
+    video: "视频", depth_panel: "深度", pose: "位姿（3D，拖动旋转 · 滚轮缩放）", imu: "IMU", health: "设备状态", log: "日志",
+    dropped: "丢", low_power: "低电量模式", via_relay: "经中继", direct: "直连",
+    https_hint: "这个页面是 https 打开的，浏览器会拒绝连接局域网里的手机（ws://）。要连手机请改用",
+    https_hint_tail: "；离线 MCAP 回放不受影响。",
+    no_webcodecs: "此浏览器没有 WebCodecs，视频不能解码（Chrome / Edge / Safari 16.4+ 可用）",
+    need_target: "请填手机地址（如 10.0.0.5 或 10.0.0.5:7420），或中继地址 ws://host:7430/ws",
+    open_failed: "打开 MCAP 失败", thermal: "热状态", battery: "电量", phone_rates: "手机端速率", video_rate: "视频", uptime: "运行时间",
+    grid: "网格 1 m", tracking: "追踪",
+  },
+  en: {
+    title: "iMuninn Web Viewer",
+    addr_placeholder: "phone IP (direct) or ws://host:7430/ws (relay)",
+    connect: "Connect", disconnect: "Disconnect", start: "Start capture", stop: "Stop",
+    depth: "Depth", depth_ar_only: "Depth is only available in AR mode", mode_ar: "AR mode", mode_camera: "Camera mode",
+    orient: "View", orient_auto: "Auto (gravity)", orient_portrait: "Portrait", orient_land_l: "Landscape (left)", orient_land_r: "Landscape (right)", orient_upside: "Upside down",
+    open_mcap: "Open MCAP", replay_done: "replay finished", replay: "replay",
+    video: "Video", depth_panel: "Depth", pose: "Pose (3D, drag to orbit · wheel to zoom)", imu: "IMU", health: "Device", log: "Log",
+    dropped: "dropped", low_power: "low power mode", via_relay: "via relay", direct: "direct",
+    https_hint: "This page was opened over https, so the browser refuses ws:// connections to a phone on the LAN. To connect a phone use",
+    https_hint_tail: "; offline MCAP replay still works.",
+    no_webcodecs: "No WebCodecs in this browser: video cannot be decoded (Chrome / Edge / Safari 16.4+)",
+    need_target: "Enter the phone address (10.0.0.5 or 10.0.0.5:7420) or a relay URL ws://host:7430/ws",
+    open_failed: "cannot open MCAP", thermal: "thermal", battery: "battery", phone_rates: "phone rates", video_rate: "video", uptime: "uptime",
+    grid: "grid 1 m", tracking: "tracking",
+  },
+};
+export type Lang = keyof typeof dict;
+type Key = keyof typeof dict.zh;
+
+let lang: Lang = (localStorage.getItem("imuninn.lang") as Lang) || (navigator.language.startsWith("zh") ? "zh" : "en");
+
+export function t(key: Key): string { return dict[lang][key] ?? dict.zh[key] ?? key; }
+export function currentLang(): Lang { return lang; }
+
+export function applyLang(next?: Lang): void {
+  if (next) { lang = next; try { localStorage.setItem("imuninn.lang", next); } catch { /* private mode */ } }
+  document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+  document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n as Key); });
+  document.querySelectorAll<HTMLElement>("[data-i18n-placeholder]").forEach((el) => { (el as HTMLInputElement).placeholder = t(el.dataset.i18nPlaceholder as Key); });
+  document.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle as Key); });
+  const b = document.getElementById("lang");
+  if (b) b.textContent = lang === "zh" ? "EN" : "中";
+}

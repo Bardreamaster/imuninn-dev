@@ -37,3 +37,8 @@ input[type=range] { width: 200px; }
 .badge.fair { background: var(--im-warn-surface); color: var(--im-warn-text); }
 .badge.serious { background: var(--im-warn); color: var(--im-on-warn); }
 .badge.critical { background: var(--im-danger-fill); color: var(--im-on-accent); }
+
+#https-hint { background: var(--im-warn-surface); color: var(--im-warn-text); padding: 6px 12px; font-size: 12.5px; border-bottom: 1px solid var(--border); }
+#https-hint a { color: inherit; font-weight: 600; }
+#lang { padding: 4px 8px; min-width: 36px; }
+#pose { cursor: grab; }

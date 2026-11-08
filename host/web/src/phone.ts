@@ -105,7 +105,8 @@ export class PhoneSource {
     const param = rest.join(".");
     const v: any = typeof value === "boolean" ? { b: value } : typeof value === "number" ? (Number.isInteger(value) ? { i: value } : { f: value }) : { s: value };
     let patch: any;
-    if (stream === "session") patch = { session_params: { [param]: v } };
+    if (stream === "session" && param === "mode") patch = { mode: value === "camera" ? 2 : 1 };
+    else if (stream === "session") patch = { session_params: { [param]: v } };
     else if (param === "enabled") patch = { streams: [{ stream_id: stream, enabled: value as boolean }] };
     else patch = { streams: [{ stream_id: stream, params: { [param]: v } }] };
     const r = await this.request({ set_config: { base_config_version: baseVersion, patch } });

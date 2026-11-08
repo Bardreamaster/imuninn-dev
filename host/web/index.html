@@ -10,33 +10,41 @@
     <link rel="stylesheet" href="./src/style.css" />
   </head>
   <body>
+    <div id="https-hint" hidden><span data-i18n="https_hint"></span> <a id="https-link" href="http://imuninn-webviewer.projects.weijinqi.com">http://imuninn-webviewer.projects.weijinqi.com</a><span data-i18n="https_hint_tail"></span></div>
     <header id="topbar">
       <span class="brand"><img src="./imuninn-icon-dark.svg" alt="" />iMuninn</span>
       <div id="source-live" class="source">
-        <input id="ws-url" type="text" placeholder="手机 IP（直连）或 ws://host:7430/ws（中继）" spellcheck="false" />
-        <button id="btn-connect">连接</button>
-        <button id="btn-start" disabled>开始采集</button>
-        <button id="btn-stop" disabled>停止</button>
-        <label class="muted"><input id="depth-enable" type="checkbox" disabled /> 深度</label>
+        <input id="ws-url" type="text" data-i18n-placeholder="addr_placeholder" spellcheck="false" />
+        <button id="btn-connect" data-i18n="connect"></button>
+        <button id="btn-start" disabled data-i18n="start"></button>
+        <button id="btn-stop" disabled data-i18n="stop"></button>
+        <select id="mode" disabled><option value="ar" data-i18n="mode_ar"></option><option value="camera" data-i18n="mode_camera"></option></select>
+        <label class="muted" id="depth-label"><input id="depth-enable" type="checkbox" disabled /> <span data-i18n="depth"></span></label>
         <span id="device-name" class="muted"></span>
       </div>
       <div id="source-file" class="source">
-        <label class="file-btn">打开 MCAP<input id="file-input" type="file" accept=".mcap" /></label>
+        <label class="file-btn"><span data-i18n="open_mcap"></span><input id="file-input" type="file" accept=".mcap" /></label>
         <button id="btn-play" disabled>⏸</button>
         <input id="seek" type="range" min="0" max="1000" value="0" disabled />
         <span id="time-label" class="muted"></span>
         <select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="0">max</option></select>
       </div>
+      <div class="source">
+        <label class="muted"><span data-i18n="orient"></span>
+          <select id="orient"><option value="auto" data-i18n="orient_auto"></option><option value="portrait" data-i18n="orient_portrait"></option><option value="landscape-left" data-i18n="orient_land_l"></option><option value="landscape-right" data-i18n="orient_land_r"></option><option value="upside-down" data-i18n="orient_upside"></option></select>
+        </label>
+        <button id="lang" title="中 / EN">EN</button>
+      </div>
       <span id="status" class="muted"></span>
     </header>
     <div id="streams"></div>
     <main id="grid">
-      <section class="panel" id="panel-video"><h2>视频 <span class="stat" id="stat-rgb"></span></h2><div class="canvas-box"><canvas id="video"></canvas></div></section>
-      <section class="panel" id="panel-depth"><h2>深度 <span class="stat" id="stat-depth"></span><span class="legend">0 m <i></i> <span id="depth-max">5 m</span></span></h2><div class="canvas-box"><canvas id="depth"></canvas></div></section>
-      <section class="panel" id="panel-pose"><h2>位姿轨迹（俯视 X–Z） <span class="stat" id="stat-ar_pose"></span></h2><div class="canvas-box"><canvas id="pose"></canvas></div><pre id="pose-text" class="mono"></pre></section>
-      <section class="panel" id="panel-imu"><h2>IMU <span class="stat" id="stat-imu"></span></h2><div class="canvas-box split"><canvas id="accel"></canvas><canvas id="gyro"></canvas></div></section>
-      <section class="panel" id="panel-health"><h2>设备状态 <span class="stat" id="stat-health"></span></h2><div id="health" class="mono"></div></section>
-      <section class="panel" id="panel-log"><h2>日志</h2><pre id="log" class="mono"></pre></section>
+      <section class="panel" id="panel-video"><h2><span data-i18n="video"></span> <span class="stat" id="stat-rgb"></span></h2><div class="canvas-box"><canvas id="video"></canvas></div></section>
+      <section class="panel" id="panel-depth"><h2><span data-i18n="depth_panel"></span> <span class="stat" id="stat-depth"></span><span class="legend">0 m <i></i> <span id="depth-max">5 m</span></span></h2><div class="canvas-box"><canvas id="depth"></canvas></div></section>
+      <section class="panel" id="panel-pose"><h2><span data-i18n="pose"></span> <span class="stat" id="stat-ar_pose"></span></h2><div class="canvas-box"><canvas id="pose"></canvas></div><pre id="pose-text" class="mono"></pre></section>
+      <section class="panel" id="panel-imu"><h2><span data-i18n="imu"></span> <span class="stat" id="stat-imu"></span></h2><div class="canvas-box split"><canvas id="accel"></canvas><canvas id="gyro"></canvas></div></section>
+      <section class="panel" id="panel-health"><h2><span data-i18n="health"></span> <span class="stat" id="stat-health"></span></h2><div id="health" class="mono"></div></section>
+      <section class="panel" id="panel-log"><h2><span data-i18n="log"></span></h2><pre id="log" class="mono"></pre></section>
     </main>
     <script type="module" src="./src/main.ts"></script>
   </body>

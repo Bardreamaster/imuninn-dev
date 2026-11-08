@@ -3,7 +3,10 @@ import { decodeDepth, depthRangeMm, depthToImage } from "./depth";
 import { LiveSource, type Welcome } from "./live";
 import { PhoneSource, type PhoneWelcome } from "./phone";
 import { McapSource } from "./mcap";
-import { RollingPlot, TrajectoryPlot } from "./plots";
+import { RollingPlot } from "./plots";
+import { Pose3D } from "./pose3d";
+import { OrientationTracker, type OrientMode } from "./orientation";
+import { applyLang, currentLang, t } from "./i18n";
 import { BATTERY, THERMAL, TRACKING, type Body, type Header } from "./proto";
 import { H264Canvas, webCodecsAvailable } from "./video";
 
@@ -13,7 +16,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const video = new H264Canvas($("video"));
 const depthCanvas = $<HTMLCanvasElement>("depth");
 const depthCtx = depthCanvas.getContext("2d")!;
-const traj = new TrajectoryPlot($("pose"));
+const traj = new Pose3D($("pose"));
+const orient = new OrientationTracker();
 const accelPlot = new RollingPlot($("accel"), 3, 600, ["#ef5350", "#66bb6a", "#42a5f5"], "accel", "m/s²");
 const gyroPlot = new RollingPlot($("gyro"), 3, 600, ["#ef5350", "#66bb6a", "#42a5f5"], "gyro", "rad/s");
 const logEl = $("log");
@@ -25,7 +29,19 @@ function log(s: string): void {
 }
 function setStatus(s: string): void { statusEl.textContent = s; }
 video.onError = (e) => log(`video decode error: ${e}`);
-if (!webCodecsAvailable()) log("此浏览器没有 WebCodecs，视频不能解码（Chrome / Edge / Safari 16.4+ 可用）");
+applyLang();
+$("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); };
+if (!webCodecsAvailable()) log(t("no_webcodecs"));
+if (location.protocol === "https:") {
+  const hint = $("https-hint");
+  hint.hidden = false;
+  ($("https-link") as HTMLAnchorElement).href = "http://imuninn-webviewer.projects.weijinqi.com" + location.pathname + location.search;
+}
+const orientSel = $<HTMLSelectElement>("orient");
+orientSel.value = (localStorage.getItem("imuninn.orient") as OrientMode) || "auto";
+orient.mode = orientSel.value as OrientMode;
+orientSel.onchange = () => { orient.mode = orientSel.value as OrientMode; localStorage.setItem("imuninn.orient", orient.mode); };
+let sessionMode = "ar";
 
 // ---------------------------------------------------------------- stream stats
 class StreamStat {
@@ -49,7 +65,7 @@ function stat(id: string): StreamStat { return (stats[id] ??= new StreamStat());
 function renderStats(): void {
   for (const [id, s] of Object.entries(stats)) {
     const el = document.getElementById(`stat-${id}`);
-    if (el) el.textContent = `${s.hz.toFixed(1)} Hz · ${s.n.toLocaleString()}${s.drops ? ` · 丢 ${s.drops}` : ""}`;
+    if (el) el.textContent = `${s.hz.toFixed(1)} Hz · ${s.n.toLocaleString()}${s.drops ? ` · ${t("dropped")} ${s.drops}` : ""}`;
   }
 }
 
@@ -57,14 +73,6 @@ function renderStats(): void {
 let lastPoseText = "";
 let healthText = "";
 let depthPending: ImageData | null = null;
-let depthSwap = false;
-
-function yawFromQuat(q: { x: number; y: number; z: number; w: number }): number {
-  // rotate camera forward (0,0,-1) by q and take its XZ heading
-  const fx = -(2 * (q.x * q.z + q.w * q.y));
-  const fz = -(1 - 2 * (q.x * q.x + q.y * q.y));
-  return Math.atan2(fx, -fz);
-}
 
 function handle(b: Body): void {
   switch (b.kind) {
@@ -79,7 +87,6 @@ function handle(b: Body): void {
         const range = depthRangeMm(depth);
         depthPending = depthToImage(depth, conf, b.msg.width, b.msg.height, range);
         $("depth-max").textContent = `${(range / 1000).toFixed(1)} m`;
-        depthSwap = b.msg.rotation_deg === 90 || b.msg.rotation_deg === 270;
         (depthPending as any)._rot = b.msg.rotation_deg;
       } catch (e) { log(`depth decode error: ${e}`); }
       break;
@@ -87,7 +94,8 @@ function handle(b: Body): void {
     case "pose": {
       const m = b.msg;
       stat(m.header.stream_id).observe(m.header);
-      traj.push(m.position.x, m.position.z, yawFromQuat(m.orientation));
+      traj.push(m.position, m.orientation);
+      orient.fromPose(m.orientation);
       const p = m.position, q = m.orientation, k = m.intrinsics;
       lastPoseText = `t=${(m.header.device_time_ns / 1e9).toFixed(3)}s  seq=${m.header.seq}  tracking=${TRACKING[m.tracking] ?? m.tracking}\n` +
         `p=(${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}) m   q=(${q.x.toFixed(3)}, ${q.y.toFixed(3)}, ${q.z.toFixed(3)}, ${q.w.toFixed(3)})\n` +
@@ -99,17 +107,18 @@ function handle(b: Body): void {
       stat(m.header.stream_id).observe(m.header);
       accelPlot.push([m.accel.x, m.accel.y, m.accel.z]);
       gyroPlot.push([m.gyro.x, m.gyro.y, m.gyro.z]);
+      if (sessionMode === "camera" || !stats["ar_pose"] || stats["ar_pose"].hz === 0) orient.fromAccel(m.accel.x, m.accel.y, m.accel.z);
       break;
     }
     case "health": {
       const m = b.msg;
       stat(m.header.stream_id).observe(m.header);
       const th = THERMAL[m.thermal] ?? "?";
-      healthText = `<div class="row"><span>thermal</span><span><span class="badge ${th}">${th}</span>${m.low_power_mode ? " · 低电量模式" : ""}</span></div>` +
-        `<div class="row"><span>battery</span><span>${m.battery_level >= 0 ? (m.battery_level * 100).toFixed(0) + "%" : "?"} ${BATTERY[m.battery_state] ?? ""}</span></div>` +
-        `<div class="row"><span>phone rates</span><span>pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz</span></div>` +
-        `<div class="row"><span>video</span><span>${(m.video_kbps / 1000).toFixed(2)} Mbit/s · encoder dropped ${m.encoder_dropped}</span></div>` +
-        `<div class="row"><span>uptime</span><span>${(m.uptime_s / 60).toFixed(1)} min</span></div>`;
+      healthText = `<div class="row"><span>${t("thermal")}</span><span><span class="badge ${th}">${th}</span>${m.low_power_mode ? ` · ${t("low_power")}` : ""}</span></div>` +
+        `<div class="row"><span>${t("battery")}</span><span>${m.battery_level >= 0 ? (m.battery_level * 100).toFixed(0) + "%" : "?"} ${BATTERY[m.battery_state] ?? ""}</span></div>` +
+        `<div class="row"><span>${t("phone_rates")}</span><span>pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz</span></div>` +
+        `<div class="row"><span>${t("video_rate")}</span><span>${(m.video_kbps / 1000).toFixed(2)} Mbit/s · encoder dropped ${m.encoder_dropped}</span></div>` +
+        `<div class="row"><span>${t("uptime")}</span><span>${(m.uptime_s / 60).toFixed(1)} min</span></div>`;
       break;
     }
     case "gap":
@@ -118,17 +127,20 @@ function handle(b: Body): void {
       break;
     case "config_changed":
       log("config changed");
+      applyModeFromConfig((b.msg as any)?.config);
       break;
   }
 }
 
 // ---------------------------------------------------------------- render loop (decoupled from sample rate)
 function frame(): void {
+  video.extraRotation = orient.extra();
   if (depthPending) {
     const img = depthPending; depthPending = null;
-    const rot = (img as any)._rot as number;
+    const rot = (((img as any)._rot as number) + orient.extra()) % 360;
     const w = img.width, h = img.height;
-    const cw = depthSwap ? h : w, ch = depthSwap ? w : h;
+    const swap = rot === 90 || rot === 270;
+    const cw = swap ? h : w, ch = swap ? w : h;
     if (depthCanvas.width !== cw || depthCanvas.height !== ch) { depthCanvas.width = cw; depthCanvas.height = ch; }
     if (!rot) depthCtx.putImageData(img, 0, 0);
     else {
@@ -161,22 +173,39 @@ let configVersion = 0;
 const wsUrl = $<HTMLInputElement>("ws-url");
 const defaultWs = location.protocol.startsWith("http") && location.hostname ? `ws://${location.host}/ws` : "";
 wsUrl.value = localStorage.getItem("imuninn.ws") || defaultWs;
-if (location.protocol === "https:") log("页面是 https，浏览器会拒绝连接局域网 ws://；请用 http 打开本页，或拖入 MCAP 文件回放");
-
 const isRelayUrl = (v: string) => /^wss?:\/\//.test(v);
 const activeOpen = () => live.open || phone.open;
+let liveHasLidar = false;
+function onLiveClosedLabels(): void { $("btn-connect").textContent = activeOpen() ? t("disconnect") : t("connect"); }
 function onLiveClosed(): void {
   $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true;
-  $<HTMLInputElement>("depth-enable").disabled = true; $("btn-connect").textContent = "连接";
+  $<HTMLInputElement>("depth-enable").disabled = true; $<HTMLSelectElement>("mode").disabled = true;
+  $("btn-connect").textContent = t("connect");
 }
 function onLiveReady(name: string, streams: string[], subscribed: Set<string>, isLive: boolean, hasLidar: boolean, depthOn: boolean,
                      subscribe: (id: string, on: boolean) => void): void {
   $("device-name").textContent = name;
+  liveHasLidar = hasLidar;
   $<HTMLButtonElement>("btn-start").disabled = !isLive; $<HTMLButtonElement>("btn-stop").disabled = !isLive;
-  $<HTMLInputElement>("depth-enable").disabled = !isLive || !hasLidar;
+  $<HTMLSelectElement>("mode").disabled = !isLive;
   $<HTMLInputElement>("depth-enable").checked = depthOn;
-  $("btn-connect").textContent = "断开";
+  updateDepthToggle(isLive);
+  $("btn-connect").textContent = t("disconnect");
   renderStreamToggles(streams, subscribed, subscribe);
+}
+/** Depth exists only in AR mode on LiDAR phones. */
+function updateDepthToggle(isLive = activeOpen()): void {
+  const ok = isLive && liveHasLidar && sessionMode === "ar";
+  $<HTMLInputElement>("depth-enable").disabled = !ok;
+  $("depth-label").title = sessionMode === "camera" ? t("depth_ar_only") : "";
+  $("depth-label").style.opacity = ok ? "1" : ".5";
+}
+function applyModeFromConfig(cfg: any): void {
+  if (!cfg) return;
+  const m = cfg.mode === 2 || cfg.mode === "SESSION_MODE_CAMERA" ? "camera" : "ar";
+  sessionMode = m;
+  $<HTMLSelectElement>("mode").value = m;
+  updateDepthToggle();
 }
 
 live.onStatus = (s) => { setStatus(s); log(s); };
@@ -184,7 +213,7 @@ live.onBody = handle;
 live.onClose = onLiveClosed;
 live.onWelcome = (w: Welcome) => {
   const d = w.device;
-  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""}${w.mode === "replay" ? " · 回放" : " · 经中继"}`,
+  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""} · ${w.mode === "replay" ? t("replay") : t("via_relay")}`,
     w.streams.map((s) => s.stream_id), new Set(w.subscribed), w.mode === "live", !!d.has_lidar, !!w.depth_enabled,
     (id, on) => live.subscribe([id], !on));
   log(`welcome: ${JSON.stringify(d)}`);
@@ -193,13 +222,14 @@ live.onWelcome = (w: Welcome) => {
 phone.onStatus = (s) => { setStatus(s); log(s); };
 phone.onBody = handle;
 phone.onClose = onLiveClosed;
-phone.onConfig = (cfg) => { configVersion = cfg?.config_version ?? configVersion; log(`config v${configVersion}`); };
+phone.onConfig = (cfg) => { configVersion = cfg?.config_version ?? configVersion; log(`config v${configVersion}`); applyModeFromConfig(cfg); };
 phone.onWelcome = (w: PhoneWelcome) => {
   const d: any = w.device;
   configVersion = w.config?.config_version ?? 0;
   const depthOn = !!(w.config?.streams ?? []).find((s: any) => s.stream_id === "depth" && s.enabled);
   const ids = w.streams.map((s) => s.stream_id);
-  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""} · 直连`, ids, new Set(ids), true, !!d.has_lidar, depthOn,
+  applyModeFromConfig(w.config);
+  onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""} · ${t("direct")}`, ids, new Set(ids), true, !!d.has_lidar, depthOn,
     (id, on) => phone.subscribe([id], !on));
   log(`welcome: ${JSON.stringify(d)} client_id=${w.client_id}`);
 };
@@ -209,12 +239,20 @@ $("btn-connect").onclick = () => {
   stopReplay();
   resetViews();
   const target = wsUrl.value.trim();
-  if (!target) { log("请填手机地址（如 10.0.0.5 或 10.0.0.5:7420），或中继地址 ws://host:7430/ws"); return; }
+  if (!target) { log(t("need_target")); return; }
   localStorage.setItem("imuninn.ws", target);
   if (isRelayUrl(target)) live.connect(target); else phone.connect(target);
 };
 $("btn-start").onclick = () => { if (phone.open) phone.start(); else live.start(); };
 $("btn-stop").onclick = () => { if (phone.open) phone.stop(); else live.stop(); };
+$<HTMLSelectElement>("mode").onchange = async (e) => {
+  const m = (e.target as HTMLSelectElement).value;
+  if (phone.open) {
+    try { const r = await phone.set("session.mode", m, configVersion); configVersion = r?.config_version ?? configVersion; }
+    catch (err) { log(`set session.mode failed: ${err}`); }
+  } else live.set("session.mode", m);
+  sessionMode = m; updateDepthToggle();
+};
 $<HTMLInputElement>("depth-enable").onchange = async (e) => {
   const on = (e.target as HTMLInputElement).checked;
   if (phone.open) {
@@ -281,7 +319,7 @@ async function runReplay(from: bigint): Promise<void> {
       $("time-label").textContent = `${fmtT(positionNs)} / ${mcap.durationS.toFixed(1)} s`;
     }
   }
-  if (gen === replayGen) { playing = false; playBtn.textContent = "▶"; setStatus("回放结束"); }
+  if (gen === replayGen) { playing = false; playBtn.textContent = "▶"; setStatus(t("replay_done")); }
 }
 
 function restartReplay(): void { if (mcap && playing) void runReplay(positionNs); }
@@ -302,10 +340,10 @@ $<HTMLInputElement>("file-input").onchange = async (e) => {
   stopReplay(); resetViews();
   try {
     mcap = await McapSource.open(f);
-  } catch (err) { log(`打开 MCAP 失败: ${err}`); return; }
+  } catch (err) { log(`${t("open_failed")}: ${err}`); return; }
   enabledTopics = new Set(mcap.topics);
   $("device-name").textContent = "";
-  setStatus(`回放 ${f.name}`);
+  setStatus(`${t("replay")} ${f.name}`);
   log(`${f.name}: ${mcap.durationS.toFixed(1)} s, ` + Object.entries(mcap.counts).map(([t, n]) => `${t} ${n}`).join(", "));
   renderStreamToggles(mcap.topics, enabledTopics, (id, on) => { if (on) enabledTopics.add(id); else enabledTopics.delete(id); restartReplay(); });
   seek.disabled = false; playBtn.disabled = false;

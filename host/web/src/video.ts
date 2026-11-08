@@ -27,8 +27,11 @@ export class H264Canvas {
   private ctx: CanvasRenderingContext2D;
   decoded = 0;
   errors = 0;
+  skipped = 0;
   onError: ((e: string) => void) | null = null;
   rotation = 0;
+  /** Extra clockwise display rotation on top of the frame's rotation_deg (orientation.ts). */
+  extraRotation = 0;
 
   constructor(private canvas: HTMLCanvasElement) {
     this.ctx = canvas.getContext("2d")!;
@@ -55,7 +58,10 @@ export class H264Canvas {
     if (!this.ensure(f)) return;
     this.rotation = f.rotation_deg;
     const d = this.decoder!;
-    if (d.decodeQueueSize > 8 && !f.keyframe) { this.waitingKeyframe = true; return; } // behind: skip to the next keyframe
+    // Never skip delta frames on queue depth: waiting for the next keyframe freezes the
+    // picture for a whole keyframe interval (the "stutter every 1-2 s" on the phone).
+    // Hardware decoders keep up with 1920x1440@60; only a runaway queue is reset.
+    if (d.decodeQueueSize > 120) { this.reset(); this.waitingKeyframe = true; this.skipped++; return; }
     try {
       d.decode(new EncodedVideoChunk({
         type: f.keyframe ? "key" : "delta",
@@ -69,7 +75,7 @@ export class H264Canvas {
 
   private draw(frame: VideoFrame): void {
     const w = frame.displayWidth, h = frame.displayHeight;
-    const rot = this.rotation % 360;
+    const rot = (this.rotation + this.extraRotation) % 360;
     const swap = rot === 90 || rot === 270;
     const cw = swap ? h : w, ch = swap ? w : h;
     if (this.canvas.width !== cw || this.canvas.height !== ch) { this.canvas.width = cw; this.canvas.height = ch; }
