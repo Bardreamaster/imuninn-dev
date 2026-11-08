@@ -11,41 +11,91 @@
   </head>
   <body>
     <div id="https-hint" hidden><span data-i18n="https_hint"></span> <a id="https-link" href="http://imuninn-webviewer.projects.weijinqi.com">http://imuninn-webviewer.projects.weijinqi.com</a><span data-i18n="https_hint_tail"></span></div>
-    <header id="topbar">
-      <span class="brand"><img src="./imuninn-icon-dark.svg" alt="" />iMuninn</span>
-      <div id="source-live" class="source">
-        <input id="ws-url" type="text" data-i18n-placeholder="addr_placeholder" spellcheck="false" />
-        <button id="btn-connect" data-i18n="connect"></button>
-        <button id="btn-start" disabled data-i18n="start"></button>
-        <button id="btn-stop" disabled data-i18n="stop"></button>
-        <select id="mode" disabled><option value="ar" data-i18n="mode_ar"></option><option value="camera" data-i18n="mode_camera"></option></select>
-        <label class="muted" id="depth-label"><input id="depth-enable" type="checkbox" disabled /> <span data-i18n="depth"></span></label>
-        <span id="device-name" class="muted"></span>
-      </div>
-      <div id="source-file" class="source">
-        <label class="file-btn"><span data-i18n="open_mcap"></span><input id="file-input" type="file" accept=".mcap" /></label>
-        <button id="btn-play" disabled>⏸</button>
-        <input id="seek" type="range" min="0" max="1000" value="0" disabled />
-        <span id="time-label" class="muted"></span>
-        <select id="speed"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="0">max</option></select>
-      </div>
-      <div class="source">
-        <label class="muted"><span data-i18n="orient"></span>
-          <select id="orient"><option value="auto" data-i18n="orient_auto"></option><option value="portrait" data-i18n="orient_portrait"></option><option value="landscape-left" data-i18n="orient_land_l"></option><option value="landscape-right" data-i18n="orient_land_r"></option><option value="upside-down" data-i18n="orient_upside"></option></select>
-        </label>
-        <button id="lang" title="中 / EN">EN</button>
-      </div>
-      <span id="status" class="muted"></span>
-    </header>
-    <div id="streams"></div>
-    <main id="grid">
-      <section class="panel" id="panel-video"><h2><span data-i18n="video"></span> <span class="stat" id="stat-rgb"></span></h2><div class="canvas-box"><canvas id="video"></canvas></div></section>
-      <section class="panel" id="panel-depth"><h2><span data-i18n="depth_panel"></span> <span class="stat" id="stat-depth"></span><span class="legend">0 m <i></i> <span id="depth-max">5 m</span></span></h2><div class="canvas-box"><canvas id="depth"></canvas></div></section>
-      <section class="panel" id="panel-pose"><h2><span data-i18n="pose"></span> <span class="stat" id="stat-ar_pose"></span></h2><div class="canvas-box"><canvas id="pose"></canvas></div><pre id="pose-text" class="mono"></pre></section>
-      <section class="panel" id="panel-imu"><h2><span data-i18n="imu"></span> <span class="stat" id="stat-imu"></span></h2><div class="canvas-box split"><canvas id="accel"></canvas><canvas id="gyro"></canvas></div></section>
-      <section class="panel" id="panel-health"><h2><span data-i18n="health"></span> <span class="stat" id="stat-health"></span></h2><div id="health" class="mono"></div></section>
-      <section class="panel" id="panel-log"><h2><span data-i18n="log"></span></h2><pre id="log" class="mono"></pre></section>
-    </main>
+    <div id="page">
+      <header id="header">
+        <div class="brand">
+          <img src="./imuninn-icon-dark.svg" alt="" />
+          <div>
+            <div class="title">iMuninn</div>
+            <div class="subtitle" id="device-name" data-i18n="subtitle_idle"></div>
+          </div>
+        </div>
+        <div class="header-right">
+          <span class="pill" id="status-pill"><i class="dot muted" id="status-dot"></i><span id="status" data-i18n="st_disconnected"></span></span>
+          <button id="lang" class="btn ghost small" title="中 / EN">EN</button>
+        </div>
+      </header>
+
+      <main id="layout">
+        <section class="column column-left">
+          <!-- Connection -->
+          <section class="card" id="card-connect">
+            <div class="card-head"><span class="card-title" data-i18n="connection"></span><span class="card-right" id="connect-right"></span></div>
+            <div class="toolbar">
+              <input id="ws-url" class="input" type="text" data-i18n-placeholder="addr_placeholder" spellcheck="false" />
+              <button id="btn-connect" class="btn primary" data-i18n="connect"></button>
+            </div>
+            <div class="toolbar">
+              <button id="btn-start" class="btn primary" disabled data-i18n="start"></button>
+              <button id="btn-stop" class="btn danger" disabled data-i18n="stop"></button>
+              <label class="field"><span data-i18n="mode"></span><select id="mode" class="select" disabled><option value="ar" data-i18n="mode_ar"></option><option value="camera" data-i18n="mode_camera"></option></select></label>
+              <label class="field switch" id="depth-label"><span data-i18n="depth"></span><input id="depth-enable" type="checkbox" role="switch" disabled /></label>
+              <label class="field"><span data-i18n="orient"></span><select id="orient" class="select"><option value="auto" data-i18n="orient_auto"></option><option value="portrait" data-i18n="orient_portrait"></option><option value="landscape-left" data-i18n="orient_land_l"></option><option value="landscape-right" data-i18n="orient_land_r"></option><option value="upside-down" data-i18n="orient_upside"></option></select></label>
+            </div>
+            <div class="toolbar">
+              <label class="btn ghost file-btn"><span data-i18n="open_mcap"></span><input id="file-input" type="file" accept=".mcap" /></label>
+              <button id="btn-play" class="btn ghost small" disabled>⏸</button>
+              <input id="seek" class="seek" type="range" min="0" max="1000" value="0" disabled />
+              <span id="time-label" class="caption num"></span>
+              <select id="speed" class="select"><option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option><option value="4">4×</option><option value="0">max</option></select>
+            </div>
+            <div id="streams" class="chips"></div>
+          </section>
+
+          <!-- Preview: video + depth -->
+          <section class="card" id="card-preview">
+            <div class="card-head"><span class="card-title" data-i18n="preview"></span></div>
+            <div class="previews">
+              <div class="preview"><canvas id="video"></canvas><div class="overlay num" id="video-overlay"><span data-i18n="video"></span><span id="stat-rgb"></span></div></div>
+              <div class="preview"><canvas id="depth"></canvas><div class="overlay num" id="depth-overlay"><span data-i18n="depth_panel"></span><span id="stat-depth"></span><span class="legend">0 m <i></i> <span id="depth-max">5 m</span></span></div></div>
+            </div>
+          </section>
+
+          <!-- Capture stats -->
+          <section class="card" id="card-capture">
+            <div class="card-head"><span class="card-title" data-i18n="capture"></span></div>
+            <div class="grid" id="stat-grid">
+              <div class="stat"><div class="stat-label" data-i18n="tracking"></div><div class="stat-value" id="st-tracking">—</div></div>
+              <div class="stat"><div class="stat-label" data-i18n="pose_hz"></div><div class="stat-value"><span id="st-pose">0</span><span class="stat-unit"> Hz</span></div></div>
+              <div class="stat"><div class="stat-label">IMU</div><div class="stat-value"><span id="st-imu">0</span><span class="stat-unit"> Hz</span></div></div>
+              <div class="stat"><div class="stat-label" data-i18n="video"></div><div class="stat-value"><span id="st-video">0</span><span class="stat-unit" id="st-video-unit"> fps</span></div></div>
+              <div class="stat"><div class="stat-label" data-i18n="depth_panel"></div><div class="stat-value"><span id="st-depth">0</span><span class="stat-unit"> Hz</span></div></div>
+              <div class="stat"><div class="stat-label" data-i18n="dropped_frames"></div><div class="stat-value" id="st-drops">0</div></div>
+            </div>
+          </section>
+        </section>
+
+        <section class="column column-right">
+          <section class="card" id="card-pose">
+            <div class="card-head"><span class="card-title" data-i18n="pose"></span><span class="card-right caption num" id="stat-ar_pose"></span></div>
+            <div class="canvas-box"><canvas id="pose"></canvas></div>
+            <pre id="pose-text" class="mono"></pre>
+          </section>
+          <section class="card" id="card-imu">
+            <div class="card-head"><span class="card-title">IMU</span><span class="card-right caption num" id="stat-imu"></span></div>
+            <div class="canvas-box split"><canvas id="accel"></canvas><canvas id="gyro"></canvas></div>
+          </section>
+          <section class="card" id="card-health">
+            <div class="card-head"><span class="card-title" data-i18n="health"></span><span class="card-right caption num" id="stat-health"></span></div>
+            <div id="health" class="rows"></div>
+          </section>
+          <section class="card" id="card-log">
+            <div class="card-head"><span class="card-title" data-i18n="log"></span></div>
+            <pre id="log" class="mono"></pre>
+          </section>
+        </section>
+      </main>
+    </div>
     <script type="module" src="./src/main.ts"></script>
   </body>
 </html>

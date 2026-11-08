@@ -27,7 +27,17 @@ function log(s: string): void {
   const t = new Date().toLocaleTimeString();
   logEl.textContent = `${t} ${s}\n` + (logEl.textContent ?? "").split("\n").slice(0, 200).join("\n");
 }
-function setStatus(s: string): void { statusEl.textContent = s; }
+type Tone = "ok" | "warn" | "err" | "muted";
+function setStatus(s: string, tone: Tone = "muted"): void {
+  statusEl.textContent = s;
+  $("status-dot").className = `dot ${tone}`;
+}
+/** Map a transport status line to the pill: connected → ok, closing / errors → err, else muted. */
+function statusFromSource(s: string): void {
+  if (s === "connected") setStatus(t("st_connected"), "ok");
+  else if (s.startsWith("connecting")) setStatus(t("st_connecting"), "warn");
+  else if (s.startsWith("closed") || s.includes("error") || s.includes("failed")) setStatus(t("st_error"), "err");
+}
 video.onError = (e) => log(`video decode error: ${e}`);
 applyLang();
 $("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); };
@@ -62,11 +72,29 @@ class StreamStat {
 }
 const stats: Record<string, StreamStat> = {};
 function stat(id: string): StreamStat { return (stats[id] ??= new StreamStat()); }
+let lastTracking = -1;
+let lastHealth: { video_kbps: number } | null = null;
 function renderStats(): void {
   for (const [id, s] of Object.entries(stats)) {
     const el = document.getElementById(`stat-${id}`);
-    if (el) el.textContent = `${s.hz.toFixed(1)} Hz · ${s.n.toLocaleString()}${s.drops ? ` · ${t("dropped")} ${s.drops}` : ""}${id === "rgb" && video.latencyMs ? ` · +${video.latencyMs.toFixed(0)} ms` : ""}`;
+    if (!el) continue;
+    const unit = id === "rgb" ? "fps" : "Hz";
+    el.textContent = `${s.hz.toFixed(1)} ${unit} · ${s.n.toLocaleString()}${s.drops ? ` · ${t("dropped")} ${s.drops}` : ""}` +
+      (id === "rgb" && video.latencyMs ? ` · +${video.latencyMs.toFixed(0)} ms` : "") +
+      (id === "rgb" && video.width ? ` · ${video.width}×${video.height}` : "");
   }
+  const hz = (id: string) => (stats[id]?.hz ?? 0).toFixed(1);
+  $("st-pose").textContent = hz("ar_pose");
+  $("st-imu").textContent = hz("imu");
+  $("st-video").textContent = hz("rgb");
+  $("st-video-unit").textContent = lastHealth ? ` fps · ${(lastHealth.video_kbps / 1000).toFixed(1)} Mbps` : " fps";
+  $("st-depth").textContent = hz("depth");
+  const drops = Object.values(stats).reduce((a, s) => a + s.drops, 0);
+  const d = $("st-drops"); d.textContent = String(drops); d.className = `stat-value${drops ? " warn" : ""}`;
+  const tr = $("st-tracking");
+  const name = TRACKING[lastTracking] ?? "—";
+  tr.textContent = sessionMode === "camera" ? "—" : name;
+  tr.className = `stat-value ${lastTracking === 3 ? "ok" : lastTracking === 2 ? "warn" : "muted"}`;
 }
 
 // ---------------------------------------------------------------- sample dispatch
@@ -96,6 +124,7 @@ function handle(b: Body): void {
       stat(m.header.stream_id).observe(m.header);
       traj.push(m.position, m.orientation);
       orient.fromPose(m.orientation);
+      lastTracking = m.tracking;
       const p = m.position, q = m.orientation, k = m.intrinsics;
       lastPoseText = `t=${(m.header.device_time_ns / 1e9).toFixed(3)}s  seq=${m.header.seq}  tracking=${TRACKING[m.tracking] ?? m.tracking}\n` +
         `p=(${p.x.toFixed(3)}, ${p.y.toFixed(3)}, ${p.z.toFixed(3)}) m   q=(${q.x.toFixed(3)}, ${q.y.toFixed(3)}, ${q.z.toFixed(3)}, ${q.w.toFixed(3)})\n` +
@@ -114,11 +143,13 @@ function handle(b: Body): void {
       const m = b.msg;
       stat(m.header.stream_id).observe(m.header);
       const th = THERMAL[m.thermal] ?? "?";
-      healthText = `<div class="row"><span>${t("thermal")}</span><span><span class="badge ${th}">${th}</span>${m.low_power_mode ? ` · ${t("low_power")}` : ""}</span></div>` +
-        `<div class="row"><span>${t("battery")}</span><span>${m.battery_level >= 0 ? (m.battery_level * 100).toFixed(0) + "%" : "?"} ${BATTERY[m.battery_state] ?? ""}</span></div>` +
-        `<div class="row"><span>${t("phone_rates")}</span><span>pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz</span></div>` +
-        `<div class="row"><span>${t("video_rate")}</span><span>${(m.video_kbps / 1000).toFixed(2)} Mbit/s · encoder dropped ${m.encoder_dropped}</span></div>` +
-        `<div class="row"><span>${t("uptime")}</span><span>${(m.uptime_s / 60).toFixed(1)} min</span></div>`;
+      lastHealth = m;
+      const row = (k: string, v: string) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
+      healthText = row(t("thermal"), `<span class="badge ${th}">${th}</span>${m.low_power_mode ? ` · ${t("low_power")}` : ""}`) +
+        row(t("battery"), `${m.battery_level >= 0 ? (m.battery_level * 100).toFixed(0) + "%" : "?"} ${BATTERY[m.battery_state] ?? ""}`) +
+        row(t("phone_rates"), `pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz`) +
+        row(t("video_rate"), `${(m.video_kbps / 1000).toFixed(2)} Mbit/s · encoder dropped ${m.encoder_dropped}`) +
+        row(t("uptime"), `${(m.uptime_s / 60).toFixed(1)} min`);
       break;
     }
     case "gap":
@@ -179,6 +210,8 @@ const activeOpen = () => live.open || phone.open;
 let liveHasLidar = false;
 function onLiveClosedLabels(): void { $("btn-connect").textContent = activeOpen() ? t("disconnect") : t("connect"); }
 function onLiveClosed(): void {
+  $("device-name").textContent = t("subtitle_idle");
+  if (!mcap) setStatus(t("st_disconnected"), "muted");
   $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true;
   $<HTMLInputElement>("depth-enable").disabled = true; $<HTMLSelectElement>("mode").disabled = true;
   $("btn-connect").textContent = t("connect");
@@ -209,7 +242,7 @@ function applyModeFromConfig(cfg: any): void {
   updateDepthToggle();
 }
 
-live.onStatus = (s) => { setStatus(s); log(s); };
+live.onStatus = (s) => { statusFromSource(s); log(s); };
 live.onBody = handle;
 live.onClose = onLiveClosed;
 live.onWelcome = (w: Welcome) => {
@@ -220,7 +253,7 @@ live.onWelcome = (w: Welcome) => {
   log(`welcome: ${JSON.stringify(d)}`);
 };
 
-phone.onStatus = (s) => { setStatus(s); log(s); };
+phone.onStatus = (s) => { statusFromSource(s); log(s); };
 phone.onBody = handle;
 phone.onClose = onLiveClosed;
 phone.onConfig = (cfg) => { configVersion = cfg?.config_version ?? configVersion; log(`config v${configVersion}`); applyModeFromConfig(cfg); };
@@ -266,12 +299,11 @@ function renderStreamToggles(ids: string[], on: Set<string>, cb: (id: string, on
   const box = $("streams");
   box.innerHTML = "";
   for (const id of ids) {
-    const l = document.createElement("label");
-    const c = document.createElement("input");
-    c.type = "checkbox"; c.checked = on.has(id);
-    c.onchange = () => cb(id, c.checked);
-    l.append(c, id);
-    box.append(l);
+    const chip = document.createElement("button");
+    chip.className = `chip${on.has(id) ? " on" : ""}`;
+    chip.textContent = id.replace(/^\//, "");
+    chip.onclick = () => { const now = !chip.classList.contains("on"); chip.classList.toggle("on", now); cb(id, now); };
+    box.append(chip);
   }
 }
 
@@ -320,7 +352,7 @@ async function runReplay(from: bigint): Promise<void> {
       $("time-label").textContent = `${fmtT(positionNs)} / ${mcap.durationS.toFixed(1)} s`;
     }
   }
-  if (gen === replayGen) { playing = false; playBtn.textContent = "▶"; setStatus(t("replay_done")); }
+  if (gen === replayGen) { playing = false; playBtn.textContent = "▶"; setStatus(t("replay_done"), "muted"); }
 }
 
 function restartReplay(): void { if (mcap && playing) void runReplay(positionNs); }
@@ -343,8 +375,8 @@ $<HTMLInputElement>("file-input").onchange = async (e) => {
     mcap = await McapSource.open(f);
   } catch (err) { log(`${t("open_failed")}: ${err}`); return; }
   enabledTopics = new Set(mcap.topics);
-  $("device-name").textContent = "";
-  setStatus(`${t("replay")} ${f.name}`);
+  $("device-name").textContent = f.name;
+  setStatus(`${t("st_replay")} · ${f.name}`, "ok");
   log(`${f.name}: ${mcap.durationS.toFixed(1)} s, ` + Object.entries(mcap.counts).map(([t, n]) => `${t} ${n}`).join(", "));
   renderStreamToggles(mcap.topics, enabledTopics, (id, on) => { if (on) enabledTopics.add(id); else enabledTopics.delete(id); restartReplay(); });
   seek.disabled = false; playBtn.disabled = false;

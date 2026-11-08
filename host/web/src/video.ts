@@ -34,6 +34,7 @@ export class H264Canvas {
   private offsetUs: number | null = null;   // performance.now()*1000 - frame.timestamp, smoothed
   private delayUs = 120_000;                // target presentation delay, adapted to jitter
   latencyMs = 0;
+  width = 0; height = 0;   // decoded frame size (sensor orientation)
   onError: ((e: string) => void) | null = null;
   rotation = 0;
   /** Extra clockwise display rotation on top of the frame's rotation_deg (orientation.ts). */
@@ -110,6 +111,7 @@ export class H264Canvas {
 
   private paint(frame: VideoFrame): void {
     const w = frame.displayWidth, h = frame.displayHeight;
+    this.width = w; this.height = h;
     const rot = (this.rotation + this.extraRotation) % 360;
     const swap = rot === 90 || rot === 270;
     const cw = swap ? h : w, ch = swap ? w : h;

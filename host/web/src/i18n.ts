@@ -17,6 +17,8 @@ const dict = {
     need_target: "请填手机地址（如 10.0.0.5 或 10.0.0.5:7420），或中继地址 ws://host:7430/ws",
     open_failed: "打开 MCAP 失败", thermal: "热状态", battery: "电量", phone_rates: "手机端速率", video_rate: "视频", uptime: "运行时间",
     grid: "网格 1 m", tracking: "追踪",
+    subtitle_idle: "浏览器查看器 · 协议 v5", connection: "连接", preview: "预览", capture: "采集", mode: "模式",
+    pose_hz: "位姿", dropped_frames: "丢帧（本端）", st_disconnected: "未连接", st_connecting: "连接中", st_connected: "已连接", st_replay: "回放中", st_error: "连接失败",
   },
   en: {
     title: "iMuninn Web Viewer",
@@ -33,6 +35,8 @@ const dict = {
     need_target: "Enter the phone address (10.0.0.5 or 10.0.0.5:7420) or a relay URL ws://host:7430/ws",
     open_failed: "cannot open MCAP", thermal: "thermal", battery: "battery", phone_rates: "phone rates", video_rate: "video", uptime: "uptime",
     grid: "grid 1 m", tracking: "tracking",
+    subtitle_idle: "browser viewer · protocol v5", connection: "Connection", preview: "Preview", capture: "Capture", mode: "Mode",
+    pose_hz: "Pose", dropped_frames: "Dropped (here)", st_disconnected: "Disconnected", st_connecting: "Connecting", st_connected: "Connected", st_replay: "Replaying", st_error: "Connection failed",
   },
 };
 export type Lang = keyof typeof dict;
