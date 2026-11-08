@@ -261,6 +261,8 @@ PC 端是一个客户端库：连接手机、接收并解码数据，再通过�
 
 手机端**不**直接说 Rerun 或 Foxglove 的协议：那会把数据模型绑死在可视化工具上，且 Rerun 没有 Swift / Kotlin SDK。
 
+`imuninn rerun`（2026-11-03 补齐）：每台手机一棵 `world/<dev>` 子树（位姿、轨迹、RGB 针孔 + 视频、深度针孔 + 深度图/置信度/点云），`plots/<dev>` 放 IMU、跟踪、健康曲线，`events/<dev>` 放跟踪/热状态/Gap/配置变更日志；多台手机共用 `pc` 时间轴。视频默认把 H.264 NAL 原样交给 Viewer 解码（PC 端零解码），深度交给 Viewer 自动反投影，PC 端只在需要 RGB 着色点云时解码。回放 MCAP 走同一条路径。
+
 ### 7.3 录制：MCAP 原始流
 
 客户端把手机发来的 Protobuf 消息**原样**写进 MCAP 文件（MIT 许可，原生支持 Protobuf schema）。数据集格式就是自己的协议，不绑定任何查看器；需要可视化时回放给 Rerun，或转换成 `.rrd`。MCAP 回放同时承担可复现测试的职责。
