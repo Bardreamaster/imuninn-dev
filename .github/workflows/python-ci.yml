@@ -1,0 +1,51 @@
+name: python-ci
+
+on:
+  push:
+    branches: [main]
+    paths: ["host/python/**", "protocol/**", ".github/workflows/python-ci.yml"]
+  pull_request:
+    paths: ["host/python/**", "protocol/**", ".github/workflows/python-ci.yml"]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.13"]
+    defaults:
+      run:
+        working-directory: host/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: uv pip install --system -e ".[dev,mcap,video]"
+      - name: Test
+        run: python -m pytest -q
+      - name: Build
+        run: uv build
+      - name: Check metadata
+        run: uv pip install --system twine && python -m twine check dist/*
+
+  generated-code:
+    # The committed Python bindings and the .proto copy must match protocol/imuninn.proto.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: arduino/setup-protoc@v3
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Regenerate and diff
+        run: |
+          set -e
+          out=$(mktemp -d)
+          protoc -I protocol --python_out="$out" --pyi_out="$out" protocol/imuninn.proto
+          diff -u host/python/src/imuninn/proto/imuninn_pb2.py "$out/imuninn_pb2.py"
+          diff -u host/python/src/imuninn/proto/imuninn_pb2.pyi "$out/imuninn_pb2.pyi"
+          diff -u protocol/imuninn.proto host/python/src/imuninn/proto/imuninn.proto
+          grep -q "^$(cat protocol/VERSION)$" <(sed -n 's/^PROTOCOL_VERSION = //p' host/python/src/imuninn/__init__.py) \
+            || { echo "PROTOCOL_VERSION in __init__.py does not match protocol/VERSION"; exit 1; }
