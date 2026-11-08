@@ -28,6 +28,12 @@ export class H264Canvas {
   decoded = 0;
   errors = 0;
   skipped = 0;
+  /** Playout buffer: frames arrive in ~100 ms bursts over Wi-Fi; presenting them paced by
+   *  their capture timestamps (with a small adaptive delay) removes the visible stutter. */
+  private queue: VideoFrame[] = [];
+  private offsetUs: number | null = null;   // performance.now()*1000 - frame.timestamp, smoothed
+  private delayUs = 120_000;                // target presentation delay, adapted to jitter
+  latencyMs = 0;
   onError: ((e: string) => void) | null = null;
   rotation = 0;
   /** Extra clockwise display rotation on top of the frame's rotation_deg (orientation.ts). */
@@ -73,7 +79,36 @@ export class H264Canvas {
     }
   }
 
+  /** Decoder output: queue for paced presentation (see present()). */
   private draw(frame: VideoFrame): void {
+    const nowUs = performance.now() * 1000;
+    const off = nowUs - frame.timestamp;
+    if (this.offsetUs === null) this.offsetUs = off;
+    else {
+      // follow the minimum offset (least-delayed arrivals) so clock drift does not grow latency
+      if (off < this.offsetUs) this.offsetUs = off;
+      else this.offsetUs += (off - this.offsetUs) * 0.002;
+      const jitter = off - this.offsetUs;          // how late this frame is vs the fastest path
+      const want = Math.min(250_000, Math.max(50_000, jitter * 1.2 + 25_000));
+      this.delayUs = want > this.delayUs ? want : this.delayUs + (want - this.delayUs) * 0.01;
+    }
+    this.queue.push(frame);
+    if (this.queue.length > 90) this.queue.shift()!.close();
+  }
+
+  /** Call once per animation frame: shows the newest frame whose presentation time has come. */
+  present(): void {
+    if (!this.queue.length || this.offsetUs === null) return;
+    const dueUs = performance.now() * 1000 - this.offsetUs - this.delayUs;
+    let pick: VideoFrame | null = null;
+    while (this.queue.length && this.queue[0].timestamp <= dueUs) {
+      pick?.close();
+      pick = this.queue.shift()!;
+    }
+    if (pick) { this.latencyMs = (performance.now() * 1000 - this.offsetUs - pick.timestamp) / 1000; this.paint(pick); }
+  }
+
+  private paint(frame: VideoFrame): void {
     const w = frame.displayWidth, h = frame.displayHeight;
     const rot = (this.rotation + this.extraRotation) % 360;
     const swap = rot === 90 || rot === 270;
@@ -93,5 +128,8 @@ export class H264Canvas {
     if (this.decoder && this.decoder.state !== "closed") this.decoder.close();
     this.decoder = null;
     this.waitingKeyframe = true;
+    for (const f of this.queue) f.close();
+    this.queue = [];
+    this.offsetUs = null;
   }
 }

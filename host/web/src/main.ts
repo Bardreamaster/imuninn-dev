@@ -65,7 +65,7 @@ function stat(id: string): StreamStat { return (stats[id] ??= new StreamStat());
 function renderStats(): void {
   for (const [id, s] of Object.entries(stats)) {
     const el = document.getElementById(`stat-${id}`);
-    if (el) el.textContent = `${s.hz.toFixed(1)} Hz · ${s.n.toLocaleString()}${s.drops ? ` · ${t("dropped")} ${s.drops}` : ""}`;
+    if (el) el.textContent = `${s.hz.toFixed(1)} Hz · ${s.n.toLocaleString()}${s.drops ? ` · ${t("dropped")} ${s.drops}` : ""}${id === "rgb" && video.latencyMs ? ` · +${video.latencyMs.toFixed(0)} ms` : ""}`;
   }
 }
 
@@ -135,6 +135,7 @@ function handle(b: Body): void {
 // ---------------------------------------------------------------- render loop (decoupled from sample rate)
 function frame(): void {
   video.extraRotation = orient.extra();
+  video.present();
   if (depthPending) {
     const img = depthPending; depthPending = null;
     const rot = (((img as any)._rot as number) + orient.extra()) % 360;

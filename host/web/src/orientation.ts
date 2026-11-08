@@ -27,9 +27,10 @@ export class OrientationTracker {
   /** Gravity from the IMU accelerometer (iOS device frame: x right, y up in portrait).
    *  Sensor frame = device frame rotated: x_cam = -y_dev, y_cam = x_dev. */
   fromAccel(ax: number, ay: number, az: number): void {
-    // accelerometer measures -gravity when static; the sign cancels in atan2 below
+    // iOS reports the accelerometer along gravity (face-up on a desk: z ≈ -9.8), so the
+    // unit vector is the gravity direction in the device frame; map it into the sensor frame.
     const n = Math.hypot(ax, ay, az) || 1;
-    this.update(-(-ay / n), -(ax / n), -(az / n));
+    this.update(-ay / n, ax / n, az / n);
   }
 
   private update(gx: number, gy: number, gz: number): void {
