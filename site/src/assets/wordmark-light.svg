@@ -1,13 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="120 200 2732 630" role="img" aria-label="iMuninn">
-  <!-- iMuninn 字标：App 图标的 i（竖笔 + 录制环）与 M 原样，u / n 用同一笔画（108，圆头）；u 为纯 U 形。tokens: text / err -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="118 200 2736 624" role="img" aria-label="iMuninn">
+  <!-- iMuninn 字标（light）：App 图标的 i（竖笔 + 录制环）与 M 原样；uninn 用同一笔画 108（圆头圆角），x 高度 412–776（中线 466–722）。
+       u 为 ∪、n 为 ∩（互为镜像，弧顶/弧底落在 x 高度线/基线上），字宽（两腿中心距）276，字间空白 64，第二个 i 用实心点 Ø120。tokens: text / err -->
   <rect x="166" y="412" width="120" height="364" rx="60" fill="#1F2328"/>
   <g fill="none" stroke="#1F2328" stroke-width="108" stroke-linecap="round" stroke-linejoin="round">
   <path d="M404 722V302L596 566L788 302V722"/>
   <path d="M960 466V628C960 753 1236 753 1236 628V466"/>
-  <path d="M1408 722V466M1408 560C1408 435 1684 435 1684 560V722"/>
-  <path d="M1856 466V722"/>
-  <path d="M2028 722V466M2028 560C2028 435 2304 435 2304 560V722"/>
-  <path d="M2476 722V466M2476 560C2476 435 2752 435 2752 560V722"/>
+  <path d="M1408 722V560C1408 435 1684 435 1684 560V722"/>
+  <path d="M1856 722V466"/>
+  <path d="M2028 722V560C2028 435 2304 435 2304 560V722"/>
+  <path d="M2476 722V560C2476 435 2752 435 2752 560V722"/>
   </g>
   <circle cx="226" cy="320" r="66" fill="none" stroke="#CE2930" stroke-width="12"/>
   <circle cx="226" cy="320" r="38" fill="#CE2930"/>
