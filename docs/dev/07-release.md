@@ -42,4 +42,4 @@ tools/publish.sh ../imuninn-public "…" --push                           # 顺�
 
 ## App
 
-TestFlight / App Store 流程待定；目前自己构建安装，见[构建与运行](02-build-run.md)。
+上架文案、审核备注和截图要求见 [App Store 上架资料](09-app-store.md)；开发阶段自己构建安装，见[构建与运行](02-build-run.md)。
