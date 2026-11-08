@@ -42,11 +42,7 @@ video.onError = (e) => log(`video decode error: ${e}`);
 applyLang();
 $("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); renderedRunning = null; };
 if (!webCodecsAvailable()) log(t("no_webcodecs"));
-if (location.protocol === "https:") {
-  const hint = $("https-hint");
-  hint.hidden = false;
-  ($("https-link") as HTMLAnchorElement).href = "http://imuninn-webviewer.projects.weijinqi.com" + location.pathname + location.search;
-}
+if (location.protocol === "https:") $("https-hint").hidden = false;
 const orientSel = $<HTMLSelectElement>("orient");
 orientSel.value = (localStorage.getItem("imuninn.orient") as OrientMode) || "auto";
 orient.mode = orientSel.value as OrientMode;
