@@ -13,6 +13,8 @@ from . import SERVICE_TYPE
 
 @dataclass(frozen=True)
 class Phone:
+    """A phone found on the LAN: Bonjour name, preferred address and control port."""
+
     name: str
     host: str
     port: int
@@ -21,6 +23,7 @@ class Phone:
 
     @property
     def address(self) -> str:
+        """``host:port`` of the control channel."""
         return f"{self.host}:{self.port}"
 
 

@@ -27,6 +27,11 @@ class H264Decoder:
         self.waiting_for_keyframe = True
 
     def decode(self, frame: pb.VideoFrame, upright: bool = True) -> Iterator["np.ndarray"]:
+        """Decode one ``VideoFrame``; yields zero or more RGB arrays.
+
+        Frames before the first keyframe are skipped. With ``upright=True`` the image
+        is rotated by ``frame.rotation_deg`` so it matches how the phone was held.
+        """
         if frame.format != pb.PIXEL_FORMAT_H264_NAL:
             return
         if self.waiting_for_keyframe and not frame.keyframe:
@@ -41,5 +46,6 @@ class H264Decoder:
                 yield img
 
     def reset(self) -> None:
+        """Drop decoder state and wait for the next keyframe (after a gap or format change)."""
         self._codec = av.CodecContext.create("h264", "r")
         self.waiting_for_keyframe = True

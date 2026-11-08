@@ -25,10 +25,12 @@ BUILTIN_DIR = Path(__file__).parent / "profiles"
 
 
 def builtin_profiles() -> list[str]:
+    """Names of the YAML presets shipped with the package (``calibration``, ``dataset``, ...)."""
     return sorted(p.stem for p in BUILTIN_DIR.glob("*.yaml"))
 
 
 def resolve_path(name_or_path: str) -> Path:
+    """A file path as given, or the built-in profile of that name."""
     p = Path(name_or_path)
     if p.exists():
         return p
@@ -39,6 +41,7 @@ def resolve_path(name_or_path: str) -> Path:
 
 
 def load(name_or_path: str) -> dict:
+    """Read a profile (built-in name or YAML file) as a dict."""
     with open(resolve_path(name_or_path)) as f:
         data = yaml.safe_load(f) or {}
     if not isinstance(data, dict):
@@ -47,6 +50,7 @@ def load(name_or_path: str) -> dict:
 
 
 def to_patch(profile: dict) -> pb.DeviceConfig:
+    """Profile dict -> partial ``DeviceConfig`` for ``set_config``."""
     patch = pb.DeviceConfig()
     mode = profile.get("mode")
     if mode:
@@ -90,5 +94,6 @@ def from_config(config: pb.DeviceConfig, name: str = "snapshot") -> dict:
 
 
 def dump(profile: dict, path: str | Path) -> None:
+    """Write a profile dict as YAML."""
     with open(path, "w") as f:
         yaml.safe_dump(profile, f, sort_keys=False, allow_unicode=True)

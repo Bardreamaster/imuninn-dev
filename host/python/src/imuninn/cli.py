@@ -29,12 +29,21 @@ def main(argv: list[str] | None = None) -> None:
     r.add_argument("--start", action="store_true", help="send SessionControl START after connect")
     r.add_argument("--depth", action="store_true", help="enable the depth stream on the phone(s) first")
     r.add_argument("--no-spawn", action="store_true", help="connect to an already running viewer")
-    r.add_argument("--video", choices=("stream", "decode", "off"), default="stream",
-                   help="stream: feed H.264 to the viewer (needs ffmpeg on PATH); decode: PyAV on the PC; off")
+    r.add_argument("--video", choices=("decode", "stream", "off"), default="decode",
+                   help="decode: PyAV in this client (default); stream: hand H.264 to the viewer "
+                        "(viewer-side ffmpeg, stutters at 60 fps); off")
     r.add_argument("--every", type=int, default=1, help="with --video decode: show one frame out of N")
+    r.add_argument("--scale", type=float, default=0.5,
+                   help="with --video decode: downscale frames for the viewer (1 = full size)")
+    r.add_argument("--buffer-ms", type=float, default=0.0,
+                   help="playout buffer: release samples in device-time order this many ms late, "
+                        "smoothing bursty Wi-Fi delivery (try 150)")
+    r.add_argument("--port", type=int, default=None,
+                   help="spawn / connect to a viewer on this port instead of the default 9876 (own viewer)")
     r.add_argument("--points", action="store_true",
                    help="back-project depth into a Points3D cloud on the PC (RGB-coloured with --video decode)")
     r.add_argument("--point-stride", type=int, default=2, help="subsample the depth map for --points")
+    r.add_argument("--points-hz", type=float, default=10.0, help="rate cap for --points and the confidence image (0 = every frame)")
     r.add_argument("--no-trajectory", action="store_true", help="do not draw the camera path")
     r.add_argument("--no-blueprint", action="store_true", help="keep the viewer's own layout")
     r.add_argument("--mcap", default=None, help="replay this MCAP file instead of connecting to a phone")
@@ -162,9 +171,9 @@ def _rerun(args) -> None:
     from .rerun_bridge import run_devices, run_mcap
     from .session import connect
 
-    kw = dict(spawn=not args.no_spawn, save=args.save, use_blueprint=not args.no_blueprint,
-              video=args.video, every_nth_video=args.every, points=args.points,
-              point_stride=args.point_stride, trajectory=not args.no_trajectory)
+    kw = dict(spawn=not args.no_spawn, save=args.save, use_blueprint=not args.no_blueprint, port=args.port,
+              video=args.video, every_nth_video=args.every, video_scale=args.scale, points=args.points,
+              point_stride=args.point_stride, points_hz=args.points_hz, trajectory=not args.no_trajectory)
     if args.mcap:
         counts = run_mcap(args.mcap, **kw)
         print(f"replayed: {counts}")
@@ -182,7 +191,7 @@ def _rerun(args) -> None:
 
             threading.Timer(args.seconds, lambda: [d.close() for d in devs]).start()
         try:
-            run_devices(devs, **kw)
+            run_devices(devs, buffer_ms=args.buffer_ms, **kw)
         except Exception as e:  # queue ends when every device closes
             if any(d.connected for d in devs):
                 raise

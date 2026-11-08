@@ -35,6 +35,8 @@ def pc_time_ns() -> int:
 
 @dataclass
 class StreamStats:
+    """Receive-side counters for one stream (kept by :class:`PhoneClient`)."""
+
     count: int = 0
     dropped: int = 0
     last_seq: int | None = None
@@ -44,6 +46,7 @@ class StreamStats:
     rate_hz: float = 0.0
 
     def observe(self, header: pb.Header) -> None:
+        """Account for one received sample: counts, ``seq``-gap drops, 1 s rate window."""
         self.count += 1
         if self.last_seq is not None and header.seq > self.last_seq + 1:
             self.dropped += header.seq - self.last_seq - 1
@@ -67,7 +70,7 @@ class _UdpProtocol(asyncio.DatagramProtocol):
 
 
 class LeaseError(RuntimeError):
-    """Another client holds the config lease (§6.8 控制权)."""
+    """Raised when another client holds the configuration lease (phone replied 409)."""
 
 
 def _fill_value(v: pb.Value, value: bool | int | float | str) -> None:
@@ -82,7 +85,11 @@ def _fill_value(v: pb.Value, value: bool | int | float | str) -> None:
 
 
 class PhoneClient:
-    """One connection to one phone. Create, `await connect()`, use, `await close()`."""
+    """Asyncio connection to one phone (advanced API; :class:`imuninn.Device` wraps it).
+
+    Create, ``await connect()``, register listeners, ``await close()``. Control
+    messages travel on a WebSocket; data on TCP + UDP or on a second WebSocket.
+    """
 
     def __init__(self, host: str, port: int = DEFAULT_CONTROL_PORT, name: str | None = None,
                  data_transport: str = "tcp"):
@@ -122,11 +129,13 @@ class PhoneClient:
 
     @property
     def name(self) -> str:
+        """Device name once connected, else the host."""
         return self.info.device_name if self.info else self.host
 
     # -- listeners ----------------------------------------------------------
 
     def add_data_listener(self, cb: DataListener) -> None:
+        """Call ``cb(DataMessage)`` for every sample, on the event loop thread."""
         self._listeners.append(cb)
 
     def add_event_listener(self, cb: Callable[[str], None]) -> None:
@@ -143,6 +152,7 @@ class PhoneClient:
     # -- lifecycle ----------------------------------------------------------
 
     async def connect(self, subscribe_all: bool = True, time_sync: bool = True) -> "PhoneClient":
+        """Handshake (Hello / Welcome), open the data channel, sync clocks, subscribe."""
         loop = asyncio.get_running_loop()
         ws_data = self.data_transport == "websocket"
         if ws_data:
@@ -199,6 +209,7 @@ class PhoneClient:
         return self
 
     async def close(self) -> None:
+        """Cancel the receive tasks and close every socket."""
         for t in self._tasks:
             t.cancel()
         if self._tcp_writer is not None:
@@ -219,10 +230,12 @@ class PhoneClient:
         return rid
 
     async def send(self, msg: pb.ControlMessage) -> None:
+        """Send a control message without waiting for a reply."""
         assert self.ws is not None
         await self.ws.send(msg.SerializeToString())
 
     async def request(self, msg: pb.ControlMessage, timeout: float = 5.0) -> pb.ControlMessage:
+        """Send a control message and await the reply with the same ``request_id``."""
         msg.request_id = self._take_request_id()
         fut: asyncio.Future = asyncio.get_running_loop().create_future()
         self._pending[msg.request_id] = fut
@@ -309,17 +322,20 @@ class PhoneClient:
     # -- high level ---------------------------------------------------------
 
     async def fetch_capabilities(self) -> pb.Capabilities:
+        """Ask the phone for its parameter specs and current config."""
         reply = await self.request(pb.ControlMessage(get_capabilities=pb.GetCapabilities()))
         self.capabilities = reply.capabilities
         self.config = reply.capabilities.config
         return self.capabilities
 
     async def fetch_config(self) -> pb.DeviceConfig:
+        """Ask the phone for its current configuration."""
         reply = await self.request(pb.ControlMessage(get_config=pb.GetConfig()))
         self.config = reply.config
         return self.config
 
     async def set_config(self, patch: pb.DeviceConfig) -> pb.ConfigResult:
+        """Send a partial config; raises :class:`LeaseError` on 409, ``RuntimeError`` on other errors."""
         base = self.config.config_version if self.config else 0
         msg = pb.ControlMessage()
         msg.set_config.base_config_version = base
@@ -359,6 +375,7 @@ class PhoneClient:
         return await self.set_config(patch)
 
     async def acquire_lease(self) -> bool:
+        """Request the config lease; ``True`` when granted."""
         msg = pb.ControlMessage()
         msg.lease.action = pb.Lease.ACTION_REQUEST
         msg.lease.holder = self.client_name
@@ -368,6 +385,7 @@ class PhoneClient:
         return granted
 
     async def release_lease(self) -> None:
+        """Release the config lease."""
         msg = pb.ControlMessage()
         msg.lease.action = pb.Lease.ACTION_RELEASE
         msg.lease.holder = self.client_name
@@ -375,11 +393,13 @@ class PhoneClient:
         self.lease_holder = ""
 
     async def apply_profile(self, name_or_path: str) -> pb.ConfigResult:
+        """Apply a YAML profile (built-in name or file path) as one partial config."""
         from .profiles import load, to_patch
 
         return await self.set_config(to_patch(load(name_or_path)))
 
     async def subscribe(self, stream_ids: list[str], unsubscribe: bool = False) -> None:
+        """Subscribe to (or unsubscribe from) the given stream ids."""
         msg = pb.ControlMessage()
         msg.subscribe.stream_ids.extend(stream_ids)
         msg.subscribe.unsubscribe = unsubscribe
@@ -391,15 +411,19 @@ class PhoneClient:
         await self.send(msg)
 
     async def start(self) -> None:
+        """Start the capture session on the phone."""
         await self._session(pb.SessionControl.ACTION_START)
 
     async def stop(self) -> None:
+        """Stop the capture session on the phone."""
         await self._session(pb.SessionControl.ACTION_STOP)
 
     async def start_recording(self) -> None:
+        """Start a phone-side recording."""
         await self._session(pb.SessionControl.ACTION_START_RECORDING)
 
     async def stop_recording(self) -> None:
+        """Stop the phone-side recording."""
         await self._session(pb.SessionControl.ACTION_STOP_RECORDING)
 
     async def time_sync(self, rounds: int = 8) -> int | None:
@@ -429,6 +453,7 @@ class PhoneClient:
         return best_offset
 
     def to_pc_time_ns(self, device_time_ns: int) -> int:
+        """Device timestamp -> PC wall-clock ns; raises until :meth:`time_sync` has run."""
         if self.clock_offset_ns is None:
             raise RuntimeError("clock not synced yet")
         return device_time_ns + self.clock_offset_ns

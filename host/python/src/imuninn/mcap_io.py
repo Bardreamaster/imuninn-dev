@@ -38,6 +38,12 @@ _BODY_TO_TOPIC = {
 
 
 class McapRecorder:
+    """Write phone messages to an MCAP file, one topic per stream, Protobuf-encoded as received.
+
+    Use as a context manager; feed :meth:`write` from a data listener. ``log_time`` is PC
+    wall clock when ``clock_offset_ns`` is known, ``publish_time`` is device time.
+    """
+
     def __init__(self, path: str | Path, device: pb.DeviceInfo | None = None,
                  capabilities: pb.Capabilities | None = None, clock_offset_ns: int | None = None):
         from mcap_protobuf.writer import Writer  # type: ignore
@@ -53,6 +59,7 @@ class McapRecorder:
             self._w.write_message("/capabilities", capabilities, log_time=time.time_ns(), publish_time=0)
 
     def write(self, msg: pb.DataMessage, log_time_ns: int | None = None) -> None:
+        """Append one ``DataMessage`` to its topic."""
         body = msg.WhichOneof("body")
         if body is None:
             return
@@ -68,9 +75,11 @@ class McapRecorder:
         self.count += 1
 
     def write_config(self, config: pb.DeviceConfig) -> None:
+        """Record the configuration in effect on the ``/config`` topic."""
         self.write(pb.DataMessage(config_changed=pb.ConfigChanged(config=config)))
 
     def close(self) -> None:
+        """Finish the MCAP index and close the file."""
         self._w.finish()
         self._f.close()
 
@@ -161,6 +170,7 @@ def replay_timed(path: str | Path, realtime: bool = False, topics: list[str] | N
 
 
 def summary(path: str | Path) -> dict[str, int]:
+    """Message count per topic, from the file's summary section."""
     from mcap.reader import make_reader  # type: ignore
 
     with open(path, "rb") as f:
