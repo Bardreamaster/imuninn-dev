@@ -93,6 +93,8 @@ App 单独打开只会显示相机预览和服务状态，审核员需要一台�
 > 2. Enter the phone's Wi‑Fi address shown in the app's Server card (for example 10.0.0.5) and click Connect.
 > 3. The live video, pose trajectory and IMU plots appear in the browser; the app's header then shows "1 PC".
 >
+> With Chrome or Edge, or from Python: `pip install imuninn && imuninn web` serves the same viewer from localhost; `imuninn watch <phone address> --start` prints the samples in a terminal.
+>
 > The app never connects to the internet; Local Network access is only used for the computer to discover and connect to the phone.
 
 联系信息填自己的姓名、电话和邮箱；不需要演示账号（取消勾选 Sign-in required）。
