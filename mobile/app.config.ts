@@ -11,7 +11,7 @@ const config: ExpoConfig = {
     bundleIdentifier: "com.weijinqi.projects.imuninn",
     appleTeamId: "NHCF5WN8GK",
     supportsTablet: false,
-    buildNumber: "1",
+    buildNumber: "2",
     // Keep screen on while streaming; background capture is a platform limit (§11).
     infoPlist: {
       // Only Apple-provided TLS/none: no export-compliance questions on each upload.

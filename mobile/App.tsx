@@ -148,7 +148,7 @@ export default function App() {
             <Text style={S.muted}>{t("waiting.pc")}</Text>
           ) : (
             clients.map((c) => (
-              <Row key={c.id} selectable k={`${c.name}${c.writer ? " ✎" : ""}`} v={`${c.host} · ${c.subscribed.join(",") || t("not.subscribed")}`} />
+              <Row key={c.id} selectable keyNoWrap k={`${c.name}${c.writer ? " ✎" : ""}`} v={`${c.host} · ${c.subscribed.join(",") || t("not.subscribed")}`} />
             ))
           )}
         </Card>

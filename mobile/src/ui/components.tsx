@@ -7,11 +7,15 @@ import { Icon } from "./Icon";
 import { paramLabel } from "./i18n";
 import { useTheme } from "./theme";
 
-export function Row({ k, v, color, selectable }: { k: string; v: string | number | boolean; color?: string; selectable?: boolean }) {
+export function Row({ k, v, color, selectable, keyNoWrap }: {
+  k: string; v: string | number | boolean; color?: string; selectable?: boolean;
+  /** Keep the key on one line (names): the value wraps instead. */
+  keyNoWrap?: boolean;
+}) {
   const { S } = useTheme();
   return (
-    <View style={S.row}>
-      <Text style={S.key}>{k}</Text>
+    <View style={[S.row, { gap: 12 }]}>
+      <Text style={[S.key, keyNoWrap ? { flexShrink: 0 } : null]} numberOfLines={keyNoWrap ? 1 : undefined}>{k}</Text>
       <Text style={[S.val, color ? { color } : null]} selectable={selectable}>{String(v)}</Text>
     </View>
   );
