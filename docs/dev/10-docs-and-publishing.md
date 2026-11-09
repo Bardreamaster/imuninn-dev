@@ -2,6 +2,16 @@
 
 文档站（<https://imuninn.projects.weijinqi.com>）从 `docs/` 构建，公开仓库 `Bardreamaster/imuninn` 是本私有仓库按白名单同步出去的副本。两者的规则都在这一页。
 
+## 仓库与分支
+
+| 仓库 | 分支 | 内容 |
+| --- | --- | --- |
+| `Bardreamaster/imuninn-dev`（私有，本地 `origin`） | `dev` | 日常开发：所有改动先提交到这里，未完成的功能可以再开自己的功能分支 |
+| | `main` | 只放已经公开的内容，始终等于公开仓库最近一次发布的 `Source:` 提交 |
+| `Bardreamaster/imuninn`（公开） | `main` | 由 `tools/publish.sh` 从私有 `main` 导出（去掉不公开的目录），不在这里直接开发 |
+
+发布流程：确认 `dev` 上要公开的内容都准备好 → 把 `dev` 合进 `main`（快进）→ 用 `publish.sh` 推公开仓 → `git push origin main dev`。没准备好的东西留在 `dev` 或功能分支上，不要合进 `main`。两个仓库之间不 cherry-pick、不互相提 PR：公开仓库没有私有仓库的历史和被排除的目录，提交对不上。
+
 ## 文档结构
 
 | 位置 | 内容 |
@@ -64,6 +74,6 @@ git show main:tools/publish.sh | REPO=. bash -s -- ../imuninn-public "说明" --
 2. 把公开副本里白名单内的每个目录**整体替换**成 `REF` 的版本，所以删除也会同步。
 3. 提交信息末尾写 `Source: <完整 sha> (<ref>)`。
 
-**坑：不能用旧版本覆盖。** 因为第 2 步是整体替换，拿一个比公开仓当前内容更旧（或分叉）的提交去推，别人已发布的内容会被静默回滚（2026-11-09 推 README 时就这样回滚过 iOS 界面）。脚本现在会在推送前读取公开仓最新提交的 `Source:`，要求它是 `REF` 的祖先，否则拒绝；确实要回退时用 `FORCE=1`。所有线程都从 `main` 发布，`main` 上还没准备好公开的东西不要合进 `main`，或者用 `EXCLUDE` 按路径排除。
+**坑：不能用旧版本覆盖。** 因为第 2 步是整体替换，拿一个比公开仓当前内容更旧（或分叉）的提交去推，别人已发布的内容会被静默回滚（2026-11-09 推 README 时就这样回滚过 iOS 界面）。脚本现在会在推送前读取公开仓最新提交的 `Source:`，要求它是 `REF` 的祖先，否则拒绝；确实要回退时用 `FORCE=1`。所有发布都从私有仓库的 `main` 进行；还没准备好公开的东西留在 `dev`，或者用 `EXCLUDE` 按路径排除。
 
 推送后公开仓的 workflow：`python-ci`（测试、生成代码 / 生成文档一致性）、`web-viewer-pages`（Web 查看器 → GitHub Pages）；Cloudflare Pages 自动构建 `site/`；打 `python-v*` tag 发 PyPI（见[发版](07-release.md)）。
