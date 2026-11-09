@@ -7,12 +7,18 @@ import { BlackOverlay, useBlackScreen } from "./src/ui/BlackScreen";
 import { FullscreenPreview, Preview, previewAspect } from "./src/ui/Preview";
 import { Button, Card, Chip, ParamControl, Row, Stat } from "./src/ui/components";
 import { Icon } from "./src/ui/Icon";
+import { RemoteSheet } from "./src/ui/RemoteSheet";
+import { Wordmark } from "./src/ui/Wordmark";
+import { useAppearancePref } from "./src/ui/appearance";
 import { t, useLang } from "./src/ui/i18n";
 import { useTheme } from "./src/ui/theme";
 import { useMuninn } from "./src/ui/useMuninn";
 
 export default function App() {
-  const { info, status, caps, config, profiles, lastResult, applyPatch, applyProfile, saveProfile, deleteProfile } = useMuninn();
+  const { info, status, caps, config, profiles, currentProfile, lastResult, applyPatch, applyProfile, saveProfile, deleteProfile,
+    serviceName, setServiceName } = useMuninn();
+  const [appearance, setAppearance] = useAppearancePref();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
   const [lang, langOverride, setLang] = useLang();
   const { scheme, C, S } = useTheme();
   const [showPreview, setShowPreview] = useState(true);
@@ -24,6 +30,7 @@ export default function App() {
   };
   const [profileName, setProfileName] = useState("");
   const [fullscreen, setFullscreen] = useState(false);
+  const [remoteOpen, setRemoteOpen] = useState(false);
   const [compact, setCompact] = useState(() => { try { return MuninnCore.getPreference("previewBox") === "compact"; } catch { return false; } });
   const toggleCompact = () => {
     const next = !compact;
@@ -60,15 +67,14 @@ export default function App() {
       <View style={{ flex: 1, flexDirection: landscape ? "row" : "column" }} onTouchStart={black.touch}>
       <View style={[S.pinned, landscape ? { width: previewW + 32 } : null]}>
         <View style={S.header}>
-          <View>
-            <Text style={S.title}>iMuninn</Text>
-            <Text style={S.subtitle}>{info.marketingName} · iOS {info.osVersion} · proto v{info.protocolVersion}</Text>
-          </View>
+          <Wordmark height={26} />
           <View style={{ alignItems: "flex-end", gap: 6 }}>
-            <View style={S.pill}>
+            <Pressable style={S.pill} onPress={() => setRemoteOpen(true)} hitSlop={8}
+              accessibilityRole="button" accessibilityLabel={t("remote.title")}>
               <View style={[S.dot, { backgroundColor: serverColor }]} />
               <Text style={S.pillText} numberOfLines={1}>{serverLabel}</Text>
-            </View>
+              <Icon name="chevron.up" size={10} color={C.muted} />
+            </Pressable>
             {status?.writer ? (
               <Pressable onPress={() => MuninnCore.takeOver()}>
                 <Text style={S.badge}>{t("controlled.by", status.writer)}</Text>
@@ -84,6 +90,7 @@ export default function App() {
       </View>
 
       <FullscreenPreview status={status} visible={fullscreen} onClose={() => setFullscreen(false)} />
+      <RemoteSheet status={status} visible={remoteOpen} onClose={() => setRemoteOpen(false)} />
 
       <ScrollView style={{ flex: 1 }} contentContainerStyle={S.scroll} keyboardShouldPersistTaps="handled">
         {/* Session */}
@@ -120,25 +127,36 @@ export default function App() {
         {/* Server */}
         <Card title={t("server")} collapsible initiallyOpen={clients.length === 0}>
           <Row k={t("status")} v={status?.server ?? "stopped"} color={serverColor} />
-          {status?.serverError ? <Text style={S.err} numberOfLines={3}>{status.serverError}</Text> : null}
-          <Row k={t("bonjour.name")} v={status?.serviceName ?? ""} />
+          {status?.serverError ? <Text style={S.err} numberOfLines={3} selectable>{status.serverError}</Text> : null}
+          <View style={{ gap: 6 }}>
+            <Text style={S.key}>{t("bonjour.name")}</Text>
+            <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+              <TextInput style={S.input} value={nameDraft ?? (serviceName || status?.serviceName || "")} onChangeText={setNameDraft}
+                placeholder={t("bonjour.placeholder")} placeholderTextColor={C.muted} autoCapitalize="none" autoCorrect={false}
+                returnKeyType="done" onSubmitEditing={() => { if (nameDraft !== null) { setServiceName(nameDraft); setNameDraft(null); } }} />
+              <Button title={t("save")} kind="ghost" disabled={nameDraft === null || nameDraft.trim() === serviceName}
+                onPress={() => { if (nameDraft !== null) { setServiceName(nameDraft); setNameDraft(null); } }} />
+            </View>
+            <Text style={S.muted}>{t("bonjour.hint")}</Text>
+          </View>
           {(status?.addresses ?? []).map((a) => {
             const [iface, ip] = a.split(" ");
-            return <Row key={a} k={iface === "en0" ? t("wifi") : iface.startsWith("en") ? t("usb", iface) : iface}
+            return <Row key={a} selectable k={iface === "en0" ? t("wifi") : iface.startsWith("en") ? t("usb", iface) : iface}
               v={`${ip}:${status?.controlPort ?? 0}`} />;
           })}
           {clients.length === 0 ? (
             <Text style={S.muted}>{t("waiting.pc")}</Text>
           ) : (
             clients.map((c) => (
-              <Row key={c.id} k={`${c.name}${c.writer ? " ✎" : ""}`} v={`${c.host} · ${c.subscribed.join(",") || t("not.subscribed")}`} />
+              <Row key={c.id} selectable k={`${c.name}${c.writer ? " ✎" : ""}`} v={`${c.host} · ${c.subscribed.join(",") || t("not.subscribed")}`} />
             ))
           )}
         </Card>
 
         {/* Config: generated from capabilities */}
         {caps && config ? (
-          <Card title={`${t("config")}  v${config.configVersion}`} collapsible>
+          <Card title={t("config")} collapsible>
+            <Row k={t("profile.current")} v={currentProfile ?? t("profile.unsaved")} color={currentProfile ? undefined : C.muted} />
             {caps.sessionParams.map((spec) => (
               <ParamControl key={`session.${spec.key}`} spec={spec} streamId="session"
                 value={spec.key === "mode" ? config.mode : config.session[spec.key] ?? spec.current}
@@ -183,7 +201,7 @@ export default function App() {
           {profiles.length === 0 ? <Text style={S.muted}>{t("no.profiles")}</Text> : null}
           <View style={S.chips}>
             {profiles.map((p) => (
-              <Chip key={p} label={p} onPress={() => applyProfile(p)} onLongPress={() => deleteProfile(p)} />
+              <Chip key={p} label={p} on={p === currentProfile} onPress={() => applyProfile(p)} onLongPress={() => deleteProfile(p)} />
             ))}
           </View>
           <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
@@ -206,6 +224,14 @@ export default function App() {
               <Chip label="English" on={langOverride === "en"} onPress={() => setLang("en")} />
             </View>
             <Text style={S.muted}>{lang === "zh" ? "当前：中文" : "Current: English"}</Text>
+          </View>
+          <View style={{ gap: 6 }}>
+            <Text style={S.key}>{t("appearance")}</Text>
+            <View style={S.chips}>
+              <Chip label={t("lang.system")} on={appearance === null} onPress={() => setAppearance(null)} />
+              <Chip label={t("appearance.light")} on={appearance === "light"} onPress={() => setAppearance("light")} />
+              <Chip label={t("appearance.dark")} on={appearance === "dark"} onPress={() => setAppearance("dark")} />
+            </View>
           </View>
         </Card>
       </ScrollView>

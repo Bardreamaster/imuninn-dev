@@ -17,23 +17,12 @@ export function Preview({ status, width, height, onFullscreen, fullscreen, compa
   status: StatusEvent | null; landscape?: boolean; width: number; height: number;
   onFullscreen?: () => void; fullscreen?: boolean; compact?: boolean; onToggleCompact?: () => void;
 }) {
-  const camera = status?.mode === "camera";
-  const { C, S } = useTheme();
+  const { S } = useTheme();
   const overlayFg = S.overlayText.color as string;
   return (
     <View style={[S.preview, { width, height }]}>
       <MuninnPreviewView style={{ flex: 1 }} />
       <View style={S.overlay}>
-        <Text style={S.overlayText}>{camera ? t("camera.mode") : `${t("tracking")} ${status?.tracking ?? "none"}`}</Text>
-        {!camera ? <Text style={S.overlayText}>{t("pose")} {status?.poseHz.toFixed(0) ?? 0} Hz</Text> : null}
-        <Text style={S.overlayText}>{t("video")} {status?.videoHz.toFixed(0) ?? 0} fps</Text>
-        {status?.recording ? (
-          <View style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
-            <Icon name="record.circle.fill" size={12} color={C.err} />
-            <Text style={[S.overlayText, { color: C.err }]}>REC</Text>
-          </View>
-        ) : null}
-        <View style={{ flex: 1 }} />
         {onToggleCompact ? (
           <Pressable onPress={onToggleCompact} hitSlop={10} style={{ flexDirection: "row", alignItems: "center", gap: 4 }}>
             <Icon name={compact ? "rectangle.expand.vertical" : "rectangle.compress.vertical"} size={13} color={overlayFg} />

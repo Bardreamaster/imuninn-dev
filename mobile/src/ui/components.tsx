@@ -7,12 +7,12 @@ import { Icon } from "./Icon";
 import { paramLabel } from "./i18n";
 import { useTheme } from "./theme";
 
-export function Row({ k, v, color }: { k: string; v: string | number | boolean; color?: string }) {
+export function Row({ k, v, color, selectable }: { k: string; v: string | number | boolean; color?: string; selectable?: boolean }) {
   const { S } = useTheme();
   return (
     <View style={S.row}>
       <Text style={S.key}>{k}</Text>
-      <Text style={[S.val, color ? { color } : null]}>{String(v)}</Text>
+      <Text style={[S.val, color ? { color } : null]} selectable={selectable}>{String(v)}</Text>
     </View>
   );
 }

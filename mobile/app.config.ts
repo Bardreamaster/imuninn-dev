@@ -3,7 +3,7 @@ import type { ExpoConfig } from "expo/config";
 const config: ExpoConfig = {
   name: "iMuninn",
   slug: "imuninn",
-  version: "0.0.1",
+  version: "0.1.0",
   orientation: "default",   // follows the system rotation lock; layout adapts in App.tsx
   icon: "./assets/icon.png",
   userInterfaceStyle: "automatic", // theme.ts follows the system appearance (useColorScheme)
