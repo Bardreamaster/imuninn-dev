@@ -105,3 +105,17 @@ App 单独打开只会显示相机预览和服务状态，审核员需要一台�
 2. 服务卡片：Bonjour 名称、地址、已连接的 PC
 3. 配置卡片：远程可调的参数
 4. 电脑端 Web 查看器或 Rerun 画面（可以作为最后一张，展示接收端效果）
+
+### 文件
+
+截图和宣传图不进仓库（App Store Connect 里有原件），只提交模板 `mobile/store-screenshots/artwork/art.html`。
+
+- iPhone 6.1"/6.3" 位：真机截图原尺寸 1206 × 2622，`xcrun devicectl device capture screenshot --device <UDID> --destination 01.png`
+- 6.9" 位：`sips -z 2868 1320 01.png --out 01-6.9.png`
+- Header（3840 × 1646 / 5244 × 2950）和 Search result（1920 × 1280 / 3840 × 2560）：在 `artwork/` 放好 `a.png`（中间）、`b.png`（左）、`c.png`（右）三张截图和 `site/src/assets/wordmark-dark.svg`，然后
+
+  ```bash
+  C="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+  "$C" --headless=new --hide-scrollbars --force-device-scale-factor=1 --window-size=3840,1646 \
+    --screenshot=promo-3840x1646.png "file://$PWD/art.html?w=3840&h=1646"
+  ```

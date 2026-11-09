@@ -40,3 +40,8 @@ host/web/dist/
 
 # C++ build
 host/cpp/build/
+
+# App Store screenshots / promo renders live in App Store Connect; only the template is tracked
+mobile/store-screenshots/**
+!mobile/store-screenshots/artwork/
+!mobile/store-screenshots/artwork/art.html

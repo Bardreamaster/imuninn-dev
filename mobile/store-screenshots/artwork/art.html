@@ -1,0 +1,40 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+:root{--bg:#0C1015;--text:#E5ECF2;--muted:#9AA4AF;--accent:#3B82F6;--err:#F85149}
+*{margin:0;box-sizing:border-box}
+html,body{width:var(--W);height:var(--H);overflow:hidden}
+body{background:radial-gradient(120% 120% at 85% 30%,#1B2433 0%,var(--bg) 55%);color:var(--text);
+ font-family:-apple-system,"SF Pro Display","Helvetica Neue",sans-serif;position:relative}
+.copy{position:absolute;left:calc(var(--u)*7);top:50%;transform:translateY(-50%);width:calc(var(--u)*46)}
+.wm{height:calc(var(--u)*7.2);display:block;margin-bottom:calc(var(--u)*4)}
+h1{font-size:calc(var(--u)*5.4);line-height:1.08;font-weight:700;letter-spacing:-.02em}
+p{margin-top:calc(var(--u)*2.4);font-size:calc(var(--u)*2.15);line-height:1.4;color:var(--muted)}
+.chips{display:flex;flex-wrap:wrap;gap:calc(var(--u)*1);margin-top:calc(var(--u)*3)}
+.chip{font-size:calc(var(--u)*1.6);font-weight:600;padding:calc(var(--u)*.6) calc(var(--u)*1.4);border-radius:999px;
+ border:calc(var(--u)*.12) solid #30363D;color:var(--text)}
+.chip i{display:inline-block;width:calc(var(--u)*.8);height:calc(var(--u)*.8);border-radius:50%;background:var(--err);margin-right:calc(var(--u)*.6);vertical-align:middle}
+.phones{position:absolute;right:calc(var(--u)*5);top:50%;transform:translateY(-50%);height:calc(var(--u)*82);width:calc(var(--u)*72)}
+.ph{position:absolute;height:100%;aspect-ratio:1206/2622;border-radius:calc(var(--u)*5.6);padding:calc(var(--u)*1.1);
+ background:#05070A;box-shadow:0 calc(var(--u)*3) calc(var(--u)*8) rgba(0,0,0,.55),inset 0 0 0 calc(var(--u)*.25) #2A3140}
+.ph img{width:100%;height:100%;border-radius:calc(var(--u)*4.6);display:block}
+.p1{left:0;top:6%;height:88%;opacity:.95}
+.p2{left:50%;transform:translateX(-50%);z-index:2}
+.p3{right:0;top:6%;height:88%;opacity:.95}
+</style></head><body>
+<div class="copy">
+ <img class="wm" src="wordmark-dark.svg">
+ <h1>Your iPhone as a robot sensor</h1>
+ <p>Stream camera, IMU, ARKit pose and LiDAR depth to Python, C++ or a browser over Wi‑Fi or USB.</p>
+ <div class="chips"><span class="chip"><i></i>60 fps video</span><span class="chip">6‑DoF pose</span><span class="chip">LiDAR depth</span><span class="chip">Open source</span></div>
+</div>
+<div class="phones">
+ <div class="ph p1"><img src="b.png"></div>
+ <div class="ph p2"><img src="a.png"></div>
+ <div class="ph p3"><img src="c.png"></div>
+</div>
+<script>
+const q=new URLSearchParams(location.search),W=+q.get('w'),H=+q.get('h');
+const r=document.documentElement.style;r.setProperty('--W',W+'px');r.setProperty('--H',H+'px');
+// layout unit: 1% of height, but cap so copy + phones fit the width
+const u=Math.min(H/100, W/128);r.setProperty('--u',u+'px');
+if(W/H>1.8){const off=(W-128*u)/2;document.querySelector('.copy').style.left=off+'px';document.querySelector('.phones').style.right=off+'px';}
+</script></body></html>
