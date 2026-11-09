@@ -108,9 +108,17 @@ for (const src of walk(join(docs, "en"))) {
   emit(relative(docs, src), src, "en/");
 }
 
-// protocol spec + raw .proto, both locales (the spec is Chinese; English falls back to it)
-const spec = readFileSync(join(repo, "protocol/README.md"), "utf8");
+// protocol spec (protocol/README.md, English in README.en.md) + raw .proto, both locales.
+// The "[English](README.en.md)" / "[中文](README.md)" switch line is for GitHub; the site has its own.
+const dropLangLine = (t) => t.replace(/^\[(English|中文)\]\(README(\.en)?\.md\)\s*\n/m, "");
+const spec = dropLangLine(readFileSync(join(repo, "protocol/README.md"), "utf8"));
 writeFileSync(join(out, "protocol.md"), convert("protocol/README.md", spec, "").replace(/^title: .*$/m, 'title: "协议规范"'));
+const specEn = join(repo, "protocol/README.en.md");
+if (existsSync(specEn)) {
+  mkdirSync(join(out, "en"), { recursive: true });
+  writeFileSync(join(out, "en/protocol.md"),
+    convert("protocol/README.md", dropLangLine(readFileSync(specEn, "utf8")), "en/").replace(/^title: .*$/m, 'title: "Protocol specification"'));
+}
 const proto = readFileSync(join(repo, "protocol/imuninn.proto"), "utf8");
 for (const locale of ["", "en/"]) {
   mkdirSync(join(out, locale, "protocol"), { recursive: true });

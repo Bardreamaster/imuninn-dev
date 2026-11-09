@@ -26,15 +26,7 @@ tag 带 `python-` 前缀，因为同一仓库以后还会有 App 的 tag。
 
 ## 公开仓库
 
-开发在私有仓库进行，公开仓库 `Bardreamaster/imuninn` 是按路径白名单同步出去的发布副本（白名单和排除项在 `tools/publish.sh` 里：协议、host/python、host/cpp、host/web、docs、site、tools、mobile、LICENSE、workflow；不带构建产物、长时测试原始数据和 git 历史）。
-
-```bash
-git clone git@github.com:Bardreamaster/imuninn.git ../imuninn-public   # 一次
-tools/publish.sh ../imuninn-public "Python 0.1.0, docs"                 # 复制并在副本里提交
-tools/publish.sh ../imuninn-public "…" --push                           # 顺便推送
-```
-
-公开仓库里的 tag（`python-v*`）触发 PyPI 发布；文档站和查看器也从公开仓库构建。公开仓库收到的 PR 要手动搬回私有仓库。
+开发在私有仓库进行，公开仓库 `Bardreamaster/imuninn` 是按路径白名单同步出去的发布副本；公开范围、发布命令和「不能用旧版本覆盖」的规则见[文档与公开发布](10-docs-and-publishing.md)。公开仓库里的 tag（`python-v*`）触发 PyPI 发布；文档站和查看器也从公开仓库构建。公开仓库收到的 PR 要手动搬回私有仓库。
 
 ## 文档站
 

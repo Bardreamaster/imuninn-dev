@@ -8,5 +8,7 @@
 6. [相机坐标系参考](06-camera-coordinates.md)：iPhone 传感器方向、图像 / ARKit / Core Motion 坐标系，逐条附 Apple 官方出处
 7. [发版](07-release.md)：Python 包发 PyPI、文档站、App
 8. [Python 包开发](08-python-dev.md)：目录、协议改动、约定
+9. [App Store 上架](09-app-store.md)：上架材料、审核说明
+10. [文档与公开发布](10-docs-and-publishing.md)：文档结构、生成页、不公开的内容、推公开仓的规则
 
 使用方式在 [Python 包](../python/)；设计依据在 [设计文档](../design/design-doc.md)，里程碑见 [路线图](../design/roadmap.md)。

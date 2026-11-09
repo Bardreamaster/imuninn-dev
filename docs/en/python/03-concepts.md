@@ -34,7 +34,7 @@ UDP may drop and is latency-first; TCP never drops, but under congestion the pho
 
 The phone validates every field and answers in `ConfigResult.fields`: `applied`, `clamped` (out of range, `effective` holds the value used) or `rejected` (unknown key, wrong type, not a valid choice; `reason` says why). Parameters marked "restart" (mode, lens, resolution, depth on/off, depth smoothing) interrupt capture for about a second; everything else applies immediately.
 
-`dev.capabilities` is the authoritative list of parameters, ranges and current values; both the phone UI and the PC generate from it. Common parameters: [Video and camera](../../python/04-video-camera.md), [Depth and MCAP](../../python/05-depth-mcap.md) (Chinese); full message definitions: [Protocol messages](../../protocol/messages.md).
+`dev.capabilities` is the authoritative list of parameters, ranges and current values; both the phone UI and the PC generate from it. Common parameters: [Video and camera](04-video-camera.md), [Depth and MCAP](05-depth-mcap.md); full message definitions: [Protocol messages](../protocol/messages.md).
 
 Several PCs edit one configuration: when anyone changes it everyone receives `ConfigChanged` (`dev.config` updates, the `__event__` callback gets `"config"`), and the phone shows who is in control.
 

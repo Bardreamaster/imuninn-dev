@@ -57,6 +57,10 @@ host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延
 
 `site/` 是 Astro Starlight，`npm run build` 会先从 `docs/` 同步内容（`site/scripts/sync-docs.mjs`）。改文档只改 `docs/`，不要改 `site/src/content/`（生成物，已 gitignore）。`docs/python/07-cli.md`、`08-api.md`、`docs/protocol/messages.md` 由 `tools/gen-docs.py` 生成并提交，不要手改。
 
+## 公开仓库与文档
+
+公开仓库是本仓库按白名单同步出去的副本，规则见 `docs/dev/10-docs-and-publishing.md`。要点：只从 `main` 发布，用 `git show main:tools/publish.sh | REPO=. bash -s -- ../imuninn-public "说明"`；脚本会拒绝比公开仓当前内容更旧的提交（否则会回滚别人已发布的内容）。面向用户的文档中英文一起改（`docs/<栏目>/` 与 `docs/en/<栏目>/`）。
+
 ## 当前状态与下一步
 
 见 `docs/design/roadmap.md`。M5（Android）进行中：非 AR 部分已移植，模拟器验证；ARCore 等真机。Android 事项看 `docs/dev/05-android.md`。
