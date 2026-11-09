@@ -86,14 +86,14 @@ App 单独打开只会显示相机预览和服务状态，审核员需要一台�
 
 > iMuninn is a sensor app for developers: the iPhone acts as a server on the local network and a computer connects to it to receive camera, IMU, ARKit pose and LiDAR depth data. No account or login is needed.
 >
-> To test without a computer: open the app, allow Camera, Motion and Local Network access, and tap "Start capture". The preview, tracking state and live data rates (pose / IMU / video / depth) are shown on screen.
+> To test without a computer: open the app, allow Camera, Motion and Local Network access, and tap "Start capture". The camera preview, ARKit tracking state and pose rate are shown on screen; the video and IMU rates count data sent to a connected computer.
 >
-> To test the full stream from a Mac on the same Wi‑Fi:
-> 1. pip install imuninn
-> 2. imuninn list (or use the phone's IP address shown in the Service card)
-> 3. imuninn web (opens the viewer in the browser), then enter the phone address to see the live video and sensor plots
+> To test the full stream from a Mac on the same Wi‑Fi (no installation needed):
+> 1. Open https://imuninn-webviewer.projects.weijinqi.com in Safari on the Mac.
+> 2. Enter the phone's Wi‑Fi address shown in the app's Server card (for example 10.0.0.5) and click Connect.
+> 3. The live video, pose trajectory and IMU plots appear in the browser; the app's header then shows "1 PC".
 >
-> A demo video is attached. The app never connects to the internet; Local Network access is only used for the computer to discover and connect to the phone.
+> The app never connects to the internet; Local Network access is only used for the computer to discover and connect to the phone.
 
 联系信息填自己的姓名、电话和邮箱；不需要演示账号（取消勾选 Sign-in required）。
 
