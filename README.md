@@ -1,35 +1,69 @@
 # iMuninn
 
-把手机变成便携的多模态传感器节点：相机、IMU、ARKit/ARCore 位姿和 LiDAR 深度实时传到 PC，通过 Python / C++ / Web 接口交给机器人程序、算法与数据采集流程。
+[中文](README.zh-CN.md)
 
-文档站：<https://imuninn.projects.weijinqi.com>（源文件在 [`docs/`](docs/README.md)）。Python 包：`pip install imuninn`（[host/python](host/python/README.md)）。设计文档：[`docs/design/design-doc.md`](docs/design/design-doc.md)（原件：[Claude Doc](https://claude.ai/artifact/KZHg3YBu5CtgekPVBK6xBm)）。路线图：[`docs/design/roadmap.md`](docs/design/roadmap.md)。
+Turn a phone into a portable multimodal sensor node: camera (H.264), IMU, ARKit / ARCore pose with per-frame intrinsics and LiDAR depth, streamed live to a PC over Wi‑Fi or USB with a Protobuf protocol, and handed to robot programs, algorithms and data-collection pipelines through Python, C++ or a browser.
 
-## 仓库结构
+- Documentation: <https://imuninn.projects.weijinqi.com> ([English](https://imuninn.projects.weijinqi.com/en/)); sources in [`docs/`](docs/README.md)
+- Python package: `pip install imuninn` ([`host/python`](host/python/README.md))
+- Web viewer: <https://imuninn-webviewer.projects.weijinqi.com> (Safari connects directly; in Chrome / Edge run `imuninn web`)
 
+## How it works
+
+The phone is the server. It advertises `_imuninn._tcp` over Bonjour and listens for a control WebSocket (port 7420); receivers connect to it, several at once if needed. Pose, IMU and health arrive over UDP, video and depth over TCP, or everything over a second WebSocket for browsers. Every parameter is self-describing and can be changed remotely; the phone validates each change and reports whether it was applied, clamped or rejected.
+
+| Stream | Content | Typical rate |
+| --- | --- | --- |
+| `ar_pose` | ARKit pose + camera intrinsics + tracking state | 60 Hz |
+| `imu` | acceleration + angular rate | 100–200 Hz |
+| `rgb` | H.264 video, intrinsics on every frame | 30–60 fps |
+| `depth` | LiDAR depth 256×192, millimetres + confidence, LZ4 | 60 Hz |
+| `health` | thermal state, battery, phone-side rates | 0.2–5 Hz |
+
+## Quick start
+
+```python
+import imuninn
+
+with imuninn.connect() as dev:          # first phone found; or a name / IP / "ip:port"
+    dev.start()
+    for pose in dev.iter("ar_pose"):
+        print(pose.position, pose.intrinsics.fx)
 ```
-protocol/   .proto 定义 + 协议说明 + VERSION（唯一真相源）
-mobile/     Expo App；原生数据链路在 modules/muninn-core/
-host/       PC 端：python/（PyPI 包 imuninn：客户端 API + CLI + MCP）、cpp/、web/（浏览器查看器）
-tools/      代码生成、文档生成、延迟/带宽测试
-docs/       文档站内容源；site/ 是 Astro Starlight 站点
-```
-
-## 开发环境
-
-- macOS + Xcode（iOS 优先）。本机 `xcode-select` 指向 CommandLineTools 时，用 `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer` 前缀运行构建命令。
-- Node ≥ 20，`protoc`（`brew install protobuf`），Swift 绑定需 `brew install swift-protobuf`。
-- Python ≥ 3.10，推荐 `uv`。
-
-## 快速开始
 
 ```bash
-tools/gen-proto.sh                       # 生成各语言绑定
-cd host/python && uv venv && uv pip install -e ".[all,dev]" && imuninn list
-cd mobile && npm install && npx expo run:ios --device   # development build 到真机
+imuninn list                  # phones on the LAN
+imuninn rerun --start         # live view in Rerun (pip install "imuninn[rerun]")
+imuninn record -o run1.mcap   # record every stream to MCAP (pip install "imuninn[mcap]")
+imuninn web                   # browser viewer at http://localhost:7430
 ```
 
-不支持 Expo Go；只用 development build。
+## Repository layout
 
-## 许可证
+```
+protocol/   imuninn.proto, protocol spec, VERSION (single source of truth)
+mobile/     Expo app; the native data path lives in modules/muninn-core/
+host/       PC side: python/ (PyPI package imuninn: client API, CLI, MCP server), cpp/, web/ (browser viewer)
+tools/      code and docs generation, latency / bandwidth benchmarks
+docs/       documentation sources; site/ is the Astro Starlight site
+```
 
-`MIT OR Apache-2.0` 双许可，见 `LICENSE-MIT` 与 `LICENSE-APACHE`。依赖中禁止 GPL 组件。
+## Building from source
+
+- iOS app: macOS with Xcode, Node ≥ 20. Development builds only (no Expo Go):
+
+  ```bash
+  cd mobile && npm install && npx expo run:ios --device
+  ```
+
+- Python package: Python ≥ 3.10, [uv](https://docs.astral.sh/uv/) recommended. The protobuf bindings are committed, so `protoc` is only needed after editing `protocol/imuninn.proto` (`tools/gen-proto.sh`).
+
+  ```bash
+  cd host/python && uv venv && uv pip install -e ".[all,dev]" && imuninn list
+  ```
+
+- C++ client: CMake + protobuf, see [`docs/cpp`](docs/cpp/01-cpp-client.md).
+
+## License
+
+Dual-licensed under `MIT OR Apache-2.0` (`LICENSE-MIT`, `LICENSE-APACHE`). GPL components are not allowed in dependencies.

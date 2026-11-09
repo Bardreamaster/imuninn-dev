@@ -21,7 +21,7 @@ git -C "$REPO" archive --format=tar "$REF" | tar -x -C "$ROOT"
 echo "exporting $REF ($(git -C "$REPO" rev-parse --short "$REF")) from $REPO"
 
 ALLOW=(
-  README.md LICENSE-MIT LICENSE-APACHE .gitignore .github
+  README.md README.zh-CN.md LICENSE-MIT LICENSE-APACHE .gitignore .github
   protocol host/python host/cpp host/web tools docs site mobile
 )
 EXCLUDE=(
