@@ -41,6 +41,8 @@ EXCLUDE=(
   # repo conventions, and the long-run raw data. Design *assets* (tokens, icons) stay: builds need them.
   --exclude 'docs/dev' --exclude 'docs/design/longrun-*' --include 'docs/design/tokens.json' --exclude 'docs/design/*.md' --exclude 'docs/design/*.png' --exclude 'docs/design/*.jpg' --exclude 'docs/design/*.json'
   --exclude 'docs/agents/AGENTS.md' --exclude 'docs/AGENTS.md'
+  # App Store screenshots / promo artwork: not public for now (user decision 2026-11-09).
+  --exclude 'mobile/store-screenshots'
 )
 
 [ -d "$DEST/.git" ] || { echo "$DEST is not a git clone (git clone git@github.com:Bardreamaster/imuninn.git $DEST)"; exit 1; }
