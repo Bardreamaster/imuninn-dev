@@ -1,13 +1,20 @@
 ---
 // Header: wordmark and the Docs link on the left, search and the controls on the right.
+// Below Starlight's md breakpoint (50rem) the controls collapse like Starlight's own header:
+// on pages with a sidebar they live in the sidebar menu (MobileMenuFooter); on pages without
+// one (the splash home page) a menu button opens a small panel with the Docs link and controls.
+import { Icon } from "@astrojs/starlight/components";
 import LanguageSelect from "@astrojs/starlight/components/LanguageSelect.astro";
 import Search from "@astrojs/starlight/components/Search.astro";
 import SiteTitle from "@astrojs/starlight/components/SiteTitle.astro";
 import SocialIcons from "@astrojs/starlight/components/SocialIcons.astro";
 import ThemeSelect from "@astrojs/starlight/components/ThemeSelect.astro";
-const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
+const route = Astro.locals.starlightRoute;
+const lang = route?.lang ?? "zh-CN";
 const en = lang.startsWith("en");
+const hasSidebar = route?.hasSidebar ?? true;
 const docs = { label: en ? "Docs" : "文档", href: en ? "/en/start/overview/" : "/start/overview/" };
+const menuLabel = en ? "Menu" : "菜单";
 ---
 <div class="header">
   <div class="left-group">
@@ -19,25 +26,76 @@ const docs = { label: en ? "Docs" : "文档", href: en ? "/en/start/overview/" :
     </nav>
   </div>
   <div class="search-slot"><Search /></div>
-  <div class="sl-flex right-group">
-    <div class="sl-hidden md:sl-flex social-icons"><SocialIcons /></div>
+  <div class="sl-hidden md:sl-flex right-group">
+    <div class="social-icons"><SocialIcons /></div>
     <ThemeSelect />
     <LanguageSelect />
   </div>
+  {!hasSidebar && (
+    <div class="md:sl-hidden home-menu">
+      <button class="home-menu-toggle" popovertarget="home-menu" aria-label={menuLabel} title={menuLabel}>
+        <Icon name="bars" class="open-menu" />
+        <Icon name="close" class="close-menu" />
+      </button>
+      <div id="home-menu" class="home-menu-panel" popover>
+        <nav aria-label={en ? "Sections" : "栏目"}>
+          <a href={docs.href}>{docs.label}</a>
+        </nav>
+        <div class="home-menu-prefs">
+          <div class="social-icons-mobile"><SocialIcons /></div>
+          <ThemeSelect />
+          <LanguageSelect />
+        </div>
+      </div>
+    </div>
+  )}
 </div>
 
 <style>
   /* Three columns like Starlight's own header: [title + links] [search] [controls]. Everything
-     may shrink (min-width: 0); the search box takes the free width up to a cap; links hide on
-     small screens and the social icons follow Starlight's md breakpoint. */
+     may shrink (min-width: 0); the search box takes the free width up to a cap; links and
+     controls hide on small screens (see the comment at the top). */
   .header { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sl-nav-gap); align-items: center; height: 100%; min-width: 0; }
   .title-wrapper { overflow: clip; padding: 0.25rem; margin: -0.25rem; min-width: 0; }
   .top-links { gap: 1.25rem; align-items: center; margin-inline-start: 0.5rem; min-width: 0; }
-  .top-links a { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--sl-color-gray-2); text-decoration: none; font-size: var(--sl-text-sm); font-weight: 500; white-space: nowrap; }
-  .top-links a:hover { color: var(--sl-color-white); }
+  .top-links a, .home-menu-panel nav a { display: inline-flex; align-items: center; gap: 0.25rem; color: var(--sl-color-gray-2); text-decoration: none; font-size: var(--sl-text-sm); font-weight: 500; white-space: nowrap; }
+  .top-links a:hover, .home-menu-panel nav a:hover { color: var(--sl-color-white); }
   .left-group { display: flex; align-items: center; gap: var(--sl-nav-gap); min-width: 0; }
   .search-slot { justify-self: end; width: 100%; max-width: 22rem; min-width: 0; }
   .right-group, .social-icons { gap: 1rem; align-items: center; min-width: 0; }
+  .social-icons { display: flex; }
   .social-icons::after { content: ""; height: 2rem; border-inline-end: 1px solid var(--sl-color-gray-5); }
-  @media (max-width: 50rem) { .top-links { display: none; } }
+  @media (max-width: 50rem) {
+    .top-links { display: none; }
+    /* Search shrinks to its icon; keep it next to the menu button instead of stretching. */
+    .header { grid-template-columns: minmax(0, 1fr) auto auto; }
+    .search-slot { width: auto; }
+  }
+
+  /* Home page menu: same round button and full-width panel as Starlight's sidebar menu. */
+  .home-menu-toggle {
+    display: flex; align-items: center; justify-content: center;
+    border: 0; border-radius: 50%;
+    width: var(--sl-menu-button-size); height: var(--sl-menu-button-size); padding: 0.5rem;
+    background-color: var(--sl-color-white); color: var(--sl-color-black);
+    box-shadow: var(--sl-shadow-md); cursor: pointer;
+  }
+  .home-menu-toggle :global(svg) { width: 1.25rem; height: 1.25rem; }
+  :global([data-theme="light"]) .home-menu-toggle { background-color: var(--sl-color-black); color: var(--sl-color-white); }
+  .home-menu-toggle:has(~ :popover-open) { background-color: var(--sl-color-gray-2); box-shadow: none; }
+  :global([data-theme="light"]) .home-menu-toggle:has(~ :popover-open) { background-color: var(--sl-color-gray-5); }
+  .home-menu-toggle:has(~ :popover-open) :global(.open-menu),
+  .home-menu-toggle:not(:has(~ :popover-open)) :global(.close-menu) { display: none; }
+  .home-menu-panel {
+    border: unset; padding: 1rem var(--sl-nav-pad-x); margin: 0; height: auto; color: unset;
+    position: fixed; inset: var(--sl-nav-height) 0 auto 0; width: 100%;
+    z-index: var(--sl-z-index-menu);
+    background-color: var(--sl-color-bg-nav);
+    border-bottom: 1px solid var(--sl-color-hairline-shade);
+    box-shadow: var(--sl-shadow-md);
+  }
+  .home-menu-panel nav { display: flex; padding-bottom: 1rem; }
+  .home-menu-panel nav a { font-size: var(--sl-text-base); }
+  .home-menu-prefs { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 1rem; padding-top: 1rem; border-top: 1px solid var(--sl-color-gray-6); }
+  .social-icons-mobile { display: flex; gap: 1rem; align-items: center; margin-inline-end: auto; }
 </style>
