@@ -8,6 +8,7 @@
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, existsSync, copyFileSync, statSync } from "node:fs";
 import { basename, dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { DESCRIPTIONS } from "./descriptions.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const repo = resolve(here, "../..");
@@ -40,6 +41,13 @@ function linkFor(rel, target, hash, locale) {
   return `/${locale}${slug}/${hash}`;
 }
 
+/** Frontmatter line with the page's meta description for this locale, or null. */
+function descriptionLine(slug, locale) {
+  const d = DESCRIPTIONS[slug];
+  const text = d && (locale === "en/" ? d.en : d.zh);
+  return text ? `description: ${JSON.stringify(text)}` : null;
+}
+
 const emitted = new Set();   // site paths that exist in this build (filled in the first pass)
 
 function convert(rel, text, locale) {
@@ -57,7 +65,8 @@ function convert(rel, text, locale) {
   });
   text = text.replace(/\]\(([^)\s]+\.(png|jpg|jpeg|svg))\)/g, (all, p) => `](/images/${basename(p)})`);
   const order = (basename(rel).match(/^(\d+)-/) || [])[1];
-  const fm = ["---", `title: "${title.replace(/"/g, '\\"')}"`, order ? `sidebar:\n  order: ${Number(order)}` : null, "---", ""]
+  const slug = rel === "protocol/README.md" ? "protocol" : slugOf(rel.replace(/^en\//, ""));
+  const fm = ["---", `title: "${title.replace(/"/g, '\\"')}"`, descriptionLine(slug, locale), order ? `sidebar:\n  order: ${Number(order)}` : null, "---", ""]
     .filter(Boolean).join("\n");
   return fm + "\n" + text;
 }
@@ -122,15 +131,16 @@ if (existsSync(specEn)) {
 const proto = readFileSync(join(repo, "protocol/imuninn.proto"), "utf8");
 for (const locale of ["", "en/"]) {
   mkdirSync(join(out, locale, "protocol"), { recursive: true });
-  writeFileSync(join(out, locale, "protocol/proto.md"), `---\ntitle: "imuninn.proto"\n---\n\n\`\`\`proto\n${proto}\n\`\`\`\n`);
+  writeFileSync(join(out, locale, "protocol/proto.md"), `---\ntitle: "imuninn.proto"\n${descriptionLine("protocol/proto", locale)}\n---\n\n\`\`\`proto\n${proto}\n\`\`\`\n`);
 }
 
 // landing pages
 const zhHome = `---
-title: iMuninn
+title: 把 iPhone 变成机器人传感器
 description: 把 iPhone 变成机器人用的网络传感器：相机、IMU、ARKit 位姿、LiDAR 深度。
 template: splash
 hero:
+  title: iMuninn
   tagline: 把 iPhone 变成机器人用的网络传感器 —— 相机、IMU、ARKit 位姿、LiDAR 深度，Protobuf 协议，Python / Web / C++ 接收。
   actions:
     - text: 开始使用
@@ -159,6 +169,7 @@ import { Card, CardGrid, LinkCard } from '@astrojs/starlight/components';
 </CardGrid>
 `;
 const enHome = zhHome
+  .replace("title: 把 iPhone 变成机器人传感器", "title: Turn an iPhone into a robot sensor")
   .replace("description: 把 iPhone 变成机器人用的网络传感器：相机、IMU、ARKit 位姿、LiDAR 深度。", "description: Turn an iPhone into a network sensor for robots - camera, IMU, ARKit pose, LiDAR depth.")
   .replace("tagline: 把 iPhone 变成机器人用的网络传感器 —— 相机、IMU、ARKit 位姿、LiDAR 深度，Protobuf 协议，Python / Web / C++ 接收。", "tagline: Turn an iPhone into a network sensor for robots - camera, IMU, ARKit pose, LiDAR depth, a Protobuf protocol, received from Python, a browser or C++.")
   .replace("text: 开始使用\n      link: /start/overview/", "text: Get started\n      link: /en/start/overview/")
@@ -174,4 +185,42 @@ const enHome = zhHome
 writeFileSync(join(out, "index.mdx"), zhHome);
 mkdirSync(join(out, "en"), { recursive: true });
 writeFileSync(join(out, "en/index.mdx"), enHome);
+
+// llms.txt (https://llmstxt.org) and llms-full.txt for AI crawlers and agents. Only pages that
+// have a description and exist in this build are listed, so private sections never leak in.
+const SITE = "https://imuninn.projects.weijinqi.com";
+const pageFile = (slug, locale) => join(out, locale, `${slug}.md`);
+const listed = Object.keys(DESCRIPTIONS).filter((slug) => existsSync(pageFile(slug, "")));
+const urlOf = (slug, locale) => `${SITE}/${locale}${slug}/`;
+const titleOf = (slug, locale) => {
+  const f = existsSync(pageFile(slug, locale)) ? pageFile(slug, locale) : pageFile(slug, "");
+  return (readFileSync(f, "utf8").match(/^title: "?(.*?)"?$/m) || [])[1] || slug;
+};
+const llms = [
+  "# iMuninn",
+  "",
+  "> iMuninn turns an iPhone into a network sensor for robots: H.264 camera, IMU, ARKit 6-DoF pose with per-frame intrinsics, and LiDAR depth, streamed over Wi-Fi or USB with a Protobuf protocol. The phone is the server; receivers are a Python package (`pip install imuninn`), a web viewer and a C++ library. Open source (MIT / Apache-2.0).",
+  "",
+  `Source: https://github.com/Bardreamaster/imuninn. Python package: https://pypi.org/project/imuninn/. Web viewer: https://imuninn-webviewer.projects.weijinqi.com. Full text of these docs: ${SITE}/llms-full.txt`,
+  "",
+  "## Docs (English)",
+  "",
+  ...listed.map((slug) => `- [${titleOf(slug, "en/")}](${urlOf(slug, "en/")}): ${DESCRIPTIONS[slug].en}${existsSync(pageFile(slug, "en/")) ? "" : " (Chinese only)"}`),
+  "",
+  "## 文档（中文）",
+  "",
+  ...listed.map((slug) => `- [${titleOf(slug, "")}](${urlOf(slug, "")}): ${DESCRIPTIONS[slug].zh}`),
+  "",
+];
+writeFileSync(resolve(here, "../public/llms.txt"), llms.join("\n"));
+const full = [llms.slice(0, 5).join("\n")];
+for (const slug of listed) {
+  const locale = existsSync(pageFile(slug, "en/")) ? "en/" : "";
+  const md = readFileSync(pageFile(slug, locale), "utf8");
+  const title = titleOf(slug, locale);
+  const body = md.replace(/^---\n[\s\S]*?\n---\n/, "").trim();
+  full.push(`# ${title}\n\nURL: ${urlOf(slug, locale)}\n\n${body}`);
+}
+writeFileSync(resolve(here, "../public/llms-full.txt"), full.join("\n\n---\n\n") + "\n");
+
 console.log(`synced ${n} docs -> ${out}`);

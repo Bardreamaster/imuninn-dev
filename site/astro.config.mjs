@@ -17,6 +17,15 @@ export default defineConfig({
       logo: { light: "./src/assets/wordmark-light.svg", dark: "./src/assets/wordmark-dark.svg", replacesTitle: true, alt: "iMuninn" },
       components: { Header: "./src/components/Header.astro" },
       description: "iPhone 作为机器人传感器：相机、IMU、ARKit 位姿、LiDAR 深度",
+      // Link previews (Open Graph / X). Starlight already emits og:title/description/url and
+      // twitter:card=summary_large_image; this adds the image. Absolute URL as the spec requires.
+      head: [
+        { tag: "meta", attrs: { property: "og:image", content: "https://imuninn.projects.weijinqi.com/og.jpg" } },
+        { tag: "meta", attrs: { property: "og:image:width", content: "1200" } },
+        { tag: "meta", attrs: { property: "og:image:height", content: "630" } },
+        { tag: "meta", attrs: { property: "og:image:alt", content: "iMuninn: your iPhone as a robot sensor" } },
+        { tag: "meta", attrs: { name: "twitter:image", content: "https://imuninn.projects.weijinqi.com/og.jpg" } },
+      ],
       defaultLocale: "root",
       locales: {
         root: { label: "中文", lang: "zh-CN" },

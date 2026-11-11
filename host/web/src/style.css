@@ -46,6 +46,7 @@ html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--te
 .btn.danger { background: var(--danger-fill); color: var(--on-accent); }
 .btn.ghost { border-color: var(--border); }
 .btn.small { padding: 5px 10px; font-size: 13px; }
+a.btn { text-decoration: none; }
 .btn:disabled { opacity: .4; cursor: default; }
 .btn:not(:disabled):hover { filter: brightness(1.1); }
 .btn:not(:disabled):active { opacity: .7; }

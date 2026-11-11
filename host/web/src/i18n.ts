@@ -5,6 +5,7 @@ const dict = {
   zh: {
     title: "iMuninn Web Viewer",
     addr_placeholder: "手机地址，例如 10.0.0.5（App「服务」卡片里显示）",
+    docs: "文档",
     connect: "连接", disconnect: "断开", start: "开始采集", stop: "停止",
     depth: "深度", depth_ar_only: "深度只有 AR 模式才有", mode_ar: "AR 模式", mode_camera: "相机模式",
     orient: "画面", orient_auto: "自动（重力）", orient_portrait: "竖屏", orient_land_l: "横屏（左）", orient_land_r: "横屏（右）", orient_upside: "倒置",
@@ -23,6 +24,7 @@ const dict = {
   en: {
     title: "iMuninn Web Viewer",
     addr_placeholder: "phone address, e.g. 10.0.0.5 (shown in the app's Server card)",
+    docs: "Docs",
     connect: "Connect", disconnect: "Disconnect", start: "Start capture", stop: "Stop",
     depth: "Depth", depth_ar_only: "Depth is only available in AR mode", mode_ar: "AR mode", mode_camera: "Camera mode",
     orient: "View", orient_auto: "Auto (gravity)", orient_portrait: "Portrait", orient_land_l: "Landscape (left)", orient_land_r: "Landscape (right)", orient_upside: "Upside down",
@@ -53,6 +55,8 @@ export function applyLang(next?: Lang): void {
   document.querySelectorAll<HTMLElement>("[data-i18n]").forEach((el) => { el.textContent = t(el.dataset.i18n as Key); });
   document.querySelectorAll<HTMLElement>("[data-i18n-placeholder]").forEach((el) => { (el as HTMLInputElement).placeholder = t(el.dataset.i18nPlaceholder as Key); });
   document.querySelectorAll<HTMLElement>("[data-i18n-title]").forEach((el) => { el.title = t(el.dataset.i18nTitle as Key); });
+  const d = document.getElementById("docs-link") as HTMLAnchorElement | null;
+  if (d) d.href = lang === "zh" ? "https://imuninn.projects.weijinqi.com/" : "https://imuninn.projects.weijinqi.com/en/";
   const b = document.getElementById("lang");
   if (b) b.textContent = lang === "zh" ? "EN" : "中";
 }
