@@ -59,7 +59,7 @@ host/python/.venv/bin/python tools/bench/latency.py --seconds 10 --depth   # 延
 
 ## 公开仓库与文档
 
-公开仓库是本仓库按白名单同步出去的副本，规则见 `docs/dev/10-docs-and-publishing.md`。要点：日常提交到 `dev` 分支（远程 `origin` = 私有仓库 `imuninn-dev`），`main` 只在发布时由 `dev` 快进；只从 `main` 发布，用 `git show main:tools/publish.sh | REPO=. bash -s -- ../imuninn-public "说明"`；脚本会拒绝比公开仓当前内容更旧的提交（否则会回滚别人已发布的内容）。面向用户的文档中英文一起改（`docs/<栏目>/` 与 `docs/en/<栏目>/`）。
+公开仓库是本仓库按白名单同步出去的副本，规则见 `docs/dev/10-docs-and-publishing.md`。要点：日常提交到 `dev` 分支（远程 `origin` = 私有仓库 `imuninn-dev`），`main` 只在发布时由 `dev` 快进；只从 `main` 发布，用 `git show main:tools/publish.sh | REPO=. bash -s -- ../imuninn-public "说明" --push`；公开仓 `main` 受保护，脚本只把内容推到一个新的 `publish/…` 分支，PR 由人在 GitHub 上建和合并，不要替人建；脚本会拒绝比公开仓当前内容更旧的提交（否则会回滚别人已发布的内容）。面向用户的文档中英文一起改（`docs/<栏目>/` 与 `docs/en/<栏目>/`）。
 
 ## 当前状态与下一步
 
