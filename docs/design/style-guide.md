@@ -1,6 +1,6 @@
 # iMuninn 设计风格档案
 
-> 版本 2（2026-11-07：颜色改用 OKLCH，确定 App 图标）。从 `mobile/src/ui/theme.ts` 与 `mobile/src/ui/components.tsx` 提取，作为三端（iOS、Android、Web 查看器）共同的设计依据，也可以直接作为 Claude 的设计系统资料使用。
+> 版本 2（2026-11-07：颜色改用 OKLCH，确定 App 图标；11-11 补入全称字标）。从 `mobile/src/ui/theme.ts` 与 `mobile/src/ui/components.tsx` 提取，作为三端（iOS、Android、Web 查看器）共同的设计依据，也可以直接作为 Claude 的设计系统资料使用。
 > 对应的在线设计系统：Claude 中的「iMuninn」Design System。改动 token 时两边同步。
 
 ## 1. 产品气质
@@ -116,9 +116,36 @@ iMuninn 把手机变成传感器服务器：相机、深度、IMU、AR 位姿通
 | 深色（默认） | `bg` 深色 #0C1015 | `text` 深色 #E5ECF2 | `err` 深色 #F85149 | `docs/design/icons/imuninn-icon-dark.svg` |
 | 浅色 | #FFFFFF | `text` 浅色 #1F2328 | `err` 浅色 #CE2930 | `docs/design/icons/imuninn-icon-light.svg` |
 
-原稿是 1024×1024 方形，iOS 会自己裁圆角。**字标**（`docs/design/icons/imuninn-wordmark-{dark,light}.svg`）：图标的 i（竖笔 + 录制环）和 M 原样，`uninn` 用同一笔画（108、圆头圆角）、同一 x 高度（412–776）：u 是 ∪、n 是 ∩，互为镜像（n 左腿不伸出弧顶，避免圆头和弧之间出现凹口；弧底 / 弧顶落在基线 / x 高度线上），两腿中心距 276（约 M 腿距 384 的 0.72），字间空白统一 64，第二个 i 用直径 120 的实心点、圆心与录制环同高（y 320）。viewBox 紧贴字形（166–2806 × 248–776）四周留 48。备选：`tools/gen-wordmark.py --font Inter-Bold.otf` 用真实字体轮廓生成。文档站左上角用它替代文字标题。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
+原稿是 1024×1024 方形，iOS 会自己裁圆角。浅色版用于文档站 favicon 和浅色场景。之前排除的方向：渡鸦头（太像卡通）、圆头 iM 加实心红点（结构接近小米旧 logo）。
 
-### 6.2 界面图标
+| 深色 | 浅色 |
+| --- | --- |
+| ![App 图标 深色](icons/imuninn-icon-dark.svg) | ![App 图标 浅色](icons/imuninn-icon-light.svg) |
+
+### 6.2 字标（iMuninn 全称）
+
+全称字标用在文档站主页左上角（替代文字标题）和 App 内的标题位置。它从 App 图标延伸而来：图标里的 i（竖笔加录制环）和 M 原样保留，`uninn` 按同一套几何补齐，所以图标和字标并排时是同一个字族。
+
+![iMuninn 字标 深色](icons/imuninn-wordmark-dark.svg)
+
+![iMuninn 字标 浅色](icons/imuninn-wordmark-light.svg)
+
+| 版本 | 字母 | 录制环 / 点 | 用在 | 文件 |
+| --- | --- | --- | --- | --- |
+| 深色（默认） | `text` 深色 #E5ECF2 | `err` 深色 #F85149 | 深色背景：App、文档站深色模式 | `docs/design/icons/imuninn-wordmark-dark.svg` |
+| 浅色 | `text` 浅色 #1F2328 | `err` 浅色 #CE2930 | 浅色背景：文档站浅色模式 | `docs/design/icons/imuninn-wordmark-light.svg` |
+
+构造规则（与图标同一 1024 坐标系）：
+- **i 与 M**：与 App 图标完全一致：i 宽 120，录制环外径 144；M 笔画 108。
+- **u 与 n**：同一笔画 108，圆头圆角，x 高度 412–776。u 是 ∪，n 是 ∩，两者互为镜像。n 的左腿不伸出弧顶，以免圆头和弧之间出现凹口。弧底落在基线上，弧顶落在 x 高度线上。两腿中心距 276（约为 M 腿距 384 的 0.72）。
+- **第二个 i**：用直径 120 的实心点，颜色与字母相同，圆心与录制环同高（y 320）。只有第一个 i 用红色录制环。
+- **字距**：字母之间的空白统一为 64。
+- **画布**：viewBox 紧贴字形（166–2806 × 248–776），四周各留 48。
+- **备选生成方式**：`tools/gen-wordmark.py --font Inter-Bold.otf` 用真实字体轮廓生成，第一个 i 的点同样换成录制环。
+
+使用规则：不要拉伸、描边、加阴影或渐变；不要把录制环换成实心点；最小显示高度约 20px，再小就改用 App 图标。
+
+### 6.3 界面图标
 
 - iOS：SF Symbols，经 `expo-symbols` 的 `<SymbolView>`；尺寸 16（行内）、20（按钮）、24（标题栏），颜色取 token，不用多色符号，状态图标可用 `hierarchical` 渲染。
 - 不再用文字字符代替图标（目前卡片折叠用 `▾ ▸`、需重启参数用 `↻`、录制用 `●`）。
