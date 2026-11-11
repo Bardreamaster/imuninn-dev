@@ -2,32 +2,68 @@
 // Hero: Starlight's default hero plus the official "Download on the App Store" badge.
 // Badges come unmodified from Apple's marketing toolbox (public/badges/); Apple's guidelines
 // ask for the official artwork, no custom Apple-logo buttons, and a clear space around it.
+// The app image (src/assets/home-app.webp) is rendered here rather than through the page's
+// `hero.image`: Starlight resizes that to a 400x400 square, which crops a portrait image and
+// is blurry on HiDPI screens. .hero is flattened into this grid so the badge sits in the text
+// column and the image spans the text and badge rows: image and download button form one block.
+import { Image } from "astro:assets";
 import Default from "@astrojs/starlight/components/Hero.astro";
+import homeApp from "../assets/home-app.webp";
 const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
 const en = lang.startsWith("en");
 const appStore = "https://apps.apple.com/app/id6832343388";
 ---
-<Default><slot /></Default>
-<div class="app-store">
-  <a href={appStore} rel="noopener">
-    <img
-      src={en ? "/badges/app-store-en.svg" : "/badges/app-store-zh.svg"}
-      alt={en ? "Download on the App Store" : "在 App Store 下载"}
-      height="48"
-    />
-  </a>
+<div class="home-hero">
+  <Default><slot /></Default>
+  <div class="app-store">
+    <a href={appStore} rel="noopener">
+      <img
+        src={en ? "/badges/app-store-en.svg" : "/badges/app-store-zh.svg"}
+        alt={en ? "Download on the App Store" : "在 App Store 下载"}
+        height="48"
+      />
+    </a>
+  </div>
+  <Image
+    class="app-image"
+    src={homeApp}
+    widths={[400, 700, homeApp.width]}
+    sizes="(min-width: 50rem) 20rem, 70vw"
+    loading="eager"
+    fetchpriority="high"
+    alt={en
+      ? "iMuninn on three iPhones: in front, the capture screen with a camera preview of a robot arm above tracking status and pose, IMU and video rates; behind it, the configuration screen in dark mode and the list of connected PCs."
+      : "三台 iPhone 上的 iMuninn：中间是采集页，相机预览拍着机械臂，下面是追踪状态和位姿、IMU、视频的帧率；后面是深色模式的配置页和已连接 PC 列表。"}
+  />
 </div>
 
 <style>
-  /* The badge sits under the hero's buttons, so the hero's own bottom padding moves below it. */
-  :global(.hero) {
-    padding-bottom: 0 !important;
+  .home-hero {
+    display: grid;
+    grid-template-columns: 100%;
+    align-items: center;
+    padding-bottom: 1rem;
+  }
+  .home-hero :global(.hero) {
+    display: contents;
+  }
+  /* phones: text, badge, then the image */
+  .home-hero :global(.hero > .stack) {
+    order: 1;
   }
   .app-store {
+    order: 2;
     display: flex;
     justify-content: center;
     padding-top: clamp(1.5rem, calc(1.5rem + 1vw), 2rem);
-    padding-bottom: 1rem;
+  }
+  .home-hero .app-image {
+    order: 3;
+    width: min(70%, 20rem);
+    max-height: 50svh;
+    object-fit: contain;
+    height: auto;
+    margin: 1.5rem auto 0;
   }
   .app-store img {
     height: 48px;
@@ -35,9 +71,29 @@ const appStore = "https://apps.apple.com/app/id6832343388";
     display: block;
   }
   @media (min-width: 50rem) {
+    .home-hero {
+      grid-template-columns: 7fr 4fr;
+      grid-template-rows: auto auto;
+      column-gap: 3%;
+      padding-block: clamp(2.5rem, calc(1rem + 10vmin), 10rem);
+    }
+    .home-hero :global(.hero > .stack) {
+      grid-column: 1;
+      grid-row: 1;
+    }
     .app-store {
+      grid-column: 1;
+      grid-row: 2;
       justify-content: flex-start;
-      padding-bottom: clamp(2.5rem, calc(1rem + 10vmin), 10rem);
+      align-self: start;
+    }
+    .home-hero .app-image {
+      grid-column: 2;
+      grid-row: 1 / span 2;
+      width: auto;
+      max-width: 100%;
+      max-height: 22rem;
+      margin: 0 auto;
     }
   }
 </style>

@@ -8,6 +8,7 @@ Astro Starlight。内容不在这里写：`npm run sync` 从 `../docs/` 和 `../
 - 每页的 meta description（搜索结果和分享预览用）写在 `scripts/descriptions.mjs`，按 slug 分中英文。新增公开页面时顺手加一条；没写的页面用站点默认描述，也不会进 llms.txt。
 - sync 同时生成 `public/llms.txt` 和 `public/llms-full.txt`（给 AI 爬虫和 agent），只包含 `descriptions.mjs` 里列出且本次构建存在的页面，所以私有栏目不会混进去。
 - 分享预览图是 `public/og.jpg`（1200×630，从宣传图裁出），在 `astro.config.mjs` 的 `head` 里引用。
+- 首页右侧的 App 图是 `src/assets/home-app.webp`（1056×1212，透明底，只有三台手机、没有文字），在 `src/components/Hero.astro` 里和 App Store 徽章放在一起。它用无头 Chrome 从 `mobile/store-screenshots/artwork/art.html` 渲染：去掉左侧文案和背景渐变（`.copy` 隐藏、`body` 透明），用 6.3in 截图 01 / 05 / 02 作中 / 左 / 右，再用 sharp 转 WebP。
 
 ```bash
 cd site && npm install
