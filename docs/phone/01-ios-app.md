@@ -1,5 +1,7 @@
 # iOS App
 
+从 App Store 安装：<https://apps.apple.com/app/id6832343388>。
+
 手机是服务端：打开 App 就发布 Bonjour 服务 `_imuninn._tcp` 并监听 7420（控制）和 7422（数据），PC 来连。App 必须在前台，进后台系统会停掉相机。
 
 ## 界面

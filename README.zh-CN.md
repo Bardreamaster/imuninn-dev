@@ -4,6 +4,7 @@
 
 把手机变成便携的多模态传感器节点：相机（H.264）、IMU、ARKit / ARCore 位姿（每帧带内参）和 LiDAR 深度，通过 Wi‑Fi 或 USB 以 Protobuf 协议实时传到 PC，经 Python / C++ / 浏览器交给机器人程序、算法与数据采集流程。
 
+- iOS App：[App Store](https://apps.apple.com/app/id6832343388)
 - 文档站：<https://imuninn.projects.weijinqi.com>（源文件在 [`docs/`](docs/README.md)）
 - Python 包：`pip install imuninn`（[`host/python`](host/python/README.md)）
 - Web 查看器：<https://imuninn-webviewer.projects.weijinqi.com>（Safari 可直连；Chrome / Edge 请运行 `imuninn web`）

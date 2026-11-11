@@ -1,5 +1,7 @@
 # iOS app
 
+Get it on the App Store: <https://apps.apple.com/app/id6832343388>.
+
 The phone is the server: when the app opens it advertises the Bonjour service `_imuninn._tcp` and listens on 7420 (control) and 7422 (data); PCs connect to it. Keep the app in the foreground: iOS stops the camera for apps in the background.
 
 ## Screen

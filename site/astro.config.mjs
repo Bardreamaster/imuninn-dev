@@ -15,7 +15,7 @@ export default defineConfig({
     starlight({
       title: "iMuninn",
       logo: { light: "./src/assets/wordmark-light.svg", dark: "./src/assets/wordmark-dark.svg", replacesTitle: true, alt: "iMuninn" },
-      components: { Header: "./src/components/Header.astro" },
+      components: { Header: "./src/components/Header.astro", Hero: "./src/components/Hero.astro" },
       description: "iPhone 作为机器人传感器：相机、IMU、ARKit 位姿、LiDAR 深度",
       // Link previews (Open Graph / X). Starlight already emits og:title/description/url and
       // twitter:card=summary_large_image; this adds the image. Absolute URL as the spec requires.

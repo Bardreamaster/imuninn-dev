@@ -2,6 +2,8 @@
 
 App Store Connect 里要填的文案和设置，复制粘贴用。主语言建议英文，简体中文作为本地化。
 
+已上架：<https://apps.apple.com/app/id6832343388>。
+
 ## 基本信息
 
 | 项 | 值 |

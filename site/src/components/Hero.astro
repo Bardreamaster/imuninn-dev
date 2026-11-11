@@ -1,0 +1,43 @@
+---
+// Hero: Starlight's default hero plus the official "Download on the App Store" badge.
+// Badges come unmodified from Apple's marketing toolbox (public/badges/); Apple's guidelines
+// ask for the official artwork, no custom Apple-logo buttons, and a clear space around it.
+import Default from "@astrojs/starlight/components/Hero.astro";
+const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
+const en = lang.startsWith("en");
+const appStore = "https://apps.apple.com/app/id6832343388";
+---
+<Default><slot /></Default>
+<div class="app-store">
+  <a href={appStore} rel="noopener">
+    <img
+      src={en ? "/badges/app-store-en.svg" : "/badges/app-store-zh.svg"}
+      alt={en ? "Download on the App Store" : "在 App Store 下载"}
+      height="48"
+    />
+  </a>
+</div>
+
+<style>
+  /* The badge sits under the hero's buttons, so the hero's own bottom padding moves below it. */
+  :global(.hero) {
+    padding-bottom: 0 !important;
+  }
+  .app-store {
+    display: flex;
+    justify-content: center;
+    padding-top: clamp(1.5rem, calc(1.5rem + 1vw), 2rem);
+    padding-bottom: 1rem;
+  }
+  .app-store img {
+    height: 48px;
+    width: auto;
+    display: block;
+  }
+  @media (min-width: 50rem) {
+    .app-store {
+      justify-content: flex-start;
+      padding-bottom: clamp(2.5rem, calc(1rem + 10vmin), 10rem);
+    }
+  }
+</style>

@@ -4,7 +4,7 @@ Install the app on the phone and a receiver on the PC, then put both on the same
 
 ## Phone
 
-There is no App Store release yet, so build the app with Xcode and install it on your phone (see the developer docs: [Setup](../dev/01-setup.md), [Build and run](../dev/02-build-run.md)). For Android see [Phone apps · Android](../phone/02-android.md). Then:
+Install the app from the App Store: <https://apps.apple.com/app/id6832343388>. You can also build it from source with Xcode (see the developer docs: [Setup](../dev/01-setup.md), [Build and run](../dev/02-build-run.md)). For Android see [Phone apps · Android](../phone/02-android.md). Then:
 
 1. Open iMuninn. The "Server" card at the top shows **listening** and the phone's addresses (`en0` is Wi‑Fi; with a USB cable plugged in there is an extra `169.254.x.x` direct-link address).
 2. Allow the "Local Network" permission the first time it asks.

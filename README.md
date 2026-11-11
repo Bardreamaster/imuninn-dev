@@ -4,6 +4,7 @@
 
 Turn a phone into a portable multimodal sensor node: camera (H.264), IMU, ARKit / ARCore pose with per-frame intrinsics and LiDAR depth, streamed live to a PC over Wi‑Fi or USB with a Protobuf protocol, and handed to robot programs, algorithms and data-collection pipelines through Python, C++ or a browser.
 
+- iOS app: [App Store](https://apps.apple.com/app/id6832343388)
 - Documentation: <https://imuninn.projects.weijinqi.com> ([English](https://imuninn.projects.weijinqi.com/en/)); sources in [`docs/`](docs/README.md)
 - Python package: `pip install imuninn` ([`host/python`](host/python/README.md))
 - Web viewer: <https://imuninn-webviewer.projects.weijinqi.com> (Safari connects directly; in Chrome / Edge run `imuninn web`)

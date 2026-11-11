@@ -4,7 +4,7 @@
 
 ## 手机端
 
-目前还没有 App Store 版本，需要用 Xcode 自己构建装到手机（见 [开发者文档：环境搭建](../dev/01-setup.md)、[构建与运行](../dev/02-build-run.md)）。Android 版见 [手机端 · Android](../phone/02-android.md)。装好后：
+从 App Store 安装：<https://apps.apple.com/app/id6832343388>。也可以用 Xcode 从源码构建（见 [开发者文档：环境搭建](../dev/01-setup.md)、[构建与运行](../dev/02-build-run.md)）。Android 版见 [手机端 · Android](../phone/02-android.md)。装好后：
 
 1. 打开 iMuninn，顶部"服务"卡片显示 **listening** 和手机的地址（`en0` 是 Wi‑Fi；插着 USB 线时会多一个 `169.254.x.x` 的 USB 直连地址）。
 2. 第一次会弹"本地网络"权限，允许。
