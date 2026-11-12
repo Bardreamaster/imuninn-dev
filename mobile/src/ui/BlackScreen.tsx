@@ -9,7 +9,8 @@ const IDLE_MS = 5000;
 /** Black-screen mode: after `IDLE_MS` without touches the whole UI is covered by a
  *  pure-black layer and the backlight goes to minimum (near zero power on OLED).
  *  Capture and streaming keep running; the idle timer stays disabled so iOS never
- *  locks. A tap wakes the screen for another IDLE_MS.
+ *  locks. A tap wakes the screen; every touch or text edit (reported natively by
+ *  `onUserActivity`, plus the JS onTouchStart fallback) restarts the IDLE_MS countdown.
  *
  *  `enabled` is the session parameter `session.black_screen` from the config store, so
  *  the phone button and a remote `dev.set("session.black_screen", True)` are one switch;
@@ -51,6 +52,16 @@ export function useBlackScreen(enabled: boolean, setEnabled: (v: boolean) => voi
   }, [enabled, dimmed, wake, arm]);
 
   const toggle = useCallback(() => setEnabled(!enabled), [enabled, setEnabled]);
+
+  // Native activity signal: any touch in any window (modals, sliders held down, drags)
+  // and keyboard typing re-arm the idle timer, so the screen only goes dark after
+  // IDLE_MS of real inactivity. The ref keeps one subscription for the hook's lifetime.
+  const touchRef = useRef(touch);
+  touchRef.current = touch;
+  useEffect(() => {
+    const sub = MuninnCore.addListener("onUserActivity", () => touchRef.current());
+    return () => sub.remove();
+  }, []);
 
   // Follow the switch wherever it was flipped (button, remote client, profile).
   useEffect(() => {

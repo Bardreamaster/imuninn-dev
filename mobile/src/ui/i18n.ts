@@ -10,6 +10,9 @@ const zh = {
   // header / server
   "pcs": (n: number) => `${n} 台 PC`,
   "net.error": "网络错误，重试中",
+  "net.none": "无网络",
+  "net.none.ip": "拿不到 IP",
+  "net.none.hint": "没有可用网络（未连接 Wi‑Fi / USB 网络），PC 暂时无法连接；连上网络后会自动显示 IP",
   "starting": "启动中",
   "stopped": "已停止",
   "controlled.by": (w: string) => `${w} 控制中 · 接管`,
@@ -104,6 +107,9 @@ const zh = {
 const en: Record<keyof typeof zh, string | ((...a: any[]) => string)> = {
   "pcs": (n: number) => `${n} PC${n === 1 ? "" : "s"}`,
   "net.error": "Network error, retrying",
+  "net.none": "No network",
+  "net.none.ip": "No IP address",
+  "net.none.hint": "No usable network (no Wi‑Fi / USB network), so a PC cannot connect yet; the IP appears once the phone is connected",
   "starting": "Starting",
   "stopped": "Stopped",
   "controlled.by": (w: string) => `${w} in control · take over`,

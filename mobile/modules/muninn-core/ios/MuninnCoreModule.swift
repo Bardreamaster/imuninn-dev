@@ -13,11 +13,14 @@ public class MuninnCoreModule: Module {
       "protocolVersion": Int(MuninnCore.protocolVersion),
     ])
 
-    Events("onStatus", "onConfig")
+    Events("onStatus", "onConfig", "onUserActivity")
 
     OnCreate {
       // The app exists to stream while in the foreground: never auto-lock (§11).
       DispatchQueue.main.async { UIApplication.shared.isIdleTimerDisabled = true }
+      // Touches anywhere in the app (incl. modals) and text edits reset the black-screen idle timer.
+      UserActivityMonitor.shared.onActivity = { [weak self] in self?.sendEvent("onUserActivity", [:]) }
+      UserActivityMonitor.shared.start()
       self.manager.onStatus = { [weak self] s in
         self?.sendEvent("onStatus", [
           "server": s.server,

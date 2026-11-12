@@ -53,9 +53,12 @@ export default function App() {
   const previewH = previewW / aspect;
 
   const listening = status?.server === "listening";
-  const serverColor = listening ? C.ok : status?.server === "failed" ? C.err : C.muted;
   const clients = status?.clients ?? [];
-  const serverLabel = listening ? t("pcs", clients.length)
+  // No usable interface address (Wi‑Fi off, no USB network): say so instead of just
+  // leaving the address rows out while everything else looks normal.
+  const noNetwork = status !== null && (status.addresses ?? []).length === 0 && clients.length === 0;
+  const serverColor = noNetwork ? C.warn : listening ? C.ok : status?.server === "failed" ? C.err : C.muted;
+  const serverLabel = noNetwork ? t("net.none") : listening ? t("pcs", clients.length)
     : status?.server === "failed" ? t("net.error") : status?.server === "starting" ? t("starting") : status?.server === "stopped" ? t("stopped") : "…";
   const trackColor = status?.tracking === "normal" ? C.ok : status?.tracking === "limited" ? C.warn : C.muted;
   const camera = status?.mode === "camera";
@@ -144,8 +147,14 @@ export default function App() {
             return <Row key={a} selectable k={iface === "en0" ? t("wifi") : iface.startsWith("en") ? t("usb", iface) : iface}
               v={`${ip}:${status?.controlPort ?? 0}`} />;
           })}
+          {noNetwork ? (
+            <>
+              <Row k={t("address")} v={t("net.none.ip")} color={C.warnText} />
+              <Text style={S.muted}>{t("net.none.hint")}</Text>
+            </>
+          ) : null}
           {clients.length === 0 ? (
-            <Text style={S.muted}>{t("waiting.pc")}</Text>
+            noNetwork ? null : <Text style={S.muted}>{t("waiting.pc")}</Text>
           ) : (
             clients.map((c) => (
               <Row key={c.id} selectable keyNoWrap k={`${c.name}${c.writer ? " ✎" : ""}`} v={`${c.host} · ${c.subscribed.join(",") || t("not.subscribed")}`} />

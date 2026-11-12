@@ -26,7 +26,7 @@ export function RemoteSheet({ status, visible, onClose }: { status: StatusEvent 
             {clients.length === 0 ? (
               <View style={{ gap: 4 }}>
                 <Text style={S.key}>{t("remote.none")}</Text>
-                <Text style={S.muted}>{t("waiting.pc")}</Text>
+                <Text style={S.muted}>{status && (status.addresses ?? []).length === 0 ? t("net.none.hint") : t("waiting.pc")}</Text>
               </View>
             ) : clients.map((c) => (
               <View key={c.id} style={{ backgroundColor: C.cardAlt, borderRadius: 10, padding: 12, gap: 4 }}>
