@@ -10,7 +10,7 @@ iMuninn PC-side client API. The phone is the server; PCs connect to it.
 
 Re-exported for convenience: `discover`, `connect`, `Device`, `Phone`, `LeaseError` (documented in their modules below).
 
-- `PROTOCOL_VERSION` = `5`
+- `PROTOCOL_VERSION` = `6`
 - `SERVICE_TYPE` = `'_imuninn._tcp.local.'`
 - `DEFAULT_CONTROL_PORT` = `7420`
 
@@ -249,7 +249,7 @@ Iterate over incoming samples.
 
 Args:
     stream: A stream id (``"imu"``, ``"ar_pose"``, ``"rgb"``, ``"depth"``,
-        ``"health"``) to yield its samples, or ``None`` for ``(stream, sample)``
+        ``"health"``, ``"audio"``) to yield its samples, or ``None`` for ``(stream, sample)``
         tuples of every stream.
     maxsize: Queue depth; when the consumer falls behind, newer samples are
         dropped rather than blocking the client.
@@ -539,6 +539,88 @@ def to_metres(depth_mm: np.ndarray) -> np.ndarray
 ```
 
 uint16 mm -> float32 m with NaN for invalid (0).
+
+
+## `imuninn.audio`
+
+Microphone audio (stream ``"audio"``, protocol v6): decode ``AudioChunk`` messages and
+write WAV files.
+
+### `to_numpy`
+
+```python
+def to_numpy(chunk: pb.AudioChunk, dtype: str = 'float32') -> np.ndarray
+```
+
+Samples of one chunk as an array of shape ``(frame_count, channels)``.
+
+Args:
+    chunk: An ``AudioChunk``.
+    dtype: ``"float32"`` (default) scales to -1..1 whatever the wire format;
+        ``"native"`` returns the samples as sent (int16 for PCM s16, float32 for PCM f32).
+
+### `frame_times_ns`
+
+```python
+def frame_times_ns(chunk: pb.AudioChunk) -> np.ndarray
+```
+
+Device time (ns) of every frame in the chunk, int64.
+
+### `level_dbfs`
+
+```python
+def level_dbfs(chunk: pb.AudioChunk) -> float
+```
+
+RMS level of the chunk in dB full scale (``-inf`` for digital silence clipped to -120).
+
+### `WavWriter`
+
+```python
+class WavWriter
+```
+
+Append ``AudioChunk`` messages to a 16-bit or 32-bit-float WAV file.
+
+The format is taken from the first chunk; chunks with a different rate / channel count
+are rejected. Missing chunks (``header.seq`` gaps or time jumps) are filled with silence
+so the file stays aligned with the device clock, unless ``fill_gaps=False``.
+
+#### `WavWriter.sample_rate` (property -> int)
+
+Sample rate of the file (0 before the first chunk).
+
+#### `WavWriter.write`
+
+```python
+def write(chunk: pb.AudioChunk) -> None
+```
+
+#### `WavWriter.close`
+
+```python
+def close() -> None
+```
+
+### `iter_chunks`
+
+```python
+def iter_chunks(path: str | Path) -> Iterator[pb.AudioChunk]
+```
+
+``AudioChunk`` messages from an MCAP file or a phone-side ``.imuninn`` recording.
+
+### `export_wav`
+
+```python
+def export_wav(src: str | Path, dst: str | Path, fill_gaps: bool = True, chunks: Iterable[pb.AudioChunk] | None = None) -> WavWriter
+```
+
+Write the ``audio`` stream of a recording (MCAP or ``.imuninn``) to a WAV file.
+
+Returns the closed `WavWriter` (``frames``, ``gaps``, ``first_time_ns`` = device
+time of the first sample, to line the WAV up with the other streams).
 
 
 ## `imuninn.video`

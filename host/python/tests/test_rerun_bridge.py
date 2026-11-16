@@ -91,7 +91,7 @@ def make_synthetic_mcap(path, seconds: float = 2.0, with_video: bool = True) -> 
     frames = _h264_frames(int(seconds * 10)) if with_video else []
     info = pb.DeviceInfo(device_id="synthetic", device_name="Synthetic iPhone", model="iPhone18,1",
                          platform=pb.PLATFORM_IOS, protocol_version=3, has_lidar=True)
-    counts = {"pose": 0, "imu": 0, "depth": 0, "health": 0, "video": 0}
+    counts = {"pose": 0, "imu": 0, "depth": 0, "health": 0, "video": 0, "audio": 0}
     ns = lambda t: int(t * 1e9)  # noqa: E731
     with McapRecorder(path, info, clock_offset_ns=1_700_000_000_000_000_000) as rec:
         rec.write_config(pb.DeviceConfig(config_version=1, mode=pb.SESSION_MODE_AR,
@@ -134,6 +134,13 @@ def make_synthetic_mcap(path, seconds: float = 2.0, with_video: bool = True) -> 
                 m.depth.intrinsics.CopyFrom(pb.Intrinsics(width=w, height=h, fx=12.5, fy=12.5, cx=8, cy=6))
                 m.depth.rotation_deg = 90
                 rec.write(m)
+            if abs((t * 50) % 1) < 1e-6 or abs((t * 50) % 1 - 1) < 1e-6:
+                m = pb.DataMessage()
+                m.audio.header.CopyFrom(hdr("audio", "audio"))
+                m.audio.encoding, m.audio.sample_rate, m.audio.channels, m.audio.frame_count = \
+                    pb.AUDIO_ENCODING_PCM_S16LE, 16000, 1, 320
+                m.audio.data = (np.sin(np.arange(320) * 0.3) * 3000 * (1 + t)).astype("<i2").tobytes()
+                rec.write(m)
             if abs(t % 1) < 1e-6:
                 m = pb.DataMessage()
                 m.health.header.CopyFrom(hdr("health", "health"))
@@ -175,7 +182,7 @@ def test_replay_to_rrd(tmp_path, video):
     assert name == "synthetic_iphone"
     assert c["ar_pose"] == made["pose"] and c["imu"] == made["imu"]
     assert c["depth"] == made["depth"] and c["health"] == made["health"]
-    assert c["rgb"] == made["video"]
+    assert c["rgb"] == made["video"] and c["audio"] == made["audio"] > 0
     rr.disconnect()
     assert rrd.stat().st_size > 10_000
 

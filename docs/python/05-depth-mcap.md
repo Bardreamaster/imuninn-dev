@@ -41,7 +41,7 @@ imuninn convert 20261103-153000.imuninn         # 手机本机录制 → MCAP
 | --- | --- | --- |
 | `/device` `/capabilities` | DeviceInfo / Capabilities | 文件头各一条 |
 | `/config` | ConfigChanged | 开始时一条，之后每次参数变化一条；每条数据的 `header.config_version` 可对回去 |
-| `/imu` `/ar_pose` `/rgb` `/depth` | ImuSample / PoseSample / VideoFrame / DepthFrame | `publish_time` = 设备时钟，`log_time` = PC 墙钟（设备时间 + 握手时的偏移） |
+| `/imu` `/ar_pose` `/rgb` `/depth` `/audio` | ImuSample / PoseSample / VideoFrame / DepthFrame / AudioChunk | `publish_time` = 设备时钟，`log_time` = PC 墙钟（设备时间 + 握手时的偏移） |
 
 Python 里回放：
 

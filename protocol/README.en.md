@@ -20,6 +20,7 @@ Field reference (generated): `docs/protocol/messages.md`.
 | IMU / pose / health | UDP (phone → each client's port), one `DataMessage` per datagram | `ImuSample`, `PoseSample`, `DeviceHealth` | may drop |
 | video | TCP | `VideoFrame` (H.264 Annex-B) | sender keeps only the newest frame |
 | depth | TCP | `DepthFrame` (uint16 mm + LZ4; zstd reserved) | never drops |
+| audio | TCP (v6) | `AudioChunk` (PCM s16 / f32, mono; timestamp = first frame) | never drops |
 | all data (browsers) | WebSocket (v5, `Hello.data_transport = WEBSOCKET`) | as above, one `DataMessage` per frame | like TCP: a video backlog drops non-key frames |
 
 Framing on TCP: `uint32 little-endian length` + `DataMessage` bytes. On UDP each datagram is one `DataMessage`, never fragmented (anything larger than the MTU goes over TCP).

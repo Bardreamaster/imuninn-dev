@@ -1,8 +1,8 @@
 # Privacy Policy
 
-Last updated: November 8, 2026
+Last updated: November 16, 2026
 
-iMuninn ("the app") streams your iPhone's camera, IMU, ARKit pose and LiDAR depth to your own computer over the **local network**. The app does not collect any personal data.
+iMuninn ("the app") streams your iPhone's camera, IMU, ARKit pose, LiDAR depth and, when you turn it on, microphone audio to your own computer over the **local network**. The app does not collect any personal data.
 
 ## Data we do not collect
 
@@ -16,6 +16,7 @@ iMuninn ("the app") streams your iPhone's camera, IMU, ARKit pose and LiDAR dept
 | --- | --- |
 | Camera | Captures video and streams it to a computer you connect on the same local network |
 | Motion & Fitness (accelerometer / gyroscope) | Captures IMU data, sent alongside the video |
+| Microphone | Captures sound only while you have the "audio" stream turned on, and streams it to the computer you connect; off by default, and the microphone is not accessed while it is off |
 | Local Network | Lets your computer discover and connect to the phone via Bonjour (`_imuninn._tcp`) |
 
 Data travels directly between your phone and the computer you connect, with no third party in between. What happens to it on your computer is up to you.

@@ -6,7 +6,7 @@ Every command that talks to a phone takes an optional `target`: a Bonjour name, 
 
 ```
 usage: imuninn [-h] [--version]
-               {list,watch,rerun,record,convert,web,info,profile} ...
+               {list,watch,rerun,record,convert,web,export-audio,info,profile} ...
 ```
 
 ## imuninn list
@@ -40,7 +40,7 @@ options:
 
 ## imuninn rerun
 
-visualise pose / trajectory / video / depth / IMU / health live in the Rerun viewer
+visualise pose / trajectory / video / depth / IMU / health / audio level live in the Rerun viewer
 
 ```
 usage: imuninn rerun [-h] [--start] [--depth] [--no-spawn]
@@ -94,6 +94,7 @@ record all subscribed streams to an MCAP file
 
 ```
 usage: imuninn record [-h] [--start] [-o OUTPUT] [--streams STREAMS] [--depth]
+                      [--audio]
                       [target]
 
 positional arguments:
@@ -106,6 +107,7 @@ options:
   -o, --output OUTPUT  output .mcap (default: imuninn-<time>.mcap)
   --streams STREAMS    comma-separated stream ids (default: all)
   --depth              enable the depth stream before recording
+  --audio              enable the microphone (audio) stream before recording
 ```
 
 ## imuninn convert
@@ -138,6 +140,23 @@ options:
                    as secure
   --no-open        do not open the default browser
   --static STATIC  serve this directory instead of the packaged viewer
+```
+
+## imuninn export-audio
+
+write the audio stream of an MCAP or phone .imuninn recording to a WAV file
+
+```
+usage: imuninn export-audio [-h] [-o OUTPUT] [--no-fill] input
+
+positional arguments:
+  input
+
+options:
+  -h, --help           show this help message and exit
+  -o, --output OUTPUT  output .wav (default: <input>.wav)
+  --no-fill            do not insert silence for missing chunks (the WAV then
+                       drifts from the device clock)
 ```
 
 ## imuninn info

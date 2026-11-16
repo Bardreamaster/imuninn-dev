@@ -53,6 +53,7 @@ PUBLIC = [
     ("imuninn.discovery", ["Phone", "discover", "resolve"]),
     ("imuninn.client", ["PhoneClient", "StreamStats", "LeaseError"]),
     ("imuninn.depth", None),
+    ("imuninn.audio", None),
     ("imuninn.video", ["H264Decoder"]),
     ("imuninn.mcap_io", ["McapRecorder", "replay", "convert", "summary"]),
     ("imuninn.profiles", ["builtin_profiles", "load", "to_patch", "from_config", "dump", "resolve_path"]),

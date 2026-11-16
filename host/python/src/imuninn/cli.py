@@ -24,7 +24,7 @@ def build_parser() -> argparse.ArgumentParser:
     w.add_argument("--stream", default=None, help="only this stream id (default: all)")
     w.add_argument("--every", type=int, default=30, help="print one sample out of N")
 
-    r = sub.add_parser("rerun", help="visualise pose / trajectory / video / depth / IMU / health live in the Rerun viewer")
+    r = sub.add_parser("rerun", help="visualise pose / trajectory / video / depth / IMU / health / audio level live in the Rerun viewer")
     r.add_argument("targets", nargs="*", default=[], metavar="target",
                    help="phone name, host, or host:port; several for a multi-device view (default: first phone found)")
     r.add_argument("--start", action="store_true", help="send SessionControl START after connect")
@@ -56,6 +56,7 @@ def build_parser() -> argparse.ArgumentParser:
     rec.add_argument("-o", "--output", default=None, help="output .mcap (default: imuninn-<time>.mcap)")
     rec.add_argument("--streams", default=None, help="comma-separated stream ids (default: all)")
     rec.add_argument("--depth", action="store_true", help="enable the depth stream before recording")
+    rec.add_argument("--audio", action="store_true", help="enable the microphone (audio) stream before recording")
 
     cv = sub.add_parser("convert", help="convert a phone-side .imuninn recording to MCAP")
     cv.add_argument("input")
@@ -66,6 +67,12 @@ def build_parser() -> argparse.ArgumentParser:
     web.add_argument("--host", default="127.0.0.1", help="bind address; keep localhost so the browser treats the page as secure")
     web.add_argument("--no-open", action="store_true", help="do not open the default browser")
     web.add_argument("--static", default=None, help="serve this directory instead of the packaged viewer")
+
+    ea = sub.add_parser("export-audio", help="write the audio stream of an MCAP or phone .imuninn recording to a WAV file")
+    ea.add_argument("input")
+    ea.add_argument("-o", "--output", default=None, help="output .wav (default: <input>.wav)")
+    ea.add_argument("--no-fill", action="store_true",
+                    help="do not insert silence for missing chunks (the WAV then drifts from the device clock)")
 
     info = sub.add_parser("info", help="message counts per topic in an MCAP file")
     info.add_argument("input")
@@ -108,6 +115,17 @@ def main(argv: list[str] | None = None) -> None:
         from .web import serve
 
         serve(args.host, args.port, open_browser=not args.no_open, directory=args.static)
+    elif args.cmd == "export-audio":
+        from .audio import export_wav
+
+        out = args.output or str(args.input).rsplit(".", 1)[0] + ".wav"
+        w = export_wav(args.input, out, fill_gaps=not args.no_fill)
+        if w.frames == 0:
+            print(f"no audio in {args.input}")
+        else:
+            rate = w.sample_rate
+            print(f"wrote {w.frames / rate:.2f} s ({w.frames} frames @ {rate} Hz, {w.gaps} gaps filled) to {out}; "
+                  f"first sample at device time {w.first_time_ns} ns")
     elif args.cmd == "info":
         from .mcap_io import summary
 
@@ -160,7 +178,7 @@ def _watch(args) -> None:
                 print(
                     f"{stream} seq={sample.header.seq} t={t:.3f} thermal={pb.DeviceHealth.Thermal.Name(sample.thermal).removeprefix('THERMAL_').lower()} "
                     f"battery={sample.battery_level:.2f} {pb.DeviceHealth.BatteryState.Name(sample.battery_state).removeprefix('BATTERY_').lower()} "
-                    f"pose={sample.pose_hz:.0f} imu={sample.imu_hz:.0f} video={sample.video_fps:.0f} depth={sample.depth_hz:.0f} up={sample.uptime_s:.0f}s"
+                    f"pose={sample.pose_hz:.0f} imu={sample.imu_hz:.0f} video={sample.video_fps:.0f} depth={sample.depth_hz:.0f} audio={sample.audio_hz:.0f} up={sample.uptime_s:.0f}s"
                 )
             elif isinstance(sample, pb.DepthFrame):
                 from .depth import decode
@@ -172,6 +190,14 @@ def _watch(args) -> None:
                     f"{len(sample.depth_mm)}+{len(sample.confidence)} B "
                     f"range {valid.min() if valid.size else 0}-{valid.max() if valid.size else 0} mm "
                     f"valid {100 * valid.size / d.size:.0f}% fx={sample.intrinsics.fx:.1f}"
+                )
+            elif isinstance(sample, pb.AudioChunk):
+                from .audio import level_dbfs
+
+                print(
+                    f"{stream} seq={sample.header.seq} t={t:.3f} {sample.sample_rate} Hz x{sample.channels} "
+                    f"{pb.AudioEncoding.Name(sample.encoding).removeprefix('AUDIO_ENCODING_').lower()} "
+                    f"{sample.frame_count} frames {level_dbfs(sample):.1f} dBFS"
                 )
             elif isinstance(sample, pb.VideoFrame):
                 print(
@@ -227,6 +253,8 @@ def _record(args) -> None:
         print(f"connected: {dev!r}")
         if args.depth:
             dev.set("depth.enabled", True)
+        if args.audio:
+            dev.set("audio.enabled", True)
         if args.streams:
             dev.subscribe([s.stream_id for s in dev.capabilities.streams], unsubscribe=True)
             dev.subscribe(args.streams.split(","))
@@ -278,4 +306,4 @@ def _stream_field(sample) -> str:
     from .proto import imuninn_pb2 as pb
 
     return {pb.ImuSample: "imu", pb.PoseSample: "pose", pb.VideoFrame: "video",
-            pb.DepthFrame: "depth", pb.Gap: "gap", pb.DeviceHealth: "health"}[type(sample)]
+            pb.DepthFrame: "depth", pb.Gap: "gap", pb.DeviceHealth: "health", pb.AudioChunk: "audio"}[type(sample)]

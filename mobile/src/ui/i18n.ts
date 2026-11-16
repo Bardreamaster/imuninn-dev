@@ -40,6 +40,7 @@ const zh = {
   "imu": "IMU",
   "video": "视频",
   "depth": "深度",
+  "audio": "音频",
   "encoder.drops": "编码丢帧",
   "recording": "录制中",
   "start": "开始采集",
@@ -102,6 +103,10 @@ const zh = {
   "p.compression": "压缩",
   "p.rate_divisor": "每 N 帧发一帧",
   "p.health.rate_hz": "健康状态上报频率",
+  "p.audio.sample_rate": "采样率",
+  "p.audio.sample_format": "采样格式",
+  "p.audio.chunk_ms": "分块时长",
+  "p.audio.processing": "输入处理（raw = 无自动增益 / 降噪）",
 };
 
 const en: Record<keyof typeof zh, string | ((...a: any[]) => string)> = {
@@ -136,6 +141,7 @@ const en: Record<keyof typeof zh, string | ((...a: any[]) => string)> = {
   "imu": "IMU",
   "video": "Video",
   "depth": "Depth",
+  "audio": "Audio",
   "encoder.drops": "Encoder drops",
   "recording": "Recording",
   "start": "Start capture",
@@ -195,6 +201,10 @@ const en: Record<keyof typeof zh, string | ((...a: any[]) => string)> = {
   "p.compression": "Compression",
   "p.rate_divisor": "Send every Nth frame",
   "p.health.rate_hz": "Health report rate",
+  "p.audio.sample_rate": "Sample rate",
+  "p.audio.sample_format": "Sample format",
+  "p.audio.chunk_ms": "Chunk length",
+  "p.audio.processing": "Input processing (raw = no AGC / noise suppression)",
 };
 
 const dicts = { zh, en };

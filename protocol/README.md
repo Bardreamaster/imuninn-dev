@@ -20,6 +20,7 @@
 | IMU / 位姿 / 健康 | UDP（手机 → 每个客户端的端口），每包一条 `DataMessage` | `ImuSample`、`PoseSample`、`DeviceHealth` | 允许丢包 |
 | 视频 | TCP | `VideoFrame`（H.264 Annex-B） | 发送端只保留最新一帧 |
 | 深度 | TCP | `DepthFrame`（uint16 mm + LZ4；协议预留 zstd） | 不丢 |
+| 音频 | TCP（v6） | `AudioChunk`（PCM s16 / f32，单声道；时间戳 = 块内第一帧） | 不丢 |
 | 全部数据（浏览器） | WebSocket（v5，`Hello.data_transport = WEBSOCKET`） | 同上，每帧一条 `DataMessage` | 同 TCP：视频积压丢非关键帧 |
 
 TCP 流上的帧格式：`uint32 little-endian length` + `DataMessage` bytes。UDP 上每个数据报就是一条 `DataMessage`，不分片（超过 MTU 的消息走 TCP）。

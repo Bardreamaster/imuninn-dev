@@ -2,7 +2,7 @@
 
 Opens the control WebSocket, sends Hello with our UDP receive port, receives
 Welcome (device info + capabilities + TCP data port), then connects the TCP data
-stream and writes our client_id. Pose / IMU arrive on UDP, video / depth on TCP.
+stream and writes our client_id. Pose / IMU arrive on UDP, video / depth / audio on TCP.
 """
 
 from __future__ import annotations
@@ -309,7 +309,7 @@ class PhoneClient:
             log.warning("bad data message (%d bytes)", len(payload))
             return
         body = msg.WhichOneof("body")
-        if body in ("imu", "pose", "video", "depth", "gap", "health"):
+        if body in ("imu", "pose", "video", "depth", "gap", "health", "audio"):
             self.stats[getattr(msg, body).header.stream_id].observe(getattr(msg, body).header)
         if body == "health":
             self.health = msg.health

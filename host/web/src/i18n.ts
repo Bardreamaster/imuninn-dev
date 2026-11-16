@@ -7,6 +7,7 @@ const dict = {
     addr_placeholder: "手机地址，例如 10.0.0.5（App「服务」卡片里显示）",
     docs: "文档",
     connect: "连接", disconnect: "断开", start: "开始采集", stop: "停止",
+    audio: "音频", audio_listen: "播放声音", audio_mute: "静音", audio_level: "电平", audio_underruns: "缓冲不足",
     depth: "深度", depth_ar_only: "深度只有 AR 模式才有", mode_ar: "AR 模式", mode_camera: "相机模式",
     orient: "画面", orient_auto: "自动（重力）", orient_portrait: "竖屏", orient_land_l: "横屏（左）", orient_land_r: "横屏（右）", orient_upside: "倒置",
     open_mcap: "打开 MCAP", replay_done: "回放结束", replay: "回放",
@@ -18,7 +19,7 @@ const dict = {
     need_target: "请填手机地址，例如 10.0.0.5 或 10.0.0.5:7420",
     open_failed: "打开 MCAP 失败", thermal: "热状态", battery: "电量", phone_rates: "手机端速率", video_rate: "视频", uptime: "运行时间",
     grid: "网格 1 m", tracking: "追踪",
-    subtitle_idle: "浏览器查看器 · 协议 v5", connection: "连接", preview: "预览", capture: "采集", mode: "模式",
+    subtitle_idle: "浏览器查看器 · 协议 v6", connection: "连接", preview: "预览", capture: "采集", mode: "模式",
     pose_hz: "位姿", dropped_frames: "丢帧（本端）", st_disconnected: "未连接", st_connecting: "连接中", st_connected: "已连接", st_replay: "回放中", st_error: "连接失败",
   },
   en: {
@@ -26,6 +27,7 @@ const dict = {
     addr_placeholder: "phone address, e.g. 10.0.0.5 (shown in the app's Server card)",
     docs: "Docs",
     connect: "Connect", disconnect: "Disconnect", start: "Start capture", stop: "Stop",
+    audio: "Audio", audio_listen: "Play sound", audio_mute: "Mute", audio_level: "level", audio_underruns: "underruns",
     depth: "Depth", depth_ar_only: "Depth is only available in AR mode", mode_ar: "AR mode", mode_camera: "Camera mode",
     orient: "View", orient_auto: "Auto (gravity)", orient_portrait: "Portrait", orient_land_l: "Landscape (left)", orient_land_r: "Landscape (right)", orient_upside: "Upside down",
     open_mcap: "Open MCAP", replay_done: "replay finished", replay: "replay",
@@ -37,7 +39,7 @@ const dict = {
     need_target: "Enter the phone address, e.g. 10.0.0.5 or 10.0.0.5:7420",
     open_failed: "cannot open MCAP", thermal: "thermal", battery: "battery", phone_rates: "phone rates", video_rate: "video", uptime: "uptime",
     grid: "grid 1 m", tracking: "tracking",
-    subtitle_idle: "browser viewer · protocol v5", connection: "Connection", preview: "Preview", capture: "Capture", mode: "Mode",
+    subtitle_idle: "browser viewer · protocol v6", connection: "Connection", preview: "Preview", capture: "Capture", mode: "Mode",
     pose_hz: "Pose", dropped_frames: "Dropped (here)", st_disconnected: "Disconnected", st_connecting: "Connecting", st_connected: "Connected", st_replay: "Replaying", st_error: "Connection failed",
   },
 };

@@ -48,6 +48,7 @@ export interface StatusEvent {
   imuHz: number;
   videoHz: number;
   depthHz: number;
+  audioHz: number;
   videoKbps: number;
   encoderDropped: number;
   /** Current video format in sensor orientation (width > height). 0 when unknown. */

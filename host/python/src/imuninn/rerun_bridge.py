@@ -21,6 +21,8 @@ Entity layout, one subtree per device (`<dev>` = sanitised device name):
                                  frame (`--points`, needs `--video decode`; otherwise depth-coloured);
                                  points and the confidence image are capped at `--points-hz` (10 Hz)
     plots/<dev>/imu/{accel,gyro,mag}, plots/<dev>/pose/tracking, plots/<dev>/health/{thermal,battery,rates,video_kbps}
+    plots/<dev>/audio/level      Scalars: RMS level of each audio chunk in dBFS (Rerun cannot play sound;
+                                 `imuninn export-audio` writes a WAV aligned to the device clock)
     events/<dev>                 TextLog: tracking / thermal / low-power changes, gaps, config changes
 
 Timelines: `pc` (wall clock, from clock sync when live or MCAP log_time when replaying) and
@@ -135,7 +137,7 @@ class RerunSink:
         self.trajectory = trajectory
         self.device_timeline = device_timeline
         self.pc_offset_ns = pc_offset_ns
-        self.counts = {"imu": 0, "ar_pose": 0, "rgb": 0, "depth": 0, "health": 0}
+        self.counts = {"imu": 0, "ar_pose": 0, "rgb": 0, "depth": 0, "health": 0, "audio": 0}
 
         self._decoder = None
         self._video_n = 0
@@ -198,6 +200,8 @@ class RerunSink:
             self._depth(sample)
         elif isinstance(sample, pb.DeviceHealth):
             self._health(sample)
+        elif isinstance(sample, pb.AudioChunk):
+            self._audio(sample)
         elif isinstance(sample, pb.Gap):
             self._event(f"gap on {sample.header.stream_id}: {sample.reason or 'stream restarted'}", "WARN")
         elif isinstance(sample, pb.ConfigChanged):
@@ -380,12 +384,18 @@ class RerunSink:
             colors = np.stack([255 * t, 255 * (1 - np.abs(2 * t - 1)), 255 * (1 - t)], axis=1).astype(np.uint8)
         self._log(f"{self.world}/points", self.rr.Points3D(pts, colors=colors, radii=0.004))
 
+    def _audio(self, s: pb.AudioChunk) -> None:
+        from .audio import level_dbfs
+
+        self.counts["audio"] += 1
+        self._scalars("audio/level", level_dbfs(s), ["audio level (dBFS)"])
+
     def _health(self, s: pb.DeviceHealth) -> None:
         self.counts["health"] += 1
         self._scalars("health/thermal", float(s.thermal), ["thermal (1 nominal … 4 critical)"])
         self._scalars("health/battery", float(s.battery_level), ["battery (0..1)"])
-        self._scalars("health/rates", [s.pose_hz, s.imu_hz, s.video_fps, s.depth_hz],
-                      ["pose Hz", "imu Hz", "video fps", "depth Hz"])
+        self._scalars("health/rates", [s.pose_hz, s.imu_hz, s.video_fps, s.depth_hz, s.audio_hz],
+                      ["pose Hz", "imu Hz", "video fps", "depth Hz", "audio chunks/s"])
         self._scalars("health/video_kbps", float(s.video_kbps), ["video kbps"])
         if s.thermal != self._thermal:
             name = pb.DeviceHealth.Thermal.Name(s.thermal).removeprefix("THERMAL_").lower()
@@ -428,6 +438,7 @@ def blueprint(rr, names: list[str]):
             *[rrb.TimeSeriesView(origin=f"plots/{n}/imu", name=f"{n} IMU") for n in names],
             *[rrb.TimeSeriesView(origin=f"plots/{n}/health", name=f"{n} health") for n in names],
             *[rrb.TimeSeriesView(origin=f"plots/{n}/pose", name=f"{n} tracking") for n in names],
+            *[rrb.TimeSeriesView(origin=f"plots/{n}/audio", name=f"{n} audio") for n in names],
         ),
         rrb.TextLogView(origin="events", name="events"),
         row_shares=[3, 2, 1],
