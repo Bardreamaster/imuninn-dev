@@ -59,4 +59,4 @@ cd mobile && npm install && cd ..
 
 - Xcode 27.1，`xcode-select` 已指向 Xcode
 - 开发 iPhone：iPhone 17 Pro（硬件标识 `iPhone18,1`，带 LiDAR），iOS 27
-- Bundle ID：`com.weijinqi.projects.imuninn`
+- Bundle ID：`com.weijinqi.projects.imuninn`（开发版变体加 `.dev`，见 [构建与运行](02-build-run.md)）

@@ -35,3 +35,5 @@ tag 带 `python-` 前缀，因为同一仓库以后还会有 App 的 tag。
 ## App
 
 上架文案、审核备注和截图要求见 [App Store 上架资料](09-app-store.md)；开发阶段自己构建安装，见[构建与运行](02-build-run.md)。
+
+归档上传前确认 `mobile/ios/` 是用正式配置生成的（没有设 `APP_VARIANT=dev`），检查方法见[构建与运行](02-build-run.md)的「开发版与正式版」。

@@ -31,6 +31,33 @@ npx expo run:ios --device          # 列出设备让你选；或 --device <UDID>
 xcrun devicectl list devices
 ```
 
+### 开发版与正式版（`APP_VARIANT`）
+
+App Store 版和自己编译的包默认是同一个 Bundle ID，装开发包会原地覆盖商店版。要让两者并存，用开发版变体构建：
+
+```bash
+cd mobile
+APP_VARIANT=dev npx expo prebuild --platform ios --clean
+APP_VARIANT=dev npx expo run:ios --device <UDID>
+```
+
+| | 正式版（默认，不设变量） | 开发版（`APP_VARIANT=dev`） |
+| --- | --- | --- |
+| Bundle ID / Android package | `com.weijinqi.projects.imuninn` | `com.weijinqi.projects.imuninn.dev` |
+| 桌面名称 | iMuninn | iMuninn Dev |
+| 图标 | `assets/icon.png` | `assets/icon-dev.png`（底部红色 DEV 条） |
+
+要点：
+
+- 变体在 `mobile/app.config.ts` 里读环境变量决定，写进生成的 `mobile/ios/`（开发版的工程名也随之变成 `iMuninnDev`）。**切换变体后必须重新 `prebuild --clean`**，并且 `prebuild` 和 `run:ios` 两条命令都要带同一个变量（`run:ios` 会重新读配置）。
+- 开发版是另一个 App：设置、配置档不与正式版共享，首次启动要重新授予相机、运动、本地网络权限。
+- 两个 App 都监听 7420 端口、用同一个 Bonjour 设备名。同一时刻只有前台的那个在监听，所以不冲突，但 PC 端分不出连的是哪个版本，以手机屏幕为准。
+- 开发版的 Bundle ID 由 Xcode 自动签名在团队下注册，不需要在 App Store Connect 建记录。
+- **发版归档前确认是正式配置**：不带 `APP_VARIANT` 重新 `prebuild --clean`，检查 `grep PRODUCT_BUNDLE_IDENTIFIER mobile/ios/*.xcodeproj/project.pbxproj` 没有 `.dev`。带着 `.dev` 上传会被 App Store Connect 拒绝（没有对应的 App 记录）。
+- 涉及旧数据迁移的改动，发版前用正式配置在测试机上覆盖安装验证一次，开发版验证不了升级路径。
+- Android 的开发版目前只改了 package 和名称，图标没有角标。
+- 改图标：角标是 `icon.png` 上移 70 px 后在底部叠一条 232 px 高的 `#FF5A52` 色带加 DEV 字样，`icon.png` 变了要重新生成 `icon-dev.png`。
+
 ### 模拟器（无 AR / LiDAR，只能验证 UI 与 JS↔原生桥）
 
 ```bash
