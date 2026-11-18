@@ -86,7 +86,7 @@ export default function App() {
           </View>
         </View>
 
-        {(showPreview || status?.sessionRunning) && !fullscreen && !black.dimmed ? (
+        {showPreview && !fullscreen && !black.dimmed ? (
           <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)}
             compact={compact} onToggleCompact={landscape ? undefined : toggleCompact} />
         ) : null}
