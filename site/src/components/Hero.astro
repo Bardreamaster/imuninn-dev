@@ -12,19 +12,26 @@ import homeApp from "../assets/home-app.webp";
 const lang = Astro.locals.starlightRoute?.lang ?? "zh-CN";
 const en = lang.startsWith("en");
 const appStore = "https://apps.apple.com/app/id6832343388";
+// The app image is home-only. The 404 (one bilingual page served for every missing path, /en/
+// included) gets both badges and no image.
+const id = Astro.locals.starlightRoute?.id ?? "";
+const isHome = id === "" || id === "en";
+const badges = isHome ? [en ? "en" : "zh"] : ["zh", "en"];
 ---
-<div class="home-hero">
+<div class:list={["home-hero", { "no-image": !isHome }]}>
   <Default><slot /></Default>
   <div class="app-store">
-    <a href={appStore} rel="noopener">
-      <img
-        src={en ? "/badges/app-store-en.svg" : "/badges/app-store-zh.svg"}
-        alt={en ? "Download on the App Store" : "在 App Store 下载"}
-        height="48"
-      />
-    </a>
+    {badges.map((b) => (
+      <a href={appStore} rel="noopener">
+        <img
+          src={`/badges/app-store-${b}.svg`}
+          alt={b === "en" ? "Download on the App Store" : "在 App Store 下载"}
+          height="48"
+        />
+      </a>
+    ))}
   </div>
-  <Image
+  {isHome && <Image
     class="app-image"
     src={homeApp}
     widths={[400, 700, homeApp.width]}
@@ -34,7 +41,7 @@ const appStore = "https://apps.apple.com/app/id6832343388";
     alt={en
       ? "iMuninn on three iPhones: in front, the capture screen with a camera preview of a robot arm above tracking status and pose, IMU and video rates; behind it, the configuration screen in dark mode and the list of connected PCs."
       : "三台 iPhone 上的 iMuninn：中间是采集页，相机预览拍着机械臂，下面是追踪状态和位姿、IMU、视频的帧率；后面是深色模式的配置页和已连接 PC 列表。"}
-  />
+  />}
 </div>
 
 <style>
@@ -55,6 +62,8 @@ const appStore = "https://apps.apple.com/app/id6832343388";
     order: 2;
     display: flex;
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
     padding-top: clamp(1.5rem, calc(1.5rem + 1vw), 2rem);
   }
   .home-hero .app-image {
@@ -70,7 +79,15 @@ const appStore = "https://apps.apple.com/app/id6832343388";
     width: auto;
     display: block;
   }
+  /* 404: no image column; the hero's own top padding is enough */
+  .home-hero.no-image {
+    padding-block: 0 1rem;
+  }
   @media (min-width: 50rem) {
+    .home-hero.no-image {
+      grid-template-columns: 100%;
+      padding-block: 0 1rem;
+    }
     .home-hero {
       grid-template-columns: 7fr 4fr;
       grid-template-rows: auto auto;
