@@ -186,6 +186,34 @@ writeFileSync(join(out, "index.mdx"), zhHome);
 mkdirSync(join(out, "en"), { recursive: true });
 writeFileSync(join(out, "en/index.mdx"), enHome);
 
+// 404: Starlight builds only one dist/404.html (root locale), and Cloudflare Pages serves it for
+// every missing path, /en/ included, so the page carries both languages.
+writeFileSync(join(out, "404.md"), `---
+title: 页面未找到 · Page not found
+template: splash
+editUrl: false
+pagefind: false
+hero:
+  title: "404"
+  tagline: 这个页面不存在，可能已经移动或改名。<br />This page doesn't exist. It may have moved or been renamed.
+  actions:
+    - text: 返回首页
+      link: /
+      icon: right-arrow
+    - text: English home
+      link: /en/
+      variant: minimal
+    - text: Web 查看器 · Web viewer
+      link: https://imuninn-webviewer.projects.weijinqi.com/
+      variant: minimal
+      icon: external
+---
+
+可以用顶部的搜索找一找，或者从[项目概览](/start/overview/)读起。
+
+Try the search at the top, or start from the [overview](/en/start/overview/).
+`);
+
 // llms.txt (https://llmstxt.org) and llms-full.txt for AI crawlers and agents. Only pages that
 // have a description and exist in this build are listed, so private sections never leak in.
 const SITE = "https://imuninn.projects.weijinqi.com";
