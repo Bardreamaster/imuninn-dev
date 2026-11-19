@@ -42,7 +42,7 @@ The file holds the protocol messages themselves (the Protobuf schema is embedded
 | --- | --- | --- |
 | `/device` `/capabilities` | DeviceInfo / Capabilities | one each at the start |
 | `/config` | ConfigChanged | one at the start, then one per change; each sample's `header.config_version` points back to it |
-| `/imu` `/ar_pose` `/rgb` `/depth` | ImuSample / PoseSample / VideoFrame / DepthFrame | `publish_time` = device clock, `log_time` = PC wall clock (device time + the offset measured at connect) |
+| `/imu` `/ar_pose` `/rgb` `/depth` `/audio` | ImuSample / PoseSample / VideoFrame / DepthFrame / AudioChunk | `publish_time` = device clock, `log_time` = PC wall clock (device time + the offset measured at connect) |
 
 Replay in Python:
 

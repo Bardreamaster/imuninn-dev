@@ -106,6 +106,7 @@ export default function App() {
             <Stat label={t("imu")} value={status?.imuHz.toFixed(1) ?? 0} unit="Hz" />
             <Stat label={t("video")} value={status?.videoHz.toFixed(1) ?? 0} unit={`fps · ${((status?.videoKbps ?? 0) / 1000).toFixed(1)} Mbps`} />
             {info.hasLidar && !camera ? <Stat label={t("depth")} value={status?.depthHz.toFixed(1) ?? 0} unit="Hz" /> : null}
+            {config?.streams.audio?.enabled ? <Stat label={t("audio")} value={status?.audioHz.toFixed(1) ?? 0} unit="Hz" /> : null}
             <Stat label={t("encoder.drops")} value={status?.encoderDropped ?? 0} color={status?.encoderDropped ? C.warnText : undefined} />
           </View>
           {status?.recording ? (

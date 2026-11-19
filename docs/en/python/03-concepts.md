@@ -8,6 +8,7 @@
 | `imu` | `ImuSample` | UDP | acceleration (m/s²) + angular rate (rad/s), device frame |
 | `rgb` | `VideoFrame` | TCP | H.264 Annex‑B, intrinsics and `rotation_deg` per frame |
 | `depth` | `DepthFrame` | TCP | LiDAR depth 256×192, millimetres + confidence, LZ4 |
+| `audio` | `AudioChunk` | TCP | microphone PCM (v6, iOS only, off by default), see [Microphone audio](10-audio.md) |
 | `health` | `DeviceHealth` | UDP | thermal state, battery, phone-side rates, encoder drops |
 
 UDP may drop and is latency-first; TCP never drops, but under congestion the phone skips non-key frames and requests a new keyframe. `dev.subscribe([...])` chooses streams; all are subscribed by default.

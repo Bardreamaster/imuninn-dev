@@ -34,6 +34,7 @@ public struct Status {
   public var poseHz: Double = 0
   public var imuHz: Double = 0
   public var depthHz: Double = 0
+  public var audioHz: Double = 0
   public var videoHz: Double = 0
   public var videoKbps: Double = 0
   public var encoderDropped: UInt64 = 0
@@ -64,6 +65,7 @@ public final class SessionManager {
   public let ar = ArSource()
   public let camera = CameraSource()
   public let imu = ImuSource()
+  public let audio = AudioSource()
   public let encoder = VideoEncoder()
   public let config: ConfigStore
 
@@ -83,6 +85,7 @@ public final class SessionManager {
   private var imuCounter = RateCounter()
   private var videoCounter = RateCounter()
   private var depthCounter = RateCounter()
+  private var audioCounter = RateCounter()
   private var depthSeq: UInt64 = 0
   private var depthFrameIndex: UInt64 = 0
   private var videoBytes = ByteRate()
@@ -102,6 +105,7 @@ public final class SessionManager {
     for l in Lens.available() { env.cameraFormats[l.rawValue] = CameraSource.formats(for: l) }
     env.imuAvailable = imu.available
     env.depthAvailable = ArSource.depthSupported
+    env.audioAvailable = AudioSource.available
     env.camera = CameraRanges.probe(AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back))
     config = ConfigStore(env: env)
 
@@ -116,6 +120,8 @@ public final class SessionManager {
     camera.onFrame = { [weak self] f in self?.handleImage(f.pixelBuffer, f.timeSeconds, f.intrinsics) }
     imu.onSample = { [weak self] s in self?.publishImu(s) }
     encoder.onFrame = { [weak self] f in self?.publishVideo(f) }
+    audio.onChunk = { [weak self] c in self?.publishAudio(c) }
+    audio.onError = { [weak self] e in self?.queue.async { self?.lastError = e } }
     startStatusTimer()
     observeAppLifecycle()
   }
@@ -131,7 +137,7 @@ public final class SessionManager {
         guard let self else { return }
         self.resumeSessionOnForeground = self.sessionRunning
         // iOS stops the camera anyway; stop cleanly so nothing is half-alive when we come back.
-        self.ar.stop(); self.camera.stop(); self.imu.stop()
+        self.ar.stop(); self.camera.stop(); self.imu.stop(); self.audio.stop()
         // Free the ports: a suspended app keeps them bound, which blocks another copy of
         // the app (App Store + dev build on one phone). Foreground rebuilds both anyway.
         self.control.stop()
@@ -346,7 +352,7 @@ public final class SessionManager {
   public func stopSession() {
     queue.async {
       self.sessionRunning = false
-      if self.previewEnabled { self.restartSources() } else { self.ar.stop(); self.camera.stop(); self.imu.stop() }
+      if self.previewEnabled { self.restartSources() } else { self.ar.stop(); self.camera.stop(); self.imu.stop(); self.audio.stop() }
     }
   }
 
@@ -359,7 +365,7 @@ public final class SessionManager {
   }
 
   private func restartSources() {
-    ar.stop(); camera.stop(); imu.stop()
+    ar.stop(); camera.stop(); imu.stop(); audio.stop()
     guard sessionRunning || previewEnabled else { return }
     encoder.setBitrate(config.int("rgb", "bitrate_kbps") * 1000)
     encoder.setKeyframeInterval(max(1, config.int("rgb", "keyframe_interval")))
@@ -378,8 +384,18 @@ public final class SessionManager {
     if sessionRunning, config.isEnabled("imu"), imu.available {
       imu.start(rateHz: max(10, config.int("imu", "rate_hz")), raw: config.bool("imu", "raw"))
     }
+    restartAudio()
     // Preview views re-layout for the (possibly new) format.
     NotificationCenter.default.post(name: .muninnModeChanged, object: nil)
+  }
+
+  /// The microphone only runs while capturing (never for the local preview) and restarts on
+  /// its own, so audio parameter changes do not interrupt the camera.
+  private func restartAudio() {
+    audio.stop()
+    if sessionRunning, config.isEnabled(AudioSource.streamId), AudioSource.available {
+      audio.start(config.audioSettings())
+    }
   }
 
   /// Local UI edits go through the same path as remote ones (§6.8).
@@ -411,6 +427,7 @@ public final class SessionManager {
       switch (c.stream, c.key) {
       case ("imu", "rate_hz"): imu.setRate(Int(c.value.i))
       case ("imu", "raw"), ("imu", "enabled"), ("ar_pose", "enabled"), ("rgb", "enabled"), ("depth", "enabled"): restartSources()
+      case ("audio", _): restartAudio()
       case ("rgb", "bitrate_kbps"): encoder.setBitrate(Int(c.value.i) * 1000)
       case ("rgb", let key) where key != "keyframe_interval" && key != "lens" && key != "camera_format":
         let s = config.cameraSettings()
@@ -468,6 +485,20 @@ public final class SessionManager {
     var d = MnDataMessage()
     d.imu = s
     for c in clientList where c.subscribed.contains(ImuSource.streamId) { c.sendSample(d) }
+    if file.isRecording { file.write(d) }
+  }
+
+  private func publishAudio(_ c: MnAudioChunk) {
+    audioCounter.tick()
+    guard sessionRunning else { return }
+    var c = c
+    stamp(&c.header)
+    var d = MnDataMessage()
+    d.audio = c
+    // Reliable, in order, never skipped: a missing chunk is an audible click.
+    for cl in clientList where cl.subscribed.contains(AudioSource.streamId) {
+      cl.sendFrame(d, droppable: false, keyframe: true)
+    }
     if file.isRecording { file.write(d) }
   }
 
@@ -584,6 +615,7 @@ public final class SessionManager {
     s.imuHz = imuCounter.rate()
     s.videoHz = videoCounter.rate()
     s.depthHz = depthCounter.rate()
+    s.audioHz = audioCounter.rate()
     s.videoKbps = videoBytes.kbps()
     s.encoderDropped = encoder.dropped
     s.configVersion = config.snapshot().configVersion
@@ -625,7 +657,7 @@ public final class SessionManager {
     default: h.batteryState = .batteryUnspecified
     }
     h.lowPowerMode = ProcessInfo.processInfo.isLowPowerModeEnabled
-    h.poseHz = poseCounter.peek(); h.imuHz = imuCounter.peek(); h.videoFps = videoCounter.peek(); h.depthHz = depthCounter.peek()
+    h.poseHz = poseCounter.peek(); h.imuHz = imuCounter.peek(); h.videoFps = videoCounter.peek(); h.depthHz = depthCounter.peek(); h.audioHz = audioCounter.peek()
     h.videoKbps = videoBytes.peek()
     h.encoderDropped = encoder.dropped
     h.uptimeS = CACurrentMediaTime() - startTime

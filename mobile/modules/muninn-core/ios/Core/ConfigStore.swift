@@ -23,6 +23,7 @@ public struct ConfigEnvironment {
   public var imuAvailable = false
   public var arAvailable = false
   public var depthAvailable = false
+  public var audioAvailable = false
   public var camera = CameraRanges()
   public init() {}
 }
@@ -58,7 +59,7 @@ public final class ConfigStore {
     c.streamID = id; c.enabled = enabled
     for p in params { c.params[p.key] = p.current }
     c.delivery.transport = transport
-    c.delivery.dropPolicy = kind == .depth ? .none : .latestOnly
+    c.delivery.dropPolicy = (kind == .depth || kind == .audio) ? .none : .latestOnly
     config.streams.append(c)
   }
 
@@ -116,6 +117,19 @@ public final class ConfigStore {
       Self.spec("rate_hz", "Health report rate", .float, .immediate, unit: "Hz", min: 0.1, max: 5, current: Self.f(0.2)),
     ])
 
+    // Microphone (v6). Off by default; the permission prompt appears the first time it is
+    // enabled. Format choices mirror the video stream's: pick what the use case needs.
+    if env.audioAvailable {
+      addStream("audio", .audio, .tcp, enabled: false, params: [
+        Self.spec("sample_rate", "Sample rate", .enum, .immediate, unit: "Hz",
+                  choices: AudioSource.sampleRates, current: Self.s("48000")),
+        Self.spec("sample_format", "Sample format", .enum, .immediate, choices: ["s16", "f32"], current: Self.s("s16")),
+        Self.spec("chunk_ms", "Chunk length", .int, .immediate, unit: "ms", min: 10, max: 200, step: 10, current: Self.i(20)),
+        Self.spec("processing", "Input processing (raw = no AGC / noise suppression)", .enum, .immediate,
+                  choices: ["raw", "voice"], current: Self.s("raw")),
+      ])
+    }
+
     if env.depthAvailable {
       addStream("depth", .depth, .tcp, enabled: false, params: [
         Self.spec("smoothed", "Temporally smoothed", .bool, .restartSession, current: Self.b(false)),
@@ -156,6 +170,15 @@ public final class ConfigStore {
   }
 
   public var mode: MnSessionMode { snapshot().mode }
+
+  public func audioSettings() -> AudioSettings {
+    var a = AudioSettings()
+    a.sampleRate = Double(string("audio", "sample_rate")) ?? 48000
+    a.float32 = string("audio", "sample_format") == "f32"
+    a.chunkMs = max(10, int("audio", "chunk_ms"))
+    a.voiceProcessing = string("audio", "processing") == "voice"
+    return a
+  }
 
   public func streamConfig(_ id: String) -> MnStreamConfig? {
     config.streams.first { $0.streamID == id }

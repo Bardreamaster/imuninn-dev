@@ -22,6 +22,7 @@ class StreamKind(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     STREAM_KIND_DEPTH: _ClassVar[StreamKind]
     STREAM_KIND_CONFIG: _ClassVar[StreamKind]
     STREAM_KIND_HEALTH: _ClassVar[StreamKind]
+    STREAM_KIND_AUDIO: _ClassVar[StreamKind]
 
 class Transport(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     __slots__ = ()
@@ -55,6 +56,14 @@ class DepthCompression(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     DEPTH_COMPRESSION_NONE: _ClassVar[DepthCompression]
     DEPTH_COMPRESSION_LZ4: _ClassVar[DepthCompression]
     DEPTH_COMPRESSION_ZSTD: _ClassVar[DepthCompression]
+
+class AudioEncoding(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+    __slots__ = ()
+    AUDIO_ENCODING_UNSPECIFIED: _ClassVar[AudioEncoding]
+    AUDIO_ENCODING_PCM_S16LE: _ClassVar[AudioEncoding]
+    AUDIO_ENCODING_PCM_F32LE: _ClassVar[AudioEncoding]
+    AUDIO_ENCODING_AAC: _ClassVar[AudioEncoding]
+    AUDIO_ENCODING_OPUS: _ClassVar[AudioEncoding]
 PLATFORM_UNSPECIFIED: Platform
 PLATFORM_IOS: Platform
 PLATFORM_ANDROID: Platform
@@ -65,6 +74,7 @@ STREAM_KIND_VIDEO: StreamKind
 STREAM_KIND_DEPTH: StreamKind
 STREAM_KIND_CONFIG: StreamKind
 STREAM_KIND_HEALTH: StreamKind
+STREAM_KIND_AUDIO: StreamKind
 TRANSPORT_UNSPECIFIED: Transport
 TRANSPORT_UDP: Transport
 TRANSPORT_TCP: Transport
@@ -83,6 +93,11 @@ PIXEL_FORMAT_NV12: PixelFormat
 DEPTH_COMPRESSION_NONE: DepthCompression
 DEPTH_COMPRESSION_LZ4: DepthCompression
 DEPTH_COMPRESSION_ZSTD: DepthCompression
+AUDIO_ENCODING_UNSPECIFIED: AudioEncoding
+AUDIO_ENCODING_PCM_S16LE: AudioEncoding
+AUDIO_ENCODING_PCM_F32LE: AudioEncoding
+AUDIO_ENCODING_AAC: AudioEncoding
+AUDIO_ENCODING_OPUS: AudioEncoding
 
 class Header(_message.Message):
     __slots__ = ("stream_id", "seq", "device_time_ns", "protocol_version", "config_version")
@@ -484,7 +499,7 @@ class Error(_message.Message):
     def __init__(self, code: _Optional[int] = ..., message: _Optional[str] = ...) -> None: ...
 
 class DeviceHealth(_message.Message):
-    __slots__ = ("header", "thermal", "battery_level", "battery_state", "low_power_mode", "pose_hz", "imu_hz", "video_fps", "depth_hz", "video_kbps", "encoder_dropped", "uptime_s")
+    __slots__ = ("header", "thermal", "battery_level", "battery_state", "low_power_mode", "pose_hz", "imu_hz", "video_fps", "depth_hz", "video_kbps", "encoder_dropped", "uptime_s", "audio_hz")
     class Thermal(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
         __slots__ = ()
         THERMAL_UNSPECIFIED: _ClassVar[DeviceHealth.Thermal]
@@ -519,6 +534,7 @@ class DeviceHealth(_message.Message):
     VIDEO_KBPS_FIELD_NUMBER: _ClassVar[int]
     ENCODER_DROPPED_FIELD_NUMBER: _ClassVar[int]
     UPTIME_S_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_HZ_FIELD_NUMBER: _ClassVar[int]
     header: Header
     thermal: DeviceHealth.Thermal
     battery_level: float
@@ -531,7 +547,8 @@ class DeviceHealth(_message.Message):
     video_kbps: float
     encoder_dropped: int
     uptime_s: float
-    def __init__(self, header: _Optional[_Union[Header, _Mapping]] = ..., thermal: _Optional[_Union[DeviceHealth.Thermal, str]] = ..., battery_level: _Optional[float] = ..., battery_state: _Optional[_Union[DeviceHealth.BatteryState, str]] = ..., low_power_mode: _Optional[bool] = ..., pose_hz: _Optional[float] = ..., imu_hz: _Optional[float] = ..., video_fps: _Optional[float] = ..., depth_hz: _Optional[float] = ..., video_kbps: _Optional[float] = ..., encoder_dropped: _Optional[int] = ..., uptime_s: _Optional[float] = ...) -> None: ...
+    audio_hz: float
+    def __init__(self, header: _Optional[_Union[Header, _Mapping]] = ..., thermal: _Optional[_Union[DeviceHealth.Thermal, str]] = ..., battery_level: _Optional[float] = ..., battery_state: _Optional[_Union[DeviceHealth.BatteryState, str]] = ..., low_power_mode: _Optional[bool] = ..., pose_hz: _Optional[float] = ..., imu_hz: _Optional[float] = ..., video_fps: _Optional[float] = ..., depth_hz: _Optional[float] = ..., video_kbps: _Optional[float] = ..., encoder_dropped: _Optional[int] = ..., uptime_s: _Optional[float] = ..., audio_hz: _Optional[float] = ...) -> None: ...
 
 class Vec3(_message.Message):
     __slots__ = ("x", "y", "z")
@@ -639,6 +656,22 @@ class DepthFrame(_message.Message):
     rotation_deg: int
     def __init__(self, header: _Optional[_Union[Header, _Mapping]] = ..., width: _Optional[int] = ..., height: _Optional[int] = ..., compression: _Optional[_Union[DepthCompression, str]] = ..., depth_mm: _Optional[bytes] = ..., confidence: _Optional[bytes] = ..., intrinsics: _Optional[_Union[Intrinsics, _Mapping]] = ..., rotation_deg: _Optional[int] = ...) -> None: ...
 
+class AudioChunk(_message.Message):
+    __slots__ = ("header", "encoding", "sample_rate", "channels", "frame_count", "data")
+    HEADER_FIELD_NUMBER: _ClassVar[int]
+    ENCODING_FIELD_NUMBER: _ClassVar[int]
+    SAMPLE_RATE_FIELD_NUMBER: _ClassVar[int]
+    CHANNELS_FIELD_NUMBER: _ClassVar[int]
+    FRAME_COUNT_FIELD_NUMBER: _ClassVar[int]
+    DATA_FIELD_NUMBER: _ClassVar[int]
+    header: Header
+    encoding: AudioEncoding
+    sample_rate: int
+    channels: int
+    frame_count: int
+    data: bytes
+    def __init__(self, header: _Optional[_Union[Header, _Mapping]] = ..., encoding: _Optional[_Union[AudioEncoding, str]] = ..., sample_rate: _Optional[int] = ..., channels: _Optional[int] = ..., frame_count: _Optional[int] = ..., data: _Optional[bytes] = ...) -> None: ...
+
 class Gap(_message.Message):
     __slots__ = ("header", "reason")
     HEADER_FIELD_NUMBER: _ClassVar[int]
@@ -648,7 +681,7 @@ class Gap(_message.Message):
     def __init__(self, header: _Optional[_Union[Header, _Mapping]] = ..., reason: _Optional[str] = ...) -> None: ...
 
 class DataMessage(_message.Message):
-    __slots__ = ("imu", "pose", "video", "depth", "gap", "config_changed", "health")
+    __slots__ = ("imu", "pose", "video", "depth", "gap", "config_changed", "health", "audio")
     IMU_FIELD_NUMBER: _ClassVar[int]
     POSE_FIELD_NUMBER: _ClassVar[int]
     VIDEO_FIELD_NUMBER: _ClassVar[int]
@@ -656,6 +689,7 @@ class DataMessage(_message.Message):
     GAP_FIELD_NUMBER: _ClassVar[int]
     CONFIG_CHANGED_FIELD_NUMBER: _ClassVar[int]
     HEALTH_FIELD_NUMBER: _ClassVar[int]
+    AUDIO_FIELD_NUMBER: _ClassVar[int]
     imu: ImuSample
     pose: PoseSample
     video: VideoFrame
@@ -663,4 +697,5 @@ class DataMessage(_message.Message):
     gap: Gap
     config_changed: ConfigChanged
     health: DeviceHealth
-    def __init__(self, imu: _Optional[_Union[ImuSample, _Mapping]] = ..., pose: _Optional[_Union[PoseSample, _Mapping]] = ..., video: _Optional[_Union[VideoFrame, _Mapping]] = ..., depth: _Optional[_Union[DepthFrame, _Mapping]] = ..., gap: _Optional[_Union[Gap, _Mapping]] = ..., config_changed: _Optional[_Union[ConfigChanged, _Mapping]] = ..., health: _Optional[_Union[DeviceHealth, _Mapping]] = ...) -> None: ...
+    audio: AudioChunk
+    def __init__(self, imu: _Optional[_Union[ImuSample, _Mapping]] = ..., pose: _Optional[_Union[PoseSample, _Mapping]] = ..., video: _Optional[_Union[VideoFrame, _Mapping]] = ..., depth: _Optional[_Union[DepthFrame, _Mapping]] = ..., gap: _Optional[_Union[Gap, _Mapping]] = ..., config_changed: _Optional[_Union[ConfigChanged, _Mapping]] = ..., health: _Optional[_Union[DeviceHealth, _Mapping]] = ..., audio: _Optional[_Union[AudioChunk, _Mapping]] = ...) -> None: ...

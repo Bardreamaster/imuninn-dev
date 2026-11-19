@@ -15,6 +15,9 @@ const withMuninnIos: ConfigPlugin = (config) =>
       "iMuninn streams the camera to your computer over the local network.";
     plist.NSMotionUsageDescription =
       "iMuninn streams IMU (accelerometer / gyroscope) data to your computer.";
+    // Only asked when the "audio" stream is first enabled (off by default).
+    plist.NSMicrophoneUsageDescription =
+      "iMuninn streams microphone audio to your computer over the local network when you turn on the audio stream.";
     plist.NSLocalNetworkUsageDescription =
       "iMuninn discovers and connects to the iMuninn gateway on your local network.";
     const existingBonjour = (plist.NSBonjourServices as string[] | undefined) ?? [];

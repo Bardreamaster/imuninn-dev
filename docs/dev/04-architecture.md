@@ -32,6 +32,7 @@
 | `Core/ArSource.swift` | ARSession；每帧出位姿 + 内参，并把 `capturedImage` 交给编码器 | 否 |
 | `Core/CameraSource.swift` | AVCaptureSession；镜头 / 格式选择；每帧带 intrinsic matrix | 否 |
 | `Core/ImuSource.swift` | CoreMotion；校准（deviceMotion）或 raw 两种 | 否 |
+| `Core/AudioSource.swift` | 协议 v6 麦克风：AVAudioEngine 输入 tap → AVAudioConverter 转成所选采样率 / 格式 → 按 `chunk_ms` 切块；hostTime 与其他流同一时基；与 AR / 相机会话互不影响 | 否 |
 | `Core/VideoEncoder.swift` | VideoToolbox H.264；AVCC → Annex‑B；积压时丢帧 | 否 |
 | `Core/UdpSink.swift` / `TcpSink.swift` / `FileSink.swift` | 三种出口；TcpSink 拥塞只保留最新帧并请求关键帧 | 否 |
 | `Core/ConfigStore.swift` | 参数定义（类型、范围、生效方式）、当前配置、校验部分更新 | 否 |

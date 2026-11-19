@@ -9,6 +9,7 @@ import { OrientationTracker, type OrientMode } from "./orientation";
 import { applyLang, currentLang, t } from "./i18n";
 import { BATTERY, THERMAL, TRACKING, type Body, type Header } from "./proto";
 import { H264Canvas, webCodecsAvailable } from "./video";
+import { AudioPlayer, chunkSamples, levelDbfs } from "./audio";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -20,6 +21,9 @@ const traj = new Pose3D($("pose"));
 const orient = new OrientationTracker();
 const accelPlot = new RollingPlot($("accel"), 3, 600, ["#ef5350", "#66bb6a", "#42a5f5"], "accel", "m/s²");
 const gyroPlot = new RollingPlot($("gyro"), 3, 600, ["#ef5350", "#66bb6a", "#42a5f5"], "gyro", "rad/s");
+const levelPlot = new RollingPlot($("audio-level"), 1, 300, ["#ffb74d"], "level", "dBFS");
+const player = new AudioPlayer();
+let audioInfo = "";
 const logEl = $("log");
 const statusEl = $("status");
 
@@ -40,7 +44,10 @@ function statusFromSource(s: string): void {
 }
 video.onError = (e) => log(`video decode error: ${e}`);
 applyLang();
-$("lang").onclick = () => { applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); renderedRunning = null; };
+$("lang").onclick = () => {
+  applyLang(currentLang() === "zh" ? "en" : "zh"); onLiveClosedLabels(); renderedRunning = null;
+  $("btn-listen").textContent = player.enabled ? t("audio_mute") : t("audio_listen");
+};
 if (!webCodecsAvailable()) log(t("no_webcodecs"));
 if (location.protocol === "https:") $("https-hint").hidden = false;
 const orientSel = $<HTMLSelectElement>("orient");
@@ -85,6 +92,7 @@ function renderStats(): void {
   $("st-video").textContent = hz("rgb");
   $("st-video-unit").textContent = lastHealth ? ` fps · ${(lastHealth.video_kbps / 1000).toFixed(1)} Mbps` : " fps";
   $("st-depth").textContent = hz("depth");
+  $("st-audio").textContent = hz("audio");
   const drops = Object.values(stats).reduce((a, s) => a + s.drops, 0);
   const d = $("st-drops"); d.textContent = String(drops); d.className = `stat-value${drops ? " warn" : ""}`;
   const tr = $("st-tracking");
@@ -135,6 +143,18 @@ function handle(b: Body): void {
       if (sessionMode === "camera" || !stats["ar_pose"] || stats["ar_pose"].hz === 0) orient.fromAccel(m.accel.x, m.accel.y, m.accel.z);
       break;
     }
+    case "audio": {
+      const m = b.msg;
+      stat(m.header.stream_id).observe(m.header);
+      const x = chunkSamples(m);
+      const db = levelDbfs(x);
+      levelPlot.push([db]);
+      player.push(m, x);
+      const enc = m.encoding === 2 ? "f32" : m.encoding === 1 ? "s16" : `enc ${m.encoding}`;
+      audioInfo = `${m.sample_rate} Hz · ${m.channels} ch · ${enc} · ${(m.frame_count / (m.sample_rate || 1) * 1000).toFixed(0)} ms · ` +
+        `${t("audio_level")} ${db.toFixed(1)} dBFS${player.underruns ? ` · ${t("audio_underruns")} ${player.underruns}` : ""}`;
+      break;
+    }
     case "health": {
       const m = b.msg;
       stat(m.header.stream_id).observe(m.header);
@@ -143,7 +163,7 @@ function handle(b: Body): void {
       const row = (k: string, v: string) => `<div class="row"><span class="k">${k}</span><span class="v">${v}</span></div>`;
       healthText = row(t("thermal"), `<span class="badge ${th}">${th}</span>${m.low_power_mode ? ` · ${t("low_power")}` : ""}`) +
         row(t("battery"), `${m.battery_level >= 0 ? (m.battery_level * 100).toFixed(0) + "%" : "?"} ${BATTERY[m.battery_state] ?? ""}`) +
-        row(t("phone_rates"), `pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz`) +
+        row(t("phone_rates"), `pose ${m.pose_hz.toFixed(0)} Hz · imu ${m.imu_hz.toFixed(0)} Hz · video ${m.video_fps.toFixed(0)} fps · depth ${m.depth_hz.toFixed(0)} Hz · audio ${(m.audio_hz ?? 0).toFixed(0)} Hz`) +
         row(t("video_rate"), `${(m.video_kbps / 1000).toFixed(2)} Mbit/s · encoder dropped ${m.encoder_dropped}`) +
         row(t("uptime"), `${(m.uptime_s / 60).toFixed(1)} min`);
       break;
@@ -151,6 +171,7 @@ function handle(b: Body): void {
     case "gap":
       log(`gap on ${b.msg.header.stream_id}: ${b.msg.reason}`);
       video.reset();
+      player.reset();
       break;
     case "config_changed":
       log("config changed");
@@ -178,7 +199,8 @@ function frame(): void {
       depthCtx.drawImage(tmp, -w / 2, -h / 2); depthCtx.restore();
     }
   }
-  traj.draw(); accelPlot.draw(); gyroPlot.draw();
+  traj.draw(); accelPlot.draw(); gyroPlot.draw(); levelPlot.draw();
+  $("audio-info").textContent = audioInfo;
   $("pose-text").textContent = lastPoseText;
   $("health").innerHTML = healthText;
   renderStats();
@@ -189,7 +211,7 @@ requestAnimationFrame(frame);
 
 function resetViews(): void {
   for (const s of Object.values(stats)) s.reset();
-  traj.clear(); video.reset(); lastPoseText = ""; healthText = ""; depthPending = null;
+  traj.clear(); video.reset(); player.reset(); lastPoseText = ""; healthText = ""; depthPending = null; audioInfo = "";
   depthCtx.clearRect(0, 0, depthCanvas.width, depthCanvas.height);
 }
 
@@ -212,16 +234,22 @@ function onLiveClosed(): void {
   if (!mcap) setStatus(t("st_disconnected"), "muted");
   $<HTMLButtonElement>("btn-start").disabled = true; $<HTMLButtonElement>("btn-stop").disabled = true;
   $<HTMLInputElement>("depth-enable").disabled = true; $<HTMLSelectElement>("mode").disabled = true;
+  $<HTMLInputElement>("audio-enable").disabled = true;
   $("btn-connect").textContent = t("connect");
 }
 function onLiveReady(name: string, streams: string[], subscribed: Set<string>, isLive: boolean, hasLidar: boolean, depthOn: boolean,
-                     subscribe: (id: string, on: boolean) => void): void {
+                     subscribe: (id: string, on: boolean) => void, audioOn: boolean | null = null): void {
   $("device-name").textContent = name;
   liveHasLidar = hasLidar;
   $<HTMLButtonElement>("btn-start").disabled = !isLive; $<HTMLButtonElement>("btn-stop").disabled = !isLive;
   $<HTMLSelectElement>("mode").disabled = !isLive;
   $<HTMLInputElement>("depth-enable").checked = depthOn;
   updateDepthToggle(isLive);
+  // Only the direct phone connection can switch the microphone (null = phone has no audio stream / relay).
+  const audioEl = $<HTMLInputElement>("audio-enable");
+  audioEl.disabled = !isLive || audioOn === null;
+  audioEl.checked = !!audioOn;
+  $("audio-label").style.opacity = audioEl.disabled ? ".5" : "1";
   $("btn-connect").textContent = t("disconnect");
   renderStreamToggles(streams, subscribed, subscribe);
 }
@@ -260,9 +288,10 @@ phone.onWelcome = (w: PhoneWelcome) => {
   configVersion = w.config?.config_version ?? 0;
   const depthOn = !!(w.config?.streams ?? []).find((s: any) => s.stream_id === "depth" && s.enabled);
   const ids = w.streams.map((s) => s.stream_id);
+  const audioOn = ids.includes("audio") ? !!(w.config?.streams ?? []).find((s: any) => s.stream_id === "audio" && s.enabled) : null;
   applyModeFromConfig(w.config);
   onLiveReady(`${d.device_name ?? ""} ${d.model ?? ""}${d.has_lidar ? " · LiDAR" : ""} · ${t("direct")}`, ids, new Set(ids), true, !!d.has_lidar, depthOn,
-    (id, on) => phone.subscribe([id], !on));
+    (id, on) => phone.subscribe([id], !on), audioOn);
   log(`welcome: ${JSON.stringify(d)} client_id=${w.client_id}`);
 };
 
@@ -279,7 +308,7 @@ $("btn-connect").onclick = () => {
 let captureRunning = false;
 let captureOptimisticUntil = 0;
 let renderedRunning: boolean | null = null;
-function dataFlowing(): boolean { return ["rgb", "ar_pose", "imu", "depth"].some((id) => (stats[id]?.hz ?? 0) > 0); }
+function dataFlowing(): boolean { return ["rgb", "ar_pose", "imu", "depth", "audio"].some((id) => (stats[id]?.hz ?? 0) > 0); }
 function renderCaptureButton(): void {
   const running = dataFlowing() || performance.now() < captureOptimisticUntil;
   if (running === renderedRunning) return;
@@ -310,6 +339,19 @@ $<HTMLInputElement>("depth-enable").onchange = async (e) => {
     try { const r = await phone.set("depth.enabled", on, configVersion); configVersion = r?.config_version ?? configVersion; }
     catch (err) { log(`set depth.enabled failed: ${err}`); }
   } else live.set("depth.enabled", on);
+};
+
+$<HTMLInputElement>("audio-enable").onchange = async (e) => {
+  const on = (e.target as HTMLInputElement).checked;
+  if (!phone.open) return;
+  try { const r = await phone.set("audio.enabled", on, configVersion); configVersion = r?.config_version ?? configVersion; }
+  catch (err) { log(`set audio.enabled failed: ${err}`); }
+};
+function renderListen(): void { $("btn-listen").textContent = player.enabled ? t("audio_mute") : t("audio_listen"); }
+$("btn-listen").onclick = async () => {
+  try { if (player.enabled) await player.disable(); else await player.enable(); }
+  catch (err) { log(`audio output: ${err}`); }
+  renderListen();
 };
 
 function renderStreamToggles(ids: string[], on: Set<string>, cb: (id: string, on: boolean) => void): void {

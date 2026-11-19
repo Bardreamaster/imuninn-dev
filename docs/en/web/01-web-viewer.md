@@ -1,6 +1,6 @@
 # Web viewer
 
-See the phone's data in a browser: video, depth, pose trajectory, IMU plots, thermal state and battery. The page is static, connects straight to the phone (protocol v5) and can also replay an MCAP file offline.
+See the phone's data in a browser: video, depth, pose trajectory, IMU plots, microphone audio (playback and a level plot, protocol v6), thermal state and battery. The page is static, connects straight to the phone (protocol v5) and can also replay an MCAP file offline.
 
 ## Online page
 

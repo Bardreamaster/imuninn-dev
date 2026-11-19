@@ -261,7 +261,7 @@ class Device:
 
         Args:
             stream: A stream id (``"imu"``, ``"ar_pose"``, ``"rgb"``, ``"depth"``,
-                ``"health"``) to yield its samples, or ``None`` for ``(stream, sample)``
+                ``"health"``, ``"audio"``) to yield its samples, or ``None`` for ``(stream, sample)``
                 tuples of every stream.
             maxsize: Queue depth; when the consumer falls behind, newer samples are
                 dropped rather than blocking the client.

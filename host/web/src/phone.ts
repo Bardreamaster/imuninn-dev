@@ -5,7 +5,7 @@
 import protobuf from "protobufjs";
 import { decodeDataMessage, T, type Body } from "./proto";
 
-const PROTOCOL_VERSION = 5;
+const PROTOCOL_VERSION = 6;
 const TRANSPORT_WEBSOCKET = 3;
 const MAGIC = new TextEncoder().encode("IMDATA01");
 

@@ -8,6 +8,7 @@
 | `imu` | `ImuSample` | UDP | 加速度（m/s²）+ 角速度（rad/s），设备坐标系 |
 | `rgb` | `VideoFrame` | TCP | H.264 Annex‑B，每帧带内参与 `rotation_deg` |
 | `depth` | `DepthFrame` | TCP | LiDAR 深度 256×192，毫米 + 置信度，LZ4 |
+| `audio` | `AudioChunk` | TCP | 麦克风 PCM（v6，仅 iOS，默认关），见[麦克风音频](10-audio.md) |
 | `health` | `DeviceHealth` | UDP | 热状态、电量、手机端帧率、编码丢帧 |
 
 UDP 允许丢、先到先用；TCP 不丢但手机拥塞时会丢非关键帧并请求新关键帧。订阅用 `dev.subscribe([...])`，默认全订。

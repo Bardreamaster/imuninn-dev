@@ -6,7 +6,7 @@ written as-is, one topic per stream, so the dataset format *is* the protocol.
     imuninn replay run1.mcap                 # iterate; `imuninn rerun --mcap run1.mcap` to view
 
 Topics: /imu (ImuSample), /ar_pose (PoseSample), /rgb (VideoFrame), /depth (DepthFrame),
-/gap (Gap), /config (ConfigChanged). log_time = PC wall clock (when recording live) or
+/audio (AudioChunk), /gap (Gap), /config (ConfigChanged). log_time = PC wall clock (when recording live) or
 device time (when converting); publish_time = device monotonic time, always.
 """
 
@@ -23,7 +23,7 @@ MAGIC = b"IMUNINN1"
 _TOPIC_TO_CLASS = {
     "/imu": "ImuSample", "/ar_pose": "PoseSample", "/rgb": "VideoFrame", "/depth": "DepthFrame",
     "/gap": "Gap", "/config": "ConfigChanged", "/device": "DeviceInfo", "/capabilities": "Capabilities",
-    "/health": "DeviceHealth",
+    "/health": "DeviceHealth", "/audio": "AudioChunk",
 }
 
 _BODY_TO_TOPIC = {
@@ -34,6 +34,7 @@ _BODY_TO_TOPIC = {
     "gap": "/gap",
     "config_changed": "/config",
     "health": "/health",
+    "audio": "/audio",
 }
 
 

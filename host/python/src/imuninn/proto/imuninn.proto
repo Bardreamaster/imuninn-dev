@@ -2,7 +2,8 @@
 // (Swift / Kotlin / Python / C++). See protocol/README.md for channel layout,
 // versioning rules and coordinate conventions. Design doc: docs/iMuninn-设计文档.md §6.
 //
-// v5 (Hello.data_transport: data over WebSocket for browsers; v4: DeviceConfig.session_params). Every change to this file must bump PROTOCOL_VERSION in
+// v6 (AudioChunk: microphone stream "audio"; v5: Hello.data_transport, data over WebSocket for browsers;
+// v4: DeviceConfig.session_params). Every change to this file must bump PROTOCOL_VERSION in
 // protocol/VERSION and be committed together with all consumers.
 
 syntax = "proto3";
@@ -106,6 +107,7 @@ enum StreamKind {
   STREAM_KIND_DEPTH = 4;
   STREAM_KIND_CONFIG = 5;   // config-change events (recorded as its own MCAP channel)
   STREAM_KIND_HEALTH = 6;   // DeviceHealth: thermal, battery, phone-side rates
+  STREAM_KIND_AUDIO = 7;    // AudioChunk: microphone (v6)
 }
 
 message StreamDescriptor {
@@ -329,6 +331,7 @@ message DeviceHealth {
   double video_kbps = 10;
   uint64 encoder_dropped = 11;
   double uptime_s = 12;             // since the app started
+  double audio_hz = 13;             // audio chunks per second (v6)
 }
 
 // ---------------------------------------------------------------------------
@@ -417,6 +420,29 @@ message DepthFrame {
   uint32 rotation_deg = 8;
 }
 
+enum AudioEncoding {
+  AUDIO_ENCODING_UNSPECIFIED = 0;
+  AUDIO_ENCODING_PCM_S16LE = 1;   // signed 16-bit little-endian integers
+  AUDIO_ENCODING_PCM_F32LE = 2;   // 32-bit little-endian IEEE floats, nominal range -1..1
+  AUDIO_ENCODING_AAC = 3;         // reserved: not produced yet
+  AUDIO_ENCODING_OPUS = 4;        // reserved: not produced yet
+}
+
+// Microphone audio, stream "audio" (v6). One message = a short run of consecutive
+// samples (stream param chunk_ms). header.device_time_ns is the capture time of the
+// FIRST frame in the chunk, on the same clock as every other stream; frame i is at
+// device_time_ns + i * 1e9 / sample_rate. Interleaved when channels > 1. A missing
+// header.seq means a dropped chunk (the stream is sent with no-drop delivery, so this
+// only happens on overload or a restart, which also emits a Gap).
+message AudioChunk {
+  Header header = 1;
+  AudioEncoding encoding = 2;
+  uint32 sample_rate = 3;         // Hz, e.g. 48000
+  uint32 channels = 4;            // 1 = mono
+  uint32 frame_count = 5;         // samples per channel in `data`
+  bytes data = 6;
+}
+
 // Emitted on a stream when a restart interrupts it (§6.8 step 4).
 message Gap {
   Header header = 1;
@@ -433,5 +459,6 @@ message DataMessage {
     Gap gap = 5;
     ConfigChanged config_changed = 6;
     DeviceHealth health = 7;
+    AudioChunk audio = 8;          // v6
   }
 }
