@@ -51,7 +51,7 @@ APP_VARIANT=dev npx expo run:ios --device <UDID>
 
 - 变体在 `mobile/app.config.ts` 里读环境变量决定，写进生成的 `mobile/ios/`（开发版的工程名也随之变成 `iMuninnDev`）。**切换变体后必须重新 `prebuild --clean`**，并且 `prebuild` 和 `run:ios` 两条命令都要带同一个变量（`run:ios` 会重新读配置）。
 - 开发版是另一个 App：设置、配置档不与正式版共享，首次启动要重新授予相机、运动、本地网络权限。
-- 两个 App 都监听 7420 端口、用同一个 Bonjour 设备名。同一时刻只有前台的那个在监听，所以不冲突，但 PC 端分不出连的是哪个版本，以手机屏幕为准。
+- 两个 App 默认都用 7420（控制）和 7422（数据）端口。挂在后台的那个可能还占着端口，这时前台的 App 会自动改用空闲端口（日志 `control port 7420 in use; using a free port`），Bonjour 广播的是真实端口，`imuninn list` 能看到；用 IP 直连时要写成 `IP:端口`，端口在 App 的 Server 卡片里。App Store 0.1.0 进后台不释放端口，之后的版本会释放。两个 App 的 Bonjour 设备名相同，PC 端分不出版本，以手机屏幕为准。
 - 开发版的 Bundle ID 由 Xcode 自动签名在团队下注册，不需要在 App Store Connect 建记录。
 - **发版归档前确认是正式配置**：不带 `APP_VARIANT` 重新 `prebuild --clean`，检查 `grep PRODUCT_BUNDLE_IDENTIFIER mobile/ios/*.xcodeproj/project.pbxproj` 没有 `.dev`。带着 `.dev` 上传会被 App Store Connect 拒绝（没有对应的 App 记录）。
 - 涉及旧数据迁移的改动，发版前用正式配置在测试机上覆盖安装验证一次，开发版验证不了升级路径。
