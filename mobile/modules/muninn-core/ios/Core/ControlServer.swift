@@ -66,9 +66,14 @@ public final class ControlServer {
   public init() {}
 
   public func start(port: UInt16, serviceName: String) {
-    stop()
     wantedPort = port
     wantedName = serviceName
+    listen(on: port, serviceName: serviceName)
+  }
+
+  /// `port` 0 = any free port; Bonjour advertises the real one.
+  private func listen(on port: UInt16, serviceName: String) {
+    stop()
     let params = NWParameters.tcp
     params.includePeerToPeer = true
     params.allowLocalEndpointReuse = true
@@ -76,7 +81,7 @@ public final class ControlServer {
     ws.autoReplyPing = true
     ws.maximumMessageSize = 16 * 1024 * 1024
     params.defaultProtocolStack.applicationProtocols.insert(ws, at: 0)
-    guard let p = NWEndpoint.Port(rawValue: port), let l = try? NWListener(using: params, on: p) else {
+    guard let l = try? NWListener(using: params, on: NWEndpoint.Port(rawValue: port) ?? .any) else {
       state = "failed"; lastError = "cannot listen on \(port)"
       scheduleRestart()
       return
@@ -93,7 +98,14 @@ public final class ControlServer {
       case .failed(let e):
         // iOS reclaims sockets while the app is suspended; rebuild the listener.
         self.state = "failed"; self.lastError = e.localizedDescription
-        self.scheduleRestart()
+        // Another copy of the app (App Store + dev build) suspended in the background can
+        // still hold the port: take any free one; clients find it through Bonjour.
+        if case .posix(.EADDRINUSE) = e, port != 0 {
+          NSLog("[imuninn] control port \(port) in use; using a free port")
+          self.queue.async { self.listen(on: 0, serviceName: serviceName) }
+        } else {
+          self.scheduleRestart()
+        }
       case .waiting(let e):
         self.lastError = e.localizedDescription
       case .cancelled:
