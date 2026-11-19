@@ -132,6 +132,10 @@ public final class SessionManager {
         self.resumeSessionOnForeground = self.sessionRunning
         // iOS stops the camera anyway; stop cleanly so nothing is half-alive when we come back.
         self.ar.stop(); self.camera.stop(); self.imu.stop()
+        // Free the ports: a suspended app keeps them bound, which blocks another copy of
+        // the app (App Store + dev build on one phone). Foreground rebuilds both anyway.
+        self.control.stop()
+        self.data.stop()
       }
     }
     nc.addObserver(forName: UIApplication.willEnterForegroundNotification, object: nil, queue: nil) { [weak self] _ in

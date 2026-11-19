@@ -13,19 +13,31 @@ public final class DataServer {
   public init() {}
 
   public func start(port: UInt16) {
-    stop()
     wantedPort = port
+    listen(on: port)
+  }
+
+  /// `port` 0 = any free port. The client learns the real one from Welcome.tcp_port.
+  private func listen(on port: UInt16) {
+    stop()
     let params = NWParameters.tcp
     params.includePeerToPeer = true
     params.allowLocalEndpointReuse = true
     if let tcp = params.defaultProtocolStack.transportProtocol as? NWProtocolTCP.Options { tcp.noDelay = true }
-    guard let p = NWEndpoint.Port(rawValue: port), let l = try? NWListener(using: params, on: p) else { return }
+    guard let l = try? NWListener(using: params, on: NWEndpoint.Port(rawValue: port) ?? .any) else { return }
     l.stateUpdateHandler = { [weak self] st in
       switch st {
       case .ready: self?.port = l.port?.rawValue ?? port
       case .failed(let e):
-        NSLog("[imuninn] data listener failed: \(e); restarting")
-        self?.queue.asyncAfter(deadline: .now() + 2) { self?.start(port: port) }
+        // Another copy of the app (App Store + dev build) suspended in the background can
+        // still hold the port: take any free one instead of retrying forever.
+        if case .posix(.EADDRINUSE) = e, port != 0 {
+          NSLog("[imuninn] data port \(port) in use; using a free port")
+          self?.queue.async { self?.listen(on: 0) }
+        } else {
+          NSLog("[imuninn] data listener failed: \(e); restarting")
+          self?.queue.asyncAfter(deadline: .now() + 2) { self?.listen(on: port) }
+        }
       default: break
       }
     }
@@ -46,6 +58,7 @@ public final class DataServer {
     listener?.stateUpdateHandler = nil
     listener?.cancel()
     listener = nil
+    port = 0
   }
 
   private var wantedPort: UInt16 = 0
