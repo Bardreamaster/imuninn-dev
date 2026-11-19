@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>404 · iMuninn Web Viewer</title>
+    <meta name="robots" content="noindex" />
+    <!-- GitHub Pages serves this file for every missing path, at any depth, so every URL is absolute.
+         Colours are docs/design/tokens.css (inlined: this page bypasses the Vite build). -->
+    <link rel="icon" type="image/svg+xml" href="/imuninn-icon-dark.svg" media="(prefers-color-scheme: dark)" />
+    <link rel="icon" type="image/svg+xml" href="/imuninn-icon-light.svg" media="(prefers-color-scheme: light)" />
+    <link rel="icon" type="image/svg+xml" href="/imuninn-icon-dark.svg" />
+    <style>
+      :root {
+        --bg: oklch(17.0% 0.012 255); --card: oklch(22.0% 0.016 257); --text: oklch(94.0% 0.011 245);
+        --muted: oklch(66.5% 0.018 251); --border: oklch(33.0% 0.015 252); --accent-fill: oklch(57.0% 0.200 260);
+        --on-accent: oklch(100.0% 0.000 0); color-scheme: dark;
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --bg: oklch(98.0% 0.003 248); --card: oklch(100.0% 0.000 0); --text: oklch(25.5% 0.011 254);
+          --muted: oklch(49.5% 0.022 251); --border: oklch(88.0% 0.013 244); color-scheme: light;
+        }
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); font: 14px/1.5 system-ui, -apple-system, "PingFang SC", "Segoe UI", Roboto, sans-serif; }
+      main { min-height: 100svh; display: grid; place-items: center; padding: 24px 16px; }
+      .card { background: var(--card); border-radius: 12px; padding: 28px 24px; width: 100%; max-width: 440px; display: flex; flex-direction: column; gap: 16px; }
+      .brand { display: flex; align-items: center; gap: 10px; }
+      .brand img { width: 40px; height: 40px; border-radius: 10px; }
+      .brand b { font-size: 20px; }
+      .code { font-size: 48px; font-weight: 700; line-height: 1; font-variant-numeric: tabular-nums; }
+      h1 { font-size: 17px; font-weight: 600; margin: 0; }
+      p { margin: 4px 0 0; color: var(--muted); }
+      .en { border-top: 1px solid var(--border); padding-top: 12px; }
+      .actions { display: flex; flex-wrap: wrap; gap: 8px; }
+      .btn { font-size: 14px; font-weight: 600; padding: 9px 14px; border-radius: 8px; border: 1px solid transparent; text-decoration: none; color: var(--text); }
+      .btn.primary { background: var(--accent-fill); color: var(--on-accent); }
+      .btn.ghost { border-color: var(--border); }
+      .btn:hover { filter: brightness(1.1); }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="card">
+        <div class="brand"><img src="/imuninn-icon-dark.svg" alt="" /><b>iMuninn</b></div>
+        <div class="code">404</div>
+        <div>
+          <h1>页面不存在</h1>
+          <p>这个地址没有内容。Web 查看器只有一个页面，从首页打开即可连接手机或回放 MCAP。</p>
+        </div>
+        <div class="en" lang="en">
+          <h1>Page not found</h1>
+          <p>Nothing lives at this address. The web viewer is a single page: open it from the start to connect a phone or replay an MCAP file.</p>
+        </div>
+        <div class="actions">
+          <a class="btn primary" href="/">打开查看器 · Open the viewer</a>
+          <a class="btn ghost" href="https://imuninn.projects.weijinqi.com/">文档 · Docs</a>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
