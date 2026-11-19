@@ -42,6 +42,7 @@ App Store Connect 里要填的文案和设置，复制粘贴用。主语言建�
 > • IMU: accelerometer and gyroscope, 100–200 Hz
 > • H.264 video up to 1920×1440 at 60 fps
 > • LiDAR depth with confidence on Pro models, 60 Hz
+> • Microphone audio (optional, off by default): uncompressed PCM up to 48 kHz
 > • Device health: thermal state, battery, actual frame rates
 >
 > On the computer, receive the data with the open-source Python package (pip install imuninn), the C++ library, or the web viewer. Record MCAP files, visualize in Rerun, feed your robot stack, or let an AI agent use it through MCP.
@@ -72,6 +73,7 @@ App Store Connect 里要填的文案和设置，复制粘贴用。主语言建�
 > • IMU：加速度计和陀螺仪，100–200 Hz
 > • H.264 视频，最高 1920×1440 60 fps
 > • LiDAR 深度和置信度（Pro 机型），60 Hz
+> • 麦克风音频（可选，默认关闭）：未压缩 PCM，最高 48 kHz
 > • 设备状态：热状态、电量、实际帧率
 >
 > 电脑端用开源的 Python 包（pip install imuninn）、C++ 库或 Web 查看器接收。可以录 MCAP、用 Rerun 可视化、接入机器人程序，也可以通过 MCP 交给 AI agent 使用。
@@ -86,7 +88,7 @@ App Store Connect 里要填的文案和设置，复制粘贴用。主语言建�
 
 App 单独打开只会显示相机预览和服务状态，审核员需要一台接收端才能看到完整功能，所以备注里要写清楚怎么测，最好再附一段演示视频（屏幕录制 + 电脑端画面）。
 
-> iMuninn is a sensor app for developers: the iPhone acts as a server on the local network and a computer connects to it to receive camera, IMU, ARKit pose and LiDAR depth data. No account or login is needed.
+> iMuninn is a sensor app for developers: the iPhone acts as a server on the local network and a computer connects to it to receive camera, IMU, ARKit pose, LiDAR depth and (optionally) microphone audio data. No account or login is needed.
 >
 > To test without a computer: open the app, allow Camera, Motion and Local Network access, and tap "Start capture". The camera preview, ARKit tracking state and pose rate are shown on screen; the video and IMU rates count data sent to a connected computer.
 >
@@ -97,9 +99,31 @@ App 单独打开只会显示相机预览和服务状态，审核员需要一台�
 >
 > With Chrome or Edge, or from Python: `pip install imuninn && imuninn web` serves the same viewer from localhost; `imuninn watch <phone address> --start` prints the samples in a terminal.
 >
+> Microphone (new in 0.2.0): the audio stream is off by default and can only be turned on from the connected computer (for example `imuninn record --audio`). The microphone permission prompt appears the first time it is turned on; audio is sent only to that computer on the local network and is never recorded or uploaded by the app.
+>
 > The app never connects to the internet; Local Network access is only used for the computer to discover and connect to the phone.
 
 联系信息填自己的姓名、电话和邮箱；不需要演示账号（取消勾选 Sign-in required）。
+
+## 版本更新说明（What's New）
+
+### 0.2.0
+
+English:
+
+> • New: microphone audio stream (off by default), with selectable sample rate and format, for acoustic sensing alongside video, pose and IMU.
+> • The Preview on/off button now also works while a capture is running, including captures started from the computer.
+> • Clear "No network" state when the phone has no IP address.
+> • Black-screen mode: any touch, typing or slider drag resets the idle timer.
+> • Network ports are released in the background and fall back to a free port when busy.
+
+简体中文：
+
+> • 新增：麦克风音频流（默认关闭），采样率和格式可选，可与视频、位姿、IMU 一起用于声学感知。
+> • 采集进行中（包括由电脑发起的采集）也可以用「开启 / 关闭预览」按钮。
+> • 手机没有 IP 地址时明确显示「无网络」。
+> • 熄屏模式：任意触摸、输入或拖动滑块都会重置空闲计时。
+> • 进入后台时释放网络端口，端口被占用时自动改用空闲端口。
 
 ## 截图
 

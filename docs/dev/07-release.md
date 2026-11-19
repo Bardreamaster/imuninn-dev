@@ -8,11 +8,11 @@
 2. 打 tag 并推送：
 
    ```bash
-   git tag python-v0.1.0 && git push origin python-v0.1.0
+   git tag python-v0.2.0 && git push origin python-v0.2.0
    ```
 
 3. GitHub Actions `python-release` 自动：校验 tag 与 `pyproject.toml` 版本一致 → 跑测试 → `uv build` → 用 trusted publishing 发到 PyPI → 创建 GitHub Release 并附上 wheel / sdist。
-4. 装一遍确认：`pip install imuninn==0.1.0 && imuninn --version`。
+4. 装一遍确认：`pip install imuninn==0.2.0 && imuninn --version`。
 
 想先试 TestPyPI：Actions 页面手动运行 `python-release`，`target` 选 `testpypi`，然后
 

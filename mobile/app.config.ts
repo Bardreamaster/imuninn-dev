@@ -9,7 +9,7 @@ const appId = "com.weijinqi.projects.imuninn" + (dev ? ".dev" : "");
 const config: ExpoConfig = {
   name: dev ? "iMuninn Dev" : "iMuninn",
   slug: "imuninn",
-  version: "0.1.0",
+  version: "0.2.0",
   orientation: "default",   // follows the system rotation lock; layout adapts in App.tsx
   icon: dev ? "./assets/icon-dev.png" : "./assets/icon.png",
   userInterfaceStyle: "automatic", // theme.ts follows the system appearance (useColorScheme)
@@ -17,7 +17,7 @@ const config: ExpoConfig = {
     bundleIdentifier: appId,
     appleTeamId: "NHCF5WN8GK",
     supportsTablet: false,
-    buildNumber: "2",
+    buildNumber: "3",
     // Keep screen on while streaming; background capture is a platform limit (§11).
     infoPlist: {
       // Only Apple-provided TLS/none: no export-compliance questions on each upload.
