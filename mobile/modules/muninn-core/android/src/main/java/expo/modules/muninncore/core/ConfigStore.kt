@@ -33,6 +33,7 @@ data class ConfigEnvironment(
   var imuAvailable: Boolean = false,
   var arAvailable: Boolean = false,
   var depthAvailable: Boolean = false,
+  var audioAvailable: Boolean = false,
   var camera: CameraRanges = CameraRanges(),
 )
 
@@ -62,7 +63,7 @@ class ConfigStore(private val env: ConfigEnvironment) {
     val c = StreamConfig.newBuilder().setStreamId(id).setEnabled(enabled)
     for (p in params) c.putParams(p.key, p.current)
     c.delivery = DeliveryConfig.newBuilder().setTransport(transport)
-      .setDropPolicy(if (kind == StreamKind.STREAM_KIND_DEPTH) DeliveryConfig.DropPolicy.DROP_POLICY_NONE else DeliveryConfig.DropPolicy.DROP_POLICY_LATEST_ONLY)
+      .setDropPolicy(if (kind == StreamKind.STREAM_KIND_DEPTH || kind == StreamKind.STREAM_KIND_AUDIO) DeliveryConfig.DropPolicy.DROP_POLICY_NONE else DeliveryConfig.DropPolicy.DROP_POLICY_LATEST_ONLY)
       .build()
     config.addStreams(c)
   }
@@ -75,6 +76,11 @@ class ConfigStore(private val env: ConfigEnvironment) {
 
     sessionSpecs["mode"] = spec("mode", "Session mode", ParamSpec.Kind.KIND_ENUM, R,
       pbStr(if (env.arAvailable) "ar" else "camera"), choices = listOf("ar", "camera"))
+    // Session-level switches other than mode live in DeviceConfig.session_params (v4).
+    // black_screen: the app covers the UI in pure black and drops the backlight to minimum
+    // after a few seconds idle; capture keeps running. Same switch as the phone's button.
+    sessionSpecs["black_screen"] = spec("black_screen", "Black screen while capturing", ParamSpec.Kind.KIND_BOOL, I, pbBool(false))
+    for ((key, sp) in sessionSpecs) if (key != "mode") config.putSessionParams(key, sp.current)
 
     addStream("imu", StreamKind.STREAM_KIND_IMU, Transport.TRANSPORT_UDP, env.imuAvailable, listOf(
       spec("rate_hz", "IMU rate", ParamSpec.Kind.KIND_INT, I, pbInt(100), unit = "Hz", min = 10.0, max = 200.0, step = 10.0),
@@ -113,9 +119,22 @@ class ConfigStore(private val env: ConfigEnvironment) {
       spec("rate_hz", "Health report rate", ParamSpec.Kind.KIND_FLOAT, I, pbFloat(0.2), unit = "Hz", min = 0.1, max = 5.0),
     ))
 
+    // Microphone (v6). Off by default; the permission prompt appears the first time it is
+    // enabled. Format choices mirror the video stream's: pick what the use case needs.
+    if (env.audioAvailable) {
+      addStream("audio", StreamKind.STREAM_KIND_AUDIO, Transport.TRANSPORT_TCP, false, listOf(
+        spec("sample_rate", "Sample rate", ParamSpec.Kind.KIND_ENUM, I, pbStr("48000"), unit = "Hz", choices = AudioSource.SAMPLE_RATES),
+        spec("sample_format", "Sample format", ParamSpec.Kind.KIND_ENUM, I, pbStr("s16"), choices = listOf("s16", "f32")),
+        spec("chunk_ms", "Chunk length", ParamSpec.Kind.KIND_INT, I, pbInt(20), unit = "ms", min = 10.0, max = 200.0, step = 10.0),
+        spec("processing", "Input processing (raw = no AGC / noise suppression)", ParamSpec.Kind.KIND_ENUM, I, pbStr("raw"), choices = listOf("raw", "voice")),
+      ))
+    }
+
     if (env.depthAvailable) {
+      // ARCore Depth API: "smoothed" = the filled, temporally filtered depth image (no
+      // confidence plane); off = raw depth (sparse, with confidence), closest to LiDAR's raw map.
       addStream("depth", StreamKind.STREAM_KIND_DEPTH, Transport.TRANSPORT_TCP, false, listOf(
-        spec("smoothed", "Temporally smoothed", ParamSpec.Kind.KIND_BOOL, R, pbBool(false)),
+        spec("smoothed", "Temporally smoothed", ParamSpec.Kind.KIND_BOOL, R, pbBool(true)),
         spec("compression", "Compression", ParamSpec.Kind.KIND_ENUM, I, pbStr("lz4"), choices = listOf("lz4", "none")),
         spec("rate_divisor", "Send every Nth frame", ParamSpec.Kind.KIND_INT, I, pbInt(1), min = 1.0, max = 6.0, step = 1.0),
       ))
@@ -138,6 +157,7 @@ class ConfigStore(private val env: ConfigEnvironment) {
     for (s in sessionSpecs.values) {
       val sb = s.toBuilder()
       if (s.key == "mode") sb.current = pbStr(if (config.mode == SessionMode.SESSION_MODE_CAMERA) "camera" else "ar")
+      else config.sessionParamsMap[s.key]?.let { sb.current = it }
       c.addSessionParams(sb)
     }
     c.config = config.build()
@@ -169,6 +189,17 @@ class ConfigStore(private val env: ConfigEnvironment) {
   }
   fun string(stream: String, key: String): String = param(stream, key)?.s ?: ""
 
+  /** Session-level parameter (DeviceConfig.session_params), e.g. "black_screen". */
+  fun sessionParam(key: String): Value? = synchronized(lock) { config.sessionParamsMap[key] }
+  fun sessionBool(key: String): Boolean = sessionParam(key)?.b ?: false
+
+  fun audioSettings(): AudioSettings = AudioSettings(
+    sampleRate = string("audio", "sample_rate").toIntOrNull() ?: 48000,
+    float32 = string("audio", "sample_format") == "f32",
+    chunkMs = int("audio", "chunk_ms").coerceAtLeast(10),
+    voiceProcessing = string("audio", "processing") == "voice",
+  )
+
   // MARK: updates (§6.8 steps 3-5)
 
   fun apply(req: SetConfig): ConfigUpdate = synchronized(lock) {
@@ -197,6 +228,21 @@ class ConfigStore(private val env: ConfigEnvironment) {
       result.addFields(fr)
     }
 
+    for ((key, value) in patch.sessionParamsMap) {
+      val fr = FR().setKey("session.$key")
+      val spec = if (key == "mode") null else sessionSpecs[key]
+      if (spec == null) {
+        result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED)
+          .setReason(if (key == "mode") "set DeviceConfig.mode instead" else "unknown parameter"))
+        continue
+      }
+      val effective = validate(spec, value, spec.choicesList, fr)
+      if (effective == null) { result.addFields(fr); continue }
+      config.putSessionParams(key, effective)
+      result.addFields(fr.setEffective(effective))
+      changes += AppliedChange("", key, effective, spec.apply)
+    }
+
     for (ps in patch.streamsList) {
       val idx = config.streamsList.indexOfFirst { it.streamId == ps.streamId }
       if (idx < 0) {
@@ -219,43 +265,9 @@ class ConfigStore(private val env: ConfigEnvironment) {
         if (spec.readOnly) {
           result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("read only")); continue
         }
-        val effective: Value
-        when (spec.kind) {
-          ParamSpec.Kind.KIND_BOOL -> {
-            if (value.vCase != Value.VCase.B) { result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("expected bool")); continue }
-            effective = pbBool(value.b); fr.status = ConfigResult.FieldResult.Status.STATUS_APPLIED
-          }
-          ParamSpec.Kind.KIND_INT -> {
-            val requested = when (value.vCase) {
-              Value.VCase.I -> value.i
-              Value.VCase.F -> value.f.roundToLong()
-              else -> { result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("expected int")); continue }
-            }
-            var v = requested.coerceIn(spec.min.toLong(), spec.max.toLong())
-            if (spec.step > 0) v = ((v / spec.step).roundToLong() * spec.step).roundToLong()
-            fr.status = if (v == requested) ConfigResult.FieldResult.Status.STATUS_APPLIED else ConfigResult.FieldResult.Status.STATUS_CLAMPED
-            effective = pbInt(v)
-          }
-          ParamSpec.Kind.KIND_FLOAT -> {
-            val v = when (value.vCase) {
-              Value.VCase.F -> value.f
-              Value.VCase.I -> value.i.toDouble()
-              else -> { result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("expected float")); continue }
-            }
-            val clamped = v.coerceIn(spec.min, spec.max)
-            fr.status = if (clamped == v) ConfigResult.FieldResult.Status.STATUS_APPLIED else ConfigResult.FieldResult.Status.STATUS_CLAMPED
-            effective = pbFloat(clamped)
-          }
-          ParamSpec.Kind.KIND_ENUM, ParamSpec.Kind.KIND_STRING -> {
-            if (value.vCase != Value.VCase.S) { result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("expected string")); continue }
-            val choices = dynamicChoices(ps.streamId, key) ?: spec.choicesList
-            if (spec.kind == ParamSpec.Kind.KIND_ENUM && !choices.contains(value.s)) {
-              result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("not one of $choices")); continue
-            }
-            effective = pbStr(value.s); fr.status = ConfigResult.FieldResult.Status.STATUS_APPLIED
-          }
-          else -> { result.addFields(fr.setStatus(ConfigResult.FieldResult.Status.STATUS_REJECTED).setReason("unsupported kind")); continue }
-        }
+        val choices = dynamicChoices(ps.streamId, key) ?: spec.choicesList
+        val effective = validate(spec, value, choices, fr)
+        if (effective == null) { result.addFields(fr); continue }
         sb.putParams(key, effective)
         result.addFields(fr.setEffective(effective))
         changes += AppliedChange(ps.streamId, key, effective, spec.apply)
@@ -267,6 +279,50 @@ class ConfigStore(private val env: ConfigEnvironment) {
     result.configVersion = config.configVersion
     result.sessionRestarted = changes.any { it.apply == ParamSpec.Apply.APPLY_RESTART_SESSION }
     ConfigUpdate(result.build(), changes)
+  }
+
+  /**
+   * Type-check, clamp and snap one value against its spec. Fills `fr.status` / `fr.reason`;
+   * returns the effective value, or null when rejected.
+   */
+  private fun validate(spec: ParamSpec, value: Value, choices: List<String>, fr: ConfigResult.FieldResult.Builder): Value? {
+    val S = ConfigResult.FieldResult.Status.STATUS_REJECTED
+    fun reject(reason: String): Value? { fr.setStatus(S).setReason(reason); return null }
+    return when (spec.kind) {
+      ParamSpec.Kind.KIND_BOOL -> {
+        if (value.vCase != Value.VCase.B) return reject("expected bool")
+        fr.status = ConfigResult.FieldResult.Status.STATUS_APPLIED
+        pbBool(value.b)
+      }
+      ParamSpec.Kind.KIND_INT -> {
+        val requested = when (value.vCase) {
+          Value.VCase.I -> value.i
+          Value.VCase.F -> value.f.roundToLong()
+          else -> return reject("expected int")
+        }
+        var v = requested.coerceIn(spec.min.toLong(), spec.max.toLong())
+        if (spec.step > 0) v = ((v / spec.step).roundToLong() * spec.step).roundToLong()
+        fr.status = if (v == requested) ConfigResult.FieldResult.Status.STATUS_APPLIED else ConfigResult.FieldResult.Status.STATUS_CLAMPED
+        pbInt(v)
+      }
+      ParamSpec.Kind.KIND_FLOAT -> {
+        val v = when (value.vCase) {
+          Value.VCase.F -> value.f
+          Value.VCase.I -> value.i.toDouble()
+          else -> return reject("expected float")
+        }
+        val clamped = v.coerceIn(spec.min, spec.max)
+        fr.status = if (clamped == v) ConfigResult.FieldResult.Status.STATUS_APPLIED else ConfigResult.FieldResult.Status.STATUS_CLAMPED
+        pbFloat(clamped)
+      }
+      ParamSpec.Kind.KIND_ENUM, ParamSpec.Kind.KIND_STRING -> {
+        if (value.vCase != Value.VCase.S) return reject("expected string")
+        if (spec.kind == ParamSpec.Kind.KIND_ENUM && !choices.contains(value.s)) return reject("not one of $choices")
+        fr.status = ConfigResult.FieldResult.Status.STATUS_APPLIED
+        pbStr(value.s)
+      }
+      else -> reject("unsupported kind")
+    }
   }
 
   /** Camera formats depend on the chosen lens; accept any format that lens offers. */

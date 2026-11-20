@@ -90,7 +90,8 @@
 - [x] 2026-11-05：本机装 JDK 17 + Android SDK + arm64 模拟器，Gradle 编译通过（只改了两处 Float/Double）
 - [x] 2026-11-05 模拟器实测：IMU 100 Hz、视频 30 fps、health、多客户端、租约、配置校验、PC Profile、PC/手机端录制全部通过（见 `docs/dev/05-Android.md`、`docs/design/m5-emulator.png`）
 - [x] 2026-11-05：`rgb.*` 相机控制参数（曝光/白平衡/对焦/变焦/手电/HDR/低光/防抖）移植到 Camera2，与 iOS 同一参数集；模拟器验证参数通路，HAL 不支持的走回退
-- [ ] ARCore 位姿 + 深度（需真机）
+- [x] 2026-11-21：功能与 iOS 对齐：ARCore 位姿 / 视频 / 深度（Depth API）、麦克风音频（v6）、`session.black_screen`、偏好设置、端口回退、前后台恢复、等比预览与横屏、Android 图标；相机模式 / 音频 / 界面已在模拟器验证
+- [ ] ARCore 位姿 + 深度的真机验证（Pixel 9a，步骤见 `docs/dev/05-android.md`）
 - [ ] ROS 2 桥接（可选）
 ## Rerun 可视化补齐（2026-11-03）
 

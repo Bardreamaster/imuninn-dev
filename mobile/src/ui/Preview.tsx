@@ -1,6 +1,7 @@
 import { Modal, Pressable, Text, View, useWindowDimensions } from "react-native";
 
 import { MuninnPreviewView, type StatusEvent } from "../../modules/muninn-core/src";
+import { reportActivity } from "./BlackScreen";
 import { Icon } from "./Icon";
 import { t } from "./i18n";
 import { useTheme } from "./theme";
@@ -51,7 +52,7 @@ export function FullscreenPreview({ status, visible, onClose }: { status: Status
   if (h > height) { h = height; w = height * aspect; }
   return (
     <Modal visible={visible} animationType="fade" supportedOrientations={["portrait", "landscape"]} onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: C.previewBg, alignItems: "center", justifyContent: "center" }}>
+      <View style={{ flex: 1, backgroundColor: C.previewBg, alignItems: "center", justifyContent: "center" }} onTouchStart={reportActivity}>
         {visible ? <Preview status={status} landscape={landscape} width={w} height={h} onFullscreen={onClose} fullscreen /> : null}
       </View>
     </Modal>

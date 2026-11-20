@@ -16,17 +16,14 @@ class DataServer {
   /** Called once the client id has been read; return false to reject. */
   var onAttach: ((Int, TcpSink) -> Boolean)? = null
 
+  private var wantedPort = 0
+
   @Synchronized fun start(port: Int) {
+    wantedPort = port
     stop()
-    val s = try {
-      ServerSocket().apply {
-        reuseAddress = true
-        bind(InetSocketAddress(port), 8)
-      }
-    } catch (e: Exception) {
-      Log.w(TAG, "data server cannot listen on $port: $e")
-      return
-    }
+    // Another copy of the app (store build + dev build) can hold the port: take any free
+    // one instead. The client learns the real port from Welcome.tcp_port.
+    val s = bind(port) ?: (if (port != 0) { Log.w(TAG, "data port $port in use; using a free port"); bind(0) } else null) ?: return
     server = s
     this.port = s.localPort
     Thread({
@@ -35,6 +32,21 @@ class DataServer {
         Thread({ attach(conn) }, "imuninn.data-attach").apply { isDaemon = true }.start()
       }
     }, "imuninn.data").apply { isDaemon = true }.start()
+  }
+
+  private fun bind(port: Int): ServerSocket? = try {
+    ServerSocket().apply {
+      reuseAddress = true
+      bind(InetSocketAddress(port), 8)
+    }
+  } catch (e: Exception) {
+    Log.w(TAG, "data server cannot listen on $port: $e")
+    null
+  }
+
+  /** Rebuild the listener on the port asked for last time (after the app was in the background). */
+  fun restart() {
+    if (wantedPort != 0) start(wantedPort)
   }
 
   @Synchronized fun stop() {

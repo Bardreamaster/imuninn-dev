@@ -36,6 +36,7 @@ const withMuninnAndroid: ConfigPlugin = (config) =>
     );
     for (const name of [
       "android.permission.CAMERA",
+      "android.permission.RECORD_AUDIO", // asked when the "audio" stream is first enabled
       "android.permission.INTERNET",
       "android.permission.ACCESS_NETWORK_STATE",
       "android.permission.ACCESS_WIFI_STATE",

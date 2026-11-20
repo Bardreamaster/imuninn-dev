@@ -69,9 +69,12 @@ object ConfigJSON {
       for ((k, v) in s.paramsMap) params[k] = value(v)
       streams[s.streamId] = mapOf("enabled" to s.enabled, "params" to params)
     }
+    val session = HashMap<String, Any?>()
+    for ((k, v) in c.sessionParamsMap) session[k] = value(v)
     return mapOf(
       "configVersion" to c.configVersion,
       "mode" to if (c.mode == SessionMode.SESSION_MODE_CAMERA) "camera" else "ar",
+      "session" to session,
       "streams" to streams,
     )
   }
@@ -80,6 +83,7 @@ object ConfigJSON {
   fun patch(json: Map<String, Any?>): DeviceConfig {
     val p = DeviceConfig.newBuilder()
     (json["mode"] as? String)?.let { p.mode = if (it == "camera") SessionMode.SESSION_MODE_CAMERA else SessionMode.SESSION_MODE_AR }
+    (json["session"] as? Map<String, Any?>)?.forEach { (k, v) -> p.putSessionParams(k, value(v)) }
     (json["streams"] as? Map<String, Any?>)?.forEach { (id, raw) ->
       val obj = raw as? Map<String, Any?> ?: return@forEach
       val sc = StreamConfig.newBuilder().setStreamId(id)

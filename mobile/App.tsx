@@ -1,6 +1,6 @@
 import { StatusBar } from "expo-status-bar";
 import { useEffect, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { Platform, Pressable, ScrollView, Switch, Text, TextInput, View, useWindowDimensions } from "react-native";
 
 import { MuninnCore } from "./modules/muninn-core/src";
 import { BlackOverlay, useBlackScreen } from "./src/ui/BlackScreen";
@@ -86,7 +86,9 @@ export default function App() {
           </View>
         </View>
 
-        {showPreview && !fullscreen && !black.dimmed ? (
+        {/* Android keeps the preview mounted under the black overlay: removing a Camera2
+            output restarts the capture session, which would interrupt the video stream. */}
+        {showPreview && !fullscreen && (!black.dimmed || Platform.OS === "android") ? (
           <Preview status={status} landscape={landscape} width={previewW} height={previewH} onFullscreen={() => setFullscreen(true)}
             compact={compact} onToggleCompact={landscape ? undefined : toggleCompact} />
         ) : null}
@@ -105,7 +107,7 @@ export default function App() {
             {!camera ? <Stat label={t("pose")} value={status?.poseHz.toFixed(1) ?? 0} unit="Hz" /> : null}
             <Stat label={t("imu")} value={status?.imuHz.toFixed(1) ?? 0} unit="Hz" />
             <Stat label={t("video")} value={status?.videoHz.toFixed(1) ?? 0} unit={`fps · ${((status?.videoKbps ?? 0) / 1000).toFixed(1)} Mbps`} />
-            {info.hasLidar && !camera ? <Stat label={t("depth")} value={status?.depthHz.toFixed(1) ?? 0} unit="Hz" /> : null}
+            {(info.hasLidar || config?.streams.depth) && !camera ? <Stat label={t("depth")} value={status?.depthHz.toFixed(1) ?? 0} unit="Hz" /> : null}
             {config?.streams.audio?.enabled ? <Stat label={t("audio")} value={status?.audioHz.toFixed(1) ?? 0} unit="Hz" /> : null}
             <Stat label={t("encoder.drops")} value={status?.encoderDropped ?? 0} color={status?.encoderDropped ? C.warnText : undefined} />
           </View>
@@ -145,7 +147,7 @@ export default function App() {
           </View>
           {(status?.addresses ?? []).map((a) => {
             const [iface, ip] = a.split(" ");
-            return <Row key={a} selectable k={iface === "en0" ? t("wifi") : iface.startsWith("en") ? t("usb", iface) : iface}
+            return <Row key={a} selectable k={iface === "en0" || iface.startsWith("wlan") ? t("wifi") : /^(en|usb|rndis|ncm|eth)/.test(iface) ? t("usb", iface) : iface}
               v={`${ip}:${status?.controlPort ?? 0}`} />;
           })}
           {noNetwork ? (

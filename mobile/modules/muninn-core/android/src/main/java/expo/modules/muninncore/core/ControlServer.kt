@@ -56,8 +56,14 @@ class ControlServer(private val ctx: Context) {
   private var nextId = 1
   @Volatile var port = 0
     private set
-  @Volatile var state: String = "stopped"
+  @Volatile var state: String = "stopped"     // starting | listening | failed | stopped
     private set
+  /** Last listener error (shown in the server card). */
+  @Volatile var lastError: String = ""
+    private set
+  private var wantedPort = 0
+  private var wantedName = ""
+  private val retry = java.util.concurrent.Executors.newSingleThreadScheduledExecutor { r -> Thread(r, "imuninn.control-retry").apply { isDaemon = true } }
   private var nsd: NsdManager? = null
   private var nsdListener: NsdManager.RegistrationListener? = null
 
@@ -73,6 +79,7 @@ class ControlServer(private val ctx: Context) {
     override fun onStart() {
       this@ControlServer.port = this.port
       state = "listening"
+      lastError = ""
       register(this.port)
     }
 
@@ -116,14 +123,36 @@ class ControlServer(private val ctx: Context) {
     }
 
     override fun onError(conn: WebSocket?, ex: Exception) {
-      if (conn == null) {
-        state = "failed: ${ex.message ?: ex}"
-        Log.w(TAG, "control server error: $ex")
+      if (conn != null || server !== this) return
+      state = "failed"
+      lastError = ex.message ?: ex.toString()
+      Log.w(TAG, "control server error: $ex")
+      val name = serviceName
+      val bound = address.port
+      if (ex is java.net.BindException && bound != 0) {
+        // Another copy of the app (store build + dev build) holds the port: take any free
+        // one; clients find it through NSD.
+        Log.w(TAG, "control port $bound in use; using a free port")
+        retry.execute { listen(0, name) }
+      } else {
+        retry.schedule({ if (state == "failed" && wantedPort != 0) listen(wantedPort, wantedName) }, 2, java.util.concurrent.TimeUnit.SECONDS)
       }
     }
   }
 
-  @Synchronized fun start(port: Int, serviceName: String) {
+  fun start(port: Int, serviceName: String) {
+    wantedPort = port
+    wantedName = serviceName
+    listen(port, serviceName)
+  }
+
+  /** Unconditional rebuild with the port and name asked for last time (after the app was in the background). */
+  fun restart() {
+    if (wantedPort != 0) listen(wantedPort, wantedName)
+  }
+
+  /** `port` 0 = any free port; NSD advertises the real one. */
+  @Synchronized private fun listen(port: Int, serviceName: String) {
     stop()
     state = "starting"
     val s = Server(port)

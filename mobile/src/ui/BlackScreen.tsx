@@ -15,6 +15,15 @@ const IDLE_MS = 5000;
  *  `enabled` is the session parameter `session.black_screen` from the config store, so
  *  the phone button and a remote `dev.set("session.black_screen", True)` are one switch;
  *  `setEnabled` writes it back through the normal config patch path. */
+const activityListeners = new Set<() => void>();
+
+/** "The user touched something": for views the main view's onTouchStart does not cover.
+ *  A Modal is its own window on Android, so the native touch watcher (which sits on the
+ *  activity's window) never sees touches inside one; the modals call this instead. */
+export function reportActivity(): void {
+  activityListeners.forEach((f) => f());
+}
+
 export function useBlackScreen(enabled: boolean, setEnabled: (v: boolean) => void) {
   const [dimmed, setDimmed] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,7 +69,9 @@ export function useBlackScreen(enabled: boolean, setEnabled: (v: boolean) => voi
   touchRef.current = touch;
   useEffect(() => {
     const sub = MuninnCore.addListener("onUserActivity", () => touchRef.current());
-    return () => sub.remove();
+    const local = () => touchRef.current();
+    activityListeners.add(local);
+    return () => { sub.remove(); activityListeners.delete(local); };
   }, []);
 
   // Follow the switch wherever it was flipped (button, remote client, profile).

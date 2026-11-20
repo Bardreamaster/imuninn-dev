@@ -4,7 +4,6 @@ package expo.modules.muninncore.core
 import android.content.Context
 import android.os.Build
 import android.provider.Settings
-import com.google.ar.core.ArCoreApk
 
 data class LocalDeviceInfo(
   val deviceId: String,
@@ -58,8 +57,8 @@ data class LocalDeviceInfo(
         osVersion = Build.VERSION.RELEASE ?: Build.VERSION.SDK_INT.toString(),
         protocolVersion = PROTOCOL_VERSION,
         appVersion = appVersion,
-        hasLidar = false,                       // no ToF support in this version (§5.3)
-        arSupported = ArSource.supported(ctx),
+        hasLidar = false,                       // depth, where offered, is ARCore's Depth API, not LiDAR
+        arSupported = SessionManager.shared?.ar?.supported ?: false,
       )
     }
   }

@@ -1,12 +1,89 @@
 # 05 · Android（M5）
 
 Android 端是 iOS 端的移植（[设计文档](../design/design-doc.md) §5.2），代码在
-`mobile/modules/muninn-core/android/`，结构与 `ios/Core/` 一一对应。本页记录环境、
-构建、模拟器测试方法，以及当前实现到哪一步。
+`mobile/modules/muninn-core/android/`，结构与 `ios/Core/` 一一对应。本页记录实现到哪一步、
+真机测试步骤、环境、构建和模拟器测试方法。
 
-## 模拟器实测（2026-11-05）
+## 实现状态（2026-11-21）
 
-Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）、虚拟场景相机，PC 经 `adb forward` 连 `127.0.0.1`。截图 `docs/design/m5-emulator.png`。
+功能与 iOS 对齐。相机模式、音频、界面在模拟器上验证过；**ARCore 的位姿 / 视频 / 深度还没有在真机上跑过**（模拟器不支持 ARCore），真机步骤见下一节。
+
+| 部分 | Android 实现 | 验证 |
+| --- | --- | --- |
+| 控制通道：NSD（Bonjour）发布、WebSocket、Hello/Welcome、能力描述、配置、订阅、时钟同步、租约 | `ControlServer.kt` / `SessionManager.kt`（Java-WebSocket + NsdManager） | 模拟器 ✅（NSD 发现要真机） |
+| 数据通道：TCP（视频/深度/音频）、UDP（位姿/IMU/health）、浏览器用的 WebSocket 数据通道（v5） | `DataServer.kt` / `TcpSink.kt` / `UdpSink.kt` / `WsSink.kt` | 模拟器 ✅ |
+| 端口被占时换空闲端口（控制口经 NSD、数据口经 `Welcome.tcp_port` 告知客户端） | `ControlServer.listen` / `DataServer.start` | 模拟器 ✅（控制口） |
+| 前后台：Activity 不可见时停采集并释放端口，回到前台重建监听和采集 | `SessionManager.enterBackground / enterForeground`（`onStop` / `onStart`，权限弹窗不算后台） | 模拟器 ✅ |
+| IMU：SensorManager，校准 / raw 两种 | `ImuSource.kt` | 模拟器 ✅ |
+| 相机模式视频：Camera2 → MediaCodec H.264（Surface 输入，零拷贝）→ Annex-B；镜头、格式、`rgb.*` 相机控制 | `CameraSource.kt` / `CameraControl.kt` / `VideoEncoder.kt` | 模拟器 ✅ |
+| **AR 位姿 + 视频**：ARCore `Camera.getPose()`，相机纹理经 GL 画进编码器和预览 | `ArSource.kt` | ⏳ 真机 |
+| **深度**：ARCore Depth API（uint16 mm，Apple LZ4 分帧，PC 端解码不变） | `ArSource.depth` / `DepthPacker.kt` | ⏳ 真机 |
+| **音频**（v6）：AudioRecord，s16 / f32，采样率、分块、raw / voice 处理 | `AudioSource.kt` | 模拟器 ✅（50 块/s，时间戳与 IMU 同一时钟） |
+| 会话参数 `session.black_screen`、黑屏模式（亮度、触摸唤醒） | `ConfigStore.kt` / `MuninnCoreModule.kt` | 模拟器 ✅ |
+| 偏好设置（语言、外观、Bonjour 名称、当前预设）、安全区、系统语言 | `MuninnCoreModule.kt`（SharedPreferences、WindowInsets） | 模拟器 ✅ |
+| 本地录制 `.imuninn`、Profile JSON、健康上报 | `FileSink.kt` / `ProfileStore.kt` / `SessionManager.publishHealth` | 模拟器 ✅ |
+| 预览：完整画面等比缩放加黑边，跟随屏幕旋转，全屏 | `MuninnPreviewView.kt`（TextureView） | 模拟器 ✅（相机模式），AR 模式 ⏳ 真机 |
+| 图标 | `src/ui/Icon.android.tsx`（与 SF Symbols 同名的线条图标，react-native-svg） | 模拟器 ✅ |
+
+### ARCore 部分的做法（`ArSource.kt`）
+
+- ARCore 独占相机，每帧把画面写进一张外部（OES）纹理。`ArSource` 自己有一条 GL 线程和 EGL 上下文，在上面跑 `session.update()`（`UpdateMode.BLOCKING`，每个相机帧返回一次），再把纹理画进编码器的输入 Surface 和预览 Surface，像素不离开 GPU。没有人订阅 `rgb` 时不往编码器画。
+- 位姿取 `Camera.getPose()`：相对图像读出方向（传感器横向）的 +X 右、+Y 上、−Z 前，世界 Y 轴朝上，与 ARKit 的 `camera.transform` 约定相同。
+- 视频帧是传感器原生横向画面，`rotation_deg` 取 ARCore 所用相机的 `SENSOR_ORIENTATION`。内参用 `Camera.getTextureIntrinsics()`（就是发出去的那张图的内参）。
+- `ar_pose.video_format` 的选项来自 `getSupportedCameraConfigs`（后摄，30 / 60 fps），id 是 GPU 纹理尺寸 `WxH@fps`；ARCore 默认配置排第一。
+- 深度：`depth.smoothed=true`（Android 上的默认值）取 `acquireDepthImage16Bits()`，是补全并时域滤波过的图，没有置信度；`false` 取 `acquireRawDepthImage16Bits()` + 置信度图（0–255 映射成协议的 0 / 1 / 2）。深度图覆盖 CPU 图像的视场，内参用 `getImageIntrinsics()` 按尺寸缩放。深度来自运动估计（有 ToF 的机型会用上），启动后要移动手机一两秒才有第一帧，量程和精度低于 LiDAR；`DeviceInfo.has_lidar` 保持 false。
+- AR 模式下 `rgb.*` 相机控制只有对焦（`auto` → 自动，其余 → 固定）和手电生效，其余由 ARCore 管。
+- 启动时探测一次（`ArSource.probe`）：ARCore 已安装才提供 AR 模式；手机支持但没装 / 版本太旧时弹安装提示，装完重开 App。
+
+## 真机测试（Pixel 9a）
+
+准备：手机开「开发者选项 → USB 调试」，USB 连上 Mac 后在手机上点允许。手机和 Mac 连同一个 Wi-Fi。
+
+安装（Release 包，JS 已打进 APK，不需要 Metro）：
+
+```bash
+cd mobile && npx expo prebuild -p android
+```
+
+```bash
+cd mobile/android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=arm64-v8a
+```
+
+```bash
+adb install -r mobile/android/app/build/outputs/apk/release/app-release.apk
+```
+
+抓日志（另开一个终端，出问题时把输出发回来）：
+
+```bash
+adb logcat -s imuninn:V AndroidRuntime:E
+```
+
+逐项检查，PC 端命令都在 `host/python` 下用 `.venv/bin/imuninn`：
+
+| # | 做什么 | 期望 |
+| --- | --- | --- |
+| 1 | 打开 App，允许相机权限 | 预览正向、完整不变形；会话模式默认 `ar`；日志有 `arcore ready: formats [...] depth true` |
+| 2 | `imuninn list` | 发现手机（NSD），地址是手机的 Wi-Fi IP |
+| 3 | `imuninn watch <IP> --start`，拿着手机走动 | `ar_pose` 约 30 Hz、tracking `normal`；`imu` 100 Hz；`rgb` 30 fps |
+| 4 | `imuninn rerun <IP> --start` | 画面正向（`rotation_deg` 正确）；轨迹与手的运动方向一致：向前走轨迹沿相机朝向延伸，举高 Y 增大 |
+| 5 | App 配置里打开 `depth`，移动手机 | 一两秒后「深度」有帧率；Rerun 里深度图与彩色画面对得上，近处暖色远处冷色不反 |
+| 6 | 打开 `audio`，允许麦克风，对着手机说话 | 「音频」约 50 Hz；`imuninn rerun` 里音量曲线随声音变化（或 `imuninn record --audio` 后 `imuninn export-audio` 导出 WAV 听） |
+| 7 | 把会话模式切到 `camera`，换镜头（`ultra_wide` / `front`）和格式 | 预览和 PC 画面跟着变；手动曝光 / 白平衡 / 对焦 / 变焦 / 手电有效果 |
+| 8 | 横屏、反向横屏、全屏预览 | 预览始终正向 |
+| 9 | 黑屏按钮，等 5 秒；点屏幕 | 屏幕全黑且最暗，PC 端数据不断；点一下恢复 |
+| 10 | 按 Home 再回来 | PC 端断开后能重新连接，采集恢复 |
+| 11 | 浏览器打开网页查看器，填手机 IP | 画面、位姿、IMU 正常（WebSocket 数据通道） |
+
+第 4、5 项是这次真机测试的重点：位姿坐标系、画面方向、深度方向都是按 ARCore 文档写的，没有实测过。
+
+## 模拟器实测
+
+2026-11-21（Pixel 7 AVD，Android 16，`adb forward`）：视频 640x480@30、IMU 100–115 Hz、音频 16 kHz s16 20 ms 分块 50 块/s（时间戳与 IMU 相差 15–30 ms）、health；同样的流走 WebSocket 数据通道正常；PC 远程打开 `audio` 时手机弹麦克风授权且连接不断；`session.black_screen` 远程开关，5 秒后全黑，期间采集不中断；竖屏 / 两个横屏方向 / 全屏预览方向正确；Home 后返回监听重建；7420 被占时日志 `control port 7420 in use; using a free port` 并正常发布。
+
+模拟器开了麦克风后宿主机音频会让无窗口的模拟器卡死，测音频时加 `-no-audio`（录到的是静音，但通路是通的）。
+
+2026-11-05（同一 AVD）。截图 `docs/design/m5-emulator.png`。
 
 | 项目 | 结果 |
 | --- | --- |
@@ -22,25 +99,6 @@ Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）�
 | 手机 UI | 预览、5 Hz 状态（IMU 99.3 Hz、30 fps、4.1 Mbps）、客户端列表、配置控件 |
 
 注意：模拟器 `SENSOR_INFO_TIMESTAMP_SOURCE` 是 UNKNOWN，日志有告警；时钟同步 rtt 1–4 ms（adb 转发）。应用冷启动后 JS 约 20 s 才调用 `startServer`，这之前连不上。
-
-## 实现状态（2026-11-03）
-
-| 部分 | Android 实现 | 模拟器能否验证 |
-| --- | --- | --- |
-| 控制通道：NSD（Bonjour）发布、WebSocket、Hello/Welcome、能力描述、配置、订阅、时钟同步、租约 | `ControlServer.kt` / `SessionManager.kt`（Java-WebSocket + NsdManager） | ✅（NSD 发现除外，见下） |
-| 数据 TCP：client_id 握手、长度前缀帧、拥塞只留最新帧 | `DataServer.kt` / `TcpSink.kt` | ✅ |
-| UDP：IMU、health | `UdpSink.kt` | ✅（有 10.0.2.2 回环处理） |
-| IMU：SensorManager，校准 / raw 两种 | `ImuSource.kt` | ✅（模拟器虚拟传感器，可在 Extended Controls 里摆姿态） |
-| 视频：Camera2 → MediaCodec H.264（Surface 输入，零拷贝）→ Annex-B | `CameraSource.kt` / `VideoEncoder.kt` | ✅（模拟器虚拟场景相机 + 软件编码器） |
-| 相机模式：镜头、格式 | `CameraSource.kt` | ✅（模拟器只有一前一后两个镜头） |
-| 相机控制 `rgb.*`（曝光/ISO/快门/EV、白平衡、对焦、变焦、手电、HDR、低光、防抖），与 iOS 同一套参数 | `CameraControl.kt` → Camera2 `CaptureRequest` | ✅ 参数通路；模拟器 HAL 不支持手动曝光/白平衡/变焦，走回退 |
-| 本地录制 `.imuninn`、Profile JSON | `FileSink.kt` / `ProfileStore.kt` | ✅ |
-| 健康上报：thermal / battery / 低电量 | `SessionManager.publishHealth` | ✅（数值是模拟器编的） |
-| **AR 位姿（ARCore）** | ❌ 仅可用性检测（`ArSource.kt` 顶部注释写了要做的事） | ❌ Apple Silicon 上只有 arm64 镜像，ARCore 不支持 |
-| **深度** | ❌ | ❌ |
-| 预览 | `MuninnPreviewView.kt`（TextureView） | ✅ |
-
-因此 Android 当前只有**相机模式**；`DeviceInfo.arSupported` 恒为 false，`session.mode` 设成 `ar` 会被拒绝。
 
 ## 相机控制参数在 Android 上的映射（`CameraControl.kt`）
 
@@ -63,11 +121,14 @@ Pixel 7 AVD（`system-images;android-36;google_apis;arm64-v8a`，Android 16）�
 
 ## 与 iOS 的差异
 
-- **时间基**：所有样本用 `SystemClock.elapsedRealtimeNanos()`（CLOCK_BOOTTIME）。IMU 的 `SensorEvent.timestamp` 就是这个时基；相机帧只有当 `SENSOR_INFO_TIMESTAMP_SOURCE == REALTIME` 时才一致，否则日志里会有一条警告，PC 端对齐视频与 IMU 时要自己估偏移（§5.2）。
+- **时间基**：所有样本用 `SystemClock.elapsedRealtimeNanos()`（CLOCK_BOOTTIME）。IMU 的 `SensorEvent.timestamp`、音频的 `AudioTimestamp(TIMEBASE_BOOTTIME)` 就是这个时基。相机帧的时间戳有的机型是 CLOCK_MONOTONIC（不含休眠时间），`cameraTimeToDeviceNs` 按哪个时基离当前更近来判断并换算到 CLOCK_BOOTTIME。
 - **内参**：Camera2 极少给 `LENS_INTRINSIC_CALIBRATION`；没有时用 焦距 / 传感器物理宽度 × 图像宽度 推 fx，主点取图像中心。精度够可视化，不够标定。
 - **关键帧间隔**：MediaCodec 的 `KEY_I_FRAME_INTERVAL` 只能在配置时设，所以 `keyframe_interval` 由我们按帧计数主动 `REQUEST_SYNC_FRAME` 实现，可以运行中改。
 - **图像方向**：`rotation_deg` 直接取 `SENSOR_ORIENTATION`（后摄通常 90，前摄 270），与 iOS 语义相同。
-- **相机权限**：Android 是运行时权限，`setPreview(true)` / `startSession()` 在原生层先弹授权，JS 不用改。
+- **权限**：相机和麦克风是运行时权限，由 `SessionManager` 在要用到时请求（PC 远程开始采集或打开 `audio` 也会弹）；拒绝后不会反复弹，下次手动点开始再问。
+- **预览与采集会话**：Camera2 的预览 Surface 是采集会话的输出之一，增删它（进出全屏、关预览）要重建会话，相机模式的视频会断一下再来一个关键帧；IMU 和音频不受影响。所以黑屏模式下 Android 不卸载预览，只盖一层黑。AR 模式换预览不影响采集。
+- **后台**：以 Activity `onStop` / `onStart` 为准，与 iOS 一样后台不采集并释放端口。
+- **黑屏亮度**：`setScreenBrightness` 写窗口的 `screenBrightness`，负值表示交还给系统；`uiInfo().brightness` 在跟随系统时返回 -1。
 - **mDNS**：真机上 NsdManager 发布 `_imuninn._tcp`；模拟器在 NAT 后面，PC 发现不了，只能用 `adb forward` + 直连地址。
 - **模拟器 UDP 回环**：PC 经 `adb forward` 连进来时，手机看到的对端是 127.0.0.1，UDP 发过去出不了模拟器。`NetInfo.udpTarget` 在模拟器上把回环改成 `10.0.2.2`（宿主机），所以位姿/IMU/health 能到同一台 Mac 上的 PC 端。
 
@@ -124,10 +185,6 @@ cd host/python && .venv/bin/imuninn watch 127.0.0.1 --start
 
 ## 模拟器测不了的
 
-- ARCore 位姿、深度：没有 arm64 模拟器镜像支持；等真机。
+- ARCore 位姿、深度、AR 模式预览：Apple Silicon 上的 arm64 镜像不支持 ARCore；见「真机测试」。
 - 真实的相机内参、时间戳源、热节流：模拟器的数值是假的。
 - NSD 发现：要在真机 + 同一 Wi-Fi 下测 `imuninn list`。
-
-## 接 ARCore 时要做的
-
-见 `ArSource.kt` 顶部注释：ARCore `Session` + GL 纹理 + `update()` 循环出位姿与内参；RGB 用 `SharedCamera` 把编码器 Surface 加为第二个目标（零拷贝，与 `CameraSource` 一致）；深度 `acquireDepthImage16Bits()` 直接就是协议要的 uint16 mm。做完后把 `ArSource.supported()` 改为真正的可用性检测，`ConfigStore` 的 `ar_pose` / `depth` 流会自动出现。

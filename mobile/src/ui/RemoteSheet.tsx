@@ -1,6 +1,7 @@
 import { Modal, Pressable, ScrollView, Text, View, useWindowDimensions } from "react-native";
 
 import { MuninnCore, type StatusEvent } from "../../modules/muninn-core/src";
+import { reportActivity } from "./BlackScreen";
 import { Button, Row } from "./components";
 import { t } from "./i18n";
 import { useTheme } from "./theme";
@@ -12,7 +13,7 @@ export function RemoteSheet({ status, visible, onClose }: { status: StatusEvent 
   const clients = status?.clients ?? [];
   return (
     <Modal visible={visible} transparent animationType="slide" supportedOrientations={["portrait", "landscape"]} onRequestClose={onClose}>
-      <View style={{ flex: 1, justifyContent: "flex-end" }}>
+      <View style={{ flex: 1, justifyContent: "flex-end" }} onTouchStart={reportActivity}>
         <Pressable style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, backgroundColor: C.scrim }} onPress={onClose}
           accessibilityRole="button" accessibilityLabel={t("close")} />
         <View style={{ backgroundColor: C.card, borderTopLeftRadius: 16, borderTopRightRadius: 16, maxHeight: height * 0.7,

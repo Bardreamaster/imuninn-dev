@@ -14,6 +14,18 @@ const val PROTOCOL_VERSION = 6
  */
 fun deviceTimeNs(): Long = SystemClock.elapsedRealtimeNanos()
 
+/**
+ * A camera timestamp on the device clock. Camera HALs stamp frames with either
+ * CLOCK_BOOTTIME (what deviceTimeNs() reads) or CLOCK_MONOTONIC (System.nanoTime(), which
+ * stops while the phone is in deep sleep). The two differ by the time spent asleep, so the
+ * base that puts `ts` closest to "now" is the one it was taken with.
+ */
+fun cameraTimeToDeviceNs(ts: Long): Long {
+  val boot = SystemClock.elapsedRealtimeNanos()
+  val mono = System.nanoTime()
+  return if (kotlin.math.abs(boot - ts) <= kotlin.math.abs(mono - ts)) ts else ts + (boot - mono)
+}
+
 /** Samples per second, measured over windows of at least one second. */
 class RateCounter {
   private var count = 0

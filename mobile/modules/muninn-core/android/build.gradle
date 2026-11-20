@@ -11,6 +11,7 @@ android {
   defaultConfig {
     versionCode 1
     versionName "0.1.0"
+    consumerProguardFiles 'proguard-rules.pro'
   }
   lintOptions {
     abortOnError false
@@ -28,7 +29,9 @@ dependencies {
   // Control channel: WebSocket server (§6.2). Java-WebSocket is a plain blocking
   // server with a thread per connection, enough for a handful of PCs.
   implementation 'org.java-websocket:Java-WebSocket:1.6.0'
-  // ARCore: only availability detection for now (§5.2); the pose/depth path lands
-  // when a real device is available. "optional" in the manifest via withMuninn.ts.
+  // ARCore: world tracking (pose), the camera image and the Depth API (§5.2).
+  // "optional" in the manifest via withMuninn.ts, so phones without it still run camera mode.
   implementation 'com.google.ar:core:1.57.0'
+  // Depth frames are LZ4-compressed like on iOS (pure-Java block compressor, see DepthPacker).
+  implementation 'org.lz4:lz4-java:1.8.0'
 }
